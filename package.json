@@ -1,0 +1,24 @@
+{
+  "name": "medbook",
+  "version": "1.0.0",
+  "description": "AI Doctor Appointment Booking Platform",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently \"cd backend && npm run dev\" \"cd frontend && npm run dev\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/asadiqui/MedBook.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/asadiqui/MedBook/issues"
+  },
+  "homepage": "https://github.com/asadiqui/MedBook#readme",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
