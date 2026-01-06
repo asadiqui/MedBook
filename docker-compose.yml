@@ -30,7 +30,7 @@ services:
     volumes:
       - ./backend:/app
       - /app/node_modules
-      - /app/prisma
+      - /app/node_modules/.prisma
     environment:
       DATABASE_URL: postgresql://postgres:postgres123@postgres:5432/appointment_dev
       JWT_SECRET: super-secret-jwt-key-change-in-production

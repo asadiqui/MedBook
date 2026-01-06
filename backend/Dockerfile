@@ -18,4 +18,4 @@ COPY . .
 EXPOSE 3001
 
 # Run migrations and start the app
-CMD ["sh", "-c", "npx prisma migrate deploy && npm run start:dev"]
+CMD ["sh", "-c", "npx prisma generate && npx prisma migrate deploy && npm run start:dev"]
