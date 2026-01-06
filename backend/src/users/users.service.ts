@@ -51,6 +51,12 @@ export class UsersService {
         specialty: true,
         licenseNumber: true,
         consultationFee: true,
+        affiliation: true,
+        yearsOfExperience: true,
+        clinicAddress: true,
+        clinicContactPerson: true,
+        clinicPhone: true,
+        licenseDocument: true,
         createdAt: true,
         lastLoginAt: true,
       },
@@ -103,6 +109,9 @@ export class UsersService {
         specialty: true,
         bio: true,
         consultationFee: true,
+        affiliation: true,
+        yearsOfExperience: true,
+        clinicAddress: true,
       },
       orderBy: { [sortBy]: sortOrder },
       skip: (page - 1) * limit,
@@ -140,6 +149,12 @@ export class UsersService {
         licenseNumber: true,
         bio: true,
         consultationFee: true,
+        affiliation: true,
+        yearsOfExperience: true,
+        clinicAddress: true,
+        clinicContactPerson: true,
+        clinicPhone: true,
+        licenseDocument: true,
         createdAt: true,
         lastLoginAt: true,
       },
@@ -181,6 +196,11 @@ export class UsersService {
         specialty: true,
         bio: true,
         consultationFee: true,
+        affiliation: true,
+        yearsOfExperience: true,
+        clinicAddress: true,
+        clinicContactPerson: true,
+        clinicPhone: true,
       },
     });
 
@@ -203,11 +223,16 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
+    // Only doctors can update doctor-specific fields
     if (user.role !== Role.DOCTOR) {
       delete dto.specialty;
       delete dto.licenseNumber;
-      delete dto.bio;
       delete dto.consultationFee;
+      delete dto.affiliation;
+      delete dto.yearsOfExperience;
+      delete dto.clinicAddress;
+      delete dto.clinicContactPerson;
+      delete dto.clinicPhone;
     }
 
     const updatedUser = await this.prisma.user.update({
@@ -230,6 +255,15 @@ export class UsersService {
         licenseNumber: true,
         bio: true,
         consultationFee: true,
+        affiliation: true,
+        yearsOfExperience: true,
+        clinicAddress: true,
+        clinicContactPerson: true,
+        clinicPhone: true,
+        licenseDocument: true,
+        isActive: true,
+        isEmailVerified: true,
+        createdAt: true,
         updatedAt: true,
       },
     });

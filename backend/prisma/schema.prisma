@@ -35,7 +35,13 @@ model User {
   // Doctor-specific fields
   specialty           String?
   licenseNumber       String?
+  licenseDocument     String?   // Uploaded license/certification file path
   consultationFee     Float?
+  affiliation         String?   // Current Affiliation (Clinic/Hospital Name)
+  yearsOfExperience   Int?
+  clinicAddress       String?
+  clinicContactPerson String?
+  clinicPhone         String?
   isVerified          Boolean   @default(false)
   
   // Account status

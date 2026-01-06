@@ -13,6 +13,15 @@ export interface User {
   specialty?: string;
   bio?: string;
   consultationFee?: number;
+  isActive?: boolean;
+  isEmailVerified?: boolean;
+  isVerified?: boolean;
+  isTwoFactorEnabled?: boolean;
+  gender?: string;
+  dateOfBirth?: string;
+  licenseNumber?: string;
+  createdAt?: string;
+  lastLoginAt?: string;
 }
 
 interface AuthState {
@@ -46,7 +55,7 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       user: null,
       isAuthenticated: false,
-      isLoading: false,
+      isLoading: true, // Start with loading true until hydrated
       error: null,
 
       clearError: () => set({ error: null }),
@@ -103,9 +112,12 @@ export const useAuthStore = create<AuthState>()(
       },
 
       fetchUser: async () => {
+        // Wait for client-side hydration
+        if (typeof window === 'undefined') return;
+        
         const token = localStorage.getItem('accessToken');
         if (!token) {
-          set({ user: null, isAuthenticated: false });
+          set({ user: null, isAuthenticated: false, isLoading: false });
           return;
         }
 
@@ -114,9 +126,16 @@ export const useAuthStore = create<AuthState>()(
           const response = await api.get('/auth/me');
           set({ user: response.data, isAuthenticated: true, isLoading: false });
         } catch (error) {
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
-          set({ user: null, isAuthenticated: false, isLoading: false });
+          // Only clear tokens if it's a 401 error
+          const axiosError = error as any;
+          if (axiosError.response?.status === 401) {
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
+            set({ user: null, isAuthenticated: false, isLoading: false });
+          } else {
+            // Network error or other issue - keep the persisted state
+            set({ isLoading: false });
+          }
         }
       },
 
@@ -127,6 +146,12 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'auth-storage',
       partialize: (state) => ({ user: state.user, isAuthenticated: state.isAuthenticated }),
+      onRehydrateStorage: () => (state) => {
+        // When storage is rehydrated, set loading to false
+        if (state) {
+          state.isLoading = false;
+        }
+      },
     }
   )
 );

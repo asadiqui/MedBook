@@ -25,20 +25,12 @@ export class AuthController {
     private readonly configService: ConfigService,
   ) {}
 
-  /**
-   * POST /auth/register
-   * Register a new user (patient or doctor)
-   */
   @Public()
   @Post('register')
   async register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
 
-  /**
-   * POST /auth/login
-   * Login with email and password
-   */
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -46,10 +38,6 @@ export class AuthController {
     return this.authService.login(dto);
   }
 
-  /**
-   * POST /auth/logout
-   * Logout and invalidate refresh token
-   */
   @UseGuards(JwtAuthGuard)
   @Post('logout')
   @HttpCode(HttpStatus.OK)
@@ -60,10 +48,6 @@ export class AuthController {
     return this.authService.logout(userId, refreshToken);
   }
 
-  /**
-   * POST /auth/refresh
-   * Refresh access token using refresh token
-   */
   @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
@@ -71,20 +55,12 @@ export class AuthController {
     return this.authService.refreshTokens(refreshToken);
   }
 
-  /**
-   * GET /auth/me
-   * Get current authenticated user
-   */
   @UseGuards(JwtAuthGuard)
   @Get('me')
   async getCurrentUser(@CurrentUser('id') userId: string) {
     return this.authService.getCurrentUser(userId);
   }
 
-  /**
-   * POST /auth/change-password
-   * Change password for authenticated user
-   */
   @UseGuards(JwtAuthGuard)
   @Post('change-password')
   @HttpCode(HttpStatus.OK)
@@ -95,10 +71,6 @@ export class AuthController {
     return this.authService.changePassword(userId, dto);
   }
 
-  /**
-   * POST /auth/forgot-password
-   * Request password reset email
-   */
   @Public()
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
@@ -106,10 +78,6 @@ export class AuthController {
     return this.authService.forgotPassword(dto.email);
   }
 
-  /**
-   * POST /auth/reset-password
-   * Reset password using token from email
-   */
   @Public()
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
@@ -117,14 +85,6 @@ export class AuthController {
     return this.authService.resetPassword(dto.token, dto.newPassword);
   }
 
-  // ============================================
-  // GOOGLE OAUTH
-  // ============================================
-
-  /**
-   * GET /auth/google
-   * Initiate Google OAuth login
-   */
   @Public()
   @Get('google')
   @UseGuards(GoogleAuthGuard)
@@ -132,10 +92,6 @@ export class AuthController {
     // Guard redirects to Google
   }
 
-  /**
-   * GET /auth/google/callback
-   * Google OAuth callback
-   */
   @Public()
   @Get('google/callback')
   @UseGuards(GoogleAuthGuard)

@@ -79,6 +79,76 @@ export class UploadService {
     return { message: 'Avatar deleted successfully' };
   }
 
+  async uploadLicenseDocument(
+    userId: string,
+    file: Express.Multer.File,
+    requestingUserId: string,
+    requestingUserRole: Role,
+  ) {
+    if (userId !== requestingUserId && requestingUserRole !== Role.ADMIN) {
+      throw new ForbiddenException('You can only upload your own documents');
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.role !== Role.DOCTOR) {
+      throw new ForbiddenException('Only doctors can upload license documents');
+    }
+
+    if (user.licenseDocument) {
+      await this.deleteFile(user.licenseDocument);
+    }
+
+    const documentUrl = `/uploads/documents/${file.filename}`;
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: { licenseDocument: documentUrl },
+      select: {
+        id: true,
+        licenseDocument: true,
+      },
+    });
+
+    return {
+      message: 'License document uploaded successfully',
+      licenseDocument: updatedUser.licenseDocument,
+    };
+  }
+
+  async deleteLicenseDocument(
+    userId: string,
+    requestingUserId: string,
+    requestingUserRole: Role,
+  ) {
+    if (userId !== requestingUserId && requestingUserRole !== Role.ADMIN) {
+      throw new ForbiddenException('You can only delete your own documents');
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.licenseDocument) {
+      throw new BadRequestException('No license document to delete');
+    }
+
+    await this.deleteFile(user.licenseDocument);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { licenseDocument: null },
+    });
+
+    return { message: 'License document deleted successfully' };
+  }
+
   private async deleteFile(filePath: string): Promise<void> {
     try {
       const fullPath = path.join(process.cwd(), filePath);

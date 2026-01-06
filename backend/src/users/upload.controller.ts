@@ -39,6 +39,27 @@ const avatarStorage = {
   },
 };
 
+const documentStorage = {
+  storage: diskStorage({
+    destination: './uploads/documents',
+    filename: (req, file, callback) => {
+      const uniqueName = `${uuidv4()}${extname(file.originalname)}`;
+      callback(null, uniqueName);
+    },
+  }),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB
+  },
+  fileFilter: (req: any, file: any, callback: any) => {
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+    if (!allowedTypes.includes(file.mimetype)) {
+      callback(new BadRequestException('Invalid file type. Allowed: pdf, jpeg, png'), false);
+      return;
+    }
+    callback(null, true);
+  },
+};
+
 @Controller('users')
 @UseGuards(JwtAuthGuard)
 export class UploadController {
@@ -67,5 +88,30 @@ export class UploadController {
     @CurrentUser('role') userRole: Role,
   ) {
     return this.uploadService.deleteAvatar(id, userId, userRole);
+  }
+
+  // POST /api/users/:id/license-document
+  @Post(':id/license-document')
+  @UseInterceptors(FileInterceptor('document', documentStorage))
+  async uploadLicenseDocument(
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') userRole: Role,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Document file is required');
+    }
+    return this.uploadService.uploadLicenseDocument(id, file, userId, userRole);
+  }
+
+  // DELETE /api/users/:id/license-document
+  @Delete(':id/license-document')
+  async deleteLicenseDocument(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') userRole: Role,
+  ) {
+    return this.uploadService.deleteLicenseDocument(id, userId, userRole);
   }
 }

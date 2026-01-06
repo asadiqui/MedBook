@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum, IsNumber, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsNumber, IsDateString, IsInt } from 'class-validator';
 import { Gender } from '@prisma/client';
 
 export class UpdateUserDto {
@@ -22,6 +22,7 @@ export class UpdateUserDto {
   @IsOptional()
   dateOfBirth?: string;
 
+  // Doctor-specific fields
   @IsString()
   @IsOptional()
   specialty?: string;
@@ -37,4 +38,24 @@ export class UpdateUserDto {
   @IsNumber()
   @IsOptional()
   consultationFee?: number;
+
+  @IsString()
+  @IsOptional()
+  affiliation?: string;
+
+  @IsInt()
+  @IsOptional()
+  yearsOfExperience?: number;
+
+  @IsString()
+  @IsOptional()
+  clinicAddress?: string;
+
+  @IsString()
+  @IsOptional()
+  clinicContactPerson?: string;
+
+  @IsString()
+  @IsOptional()
+  clinicPhone?: string;
 }

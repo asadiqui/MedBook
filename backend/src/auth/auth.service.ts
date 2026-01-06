@@ -26,6 +26,22 @@ export interface AuthResponse {
     lastName: string;
     role: Role;
     avatar: string | null;
+    phone: string | null;
+    gender: string | null;
+    dateOfBirth: Date | null;
+    bio: string | null;
+    specialty: string | null;
+    licenseNumber: string | null;
+    consultationFee: number | null;
+    affiliation: string | null;
+    yearsOfExperience: number | null;
+    clinicAddress: string | null;
+    clinicContactPerson: string | null;
+    clinicPhone: string | null;
+    licenseDocument: string | null;
+    isActive: boolean;
+    isEmailVerified: boolean;
+    createdAt: Date;
   };
   tokens: TokenPayload;
 }
@@ -38,11 +54,7 @@ export class AuthService {
     private configService: ConfigService,
   ) {}
 
-  // ============================================
-  // REGISTER
-  // ============================================
   async register(dto: RegisterDto): Promise<AuthResponse> {
-    // Check if user already exists
     const existingUser = await this.prisma.user.findUnique({
       where: { email: dto.email.toLowerCase() },
     });
@@ -61,10 +73,8 @@ export class AuthService {
       }
     }
 
-    // Hash the password
     const hashedPassword = await this.hashPassword(dto.password);
 
-    // Create the user
     const user = await this.prisma.user.create({
       data: {
         email: dto.email.toLowerCase(),
@@ -73,8 +83,15 @@ export class AuthService {
         lastName: dto.lastName,
         role: dto.role || Role.PATIENT,
         phone: dto.phone,
-        specialty: dto.specialty,
-        licenseNumber: dto.licenseNumber,
+        dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : undefined,
+        // Doctor-specific fields
+        specialty: dto.role === Role.DOCTOR ? dto.specialty : undefined,
+        licenseNumber: dto.role === Role.DOCTOR ? dto.licenseNumber : undefined,
+        affiliation: dto.role === Role.DOCTOR ? dto.affiliation : undefined,
+        yearsOfExperience: dto.role === Role.DOCTOR ? dto.yearsOfExperience : undefined,
+        clinicAddress: dto.role === Role.DOCTOR ? dto.clinicAddress : undefined,
+        clinicContactPerson: dto.role === Role.DOCTOR ? dto.clinicContactPerson : undefined,
+        clinicPhone: dto.role === Role.DOCTOR ? dto.clinicPhone : undefined,
       },
       select: {
         id: true,
@@ -83,10 +100,25 @@ export class AuthService {
         lastName: true,
         role: true,
         avatar: true,
+        phone: true,
+        gender: true,
+        dateOfBirth: true,
+        bio: true,
+        specialty: true,
+        licenseNumber: true,
+        consultationFee: true,
+        affiliation: true,
+        yearsOfExperience: true,
+        clinicAddress: true,
+        clinicContactPerson: true,
+        clinicPhone: true,
+        licenseDocument: true,
+        isActive: true,
+        isEmailVerified: true,
+        createdAt: true,
       },
     });
 
-    // Generate tokens
     const tokens = await this.generateTokens(user.id, user.email, user.role);
 
     return {
@@ -95,9 +127,6 @@ export class AuthService {
     };
   }
 
-  // ============================================
-  // LOGIN
-  // ============================================
   async login(dto: LoginDto): Promise<AuthResponse> {
     // Find user by email
     const user = await this.prisma.user.findUnique({
@@ -118,7 +147,6 @@ export class AuthService {
       throw new UnauthorizedException('Your account has been deactivated');
     }
 
-    // Verify password
     const isPasswordValid = await this.comparePasswords(dto.password, user.password);
 
     if (!isPasswordValid) {
@@ -136,13 +164,11 @@ export class AuthService {
       }
     }
 
-    // Update last login
     await this.prisma.user.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
     });
 
-    // Generate tokens
     const tokens = await this.generateTokens(user.id, user.email, user.role);
 
     return {
@@ -153,14 +179,27 @@ export class AuthService {
         lastName: user.lastName,
         role: user.role,
         avatar: user.avatar,
+        phone: user.phone,
+        gender: user.gender,
+        dateOfBirth: user.dateOfBirth,
+        bio: user.bio,
+        specialty: user.specialty,
+        licenseNumber: user.licenseNumber,
+        consultationFee: user.consultationFee,
+        affiliation: user.affiliation,
+        yearsOfExperience: user.yearsOfExperience,
+        clinicAddress: user.clinicAddress,
+        clinicContactPerson: user.clinicContactPerson,
+        clinicPhone: user.clinicPhone,
+        licenseDocument: user.licenseDocument,
+        isActive: user.isActive,
+        isEmailVerified: user.isEmailVerified,
+        createdAt: user.createdAt,
       },
       tokens,
     };
   }
 
-  // ============================================
-  // LOGOUT
-  // ============================================
   async logout(userId: string, refreshToken: string): Promise<{ message: string }> {
     await this.prisma.refreshToken.deleteMany({
       where: {
@@ -172,9 +211,6 @@ export class AuthService {
     return { message: 'Logged out successfully' };
   }
 
-  // ============================================
-  // REFRESH TOKENS
-  // ============================================
   async refreshTokens(refreshToken: string): Promise<TokenPayload> {
     const storedToken = await this.prisma.refreshToken.findUnique({
       where: { token: refreshToken },
@@ -202,9 +238,6 @@ export class AuthService {
     return this.generateTokens(user.id, user.email, user.role);
   }
 
-  // ============================================
-  // CHANGE PASSWORD
-  // ============================================
   async changePassword(userId: string, dto: ChangePasswordDto): Promise<{ message: string }> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -234,9 +267,6 @@ export class AuthService {
     return { message: 'Password changed successfully' };
   }
 
-  // ============================================
-  // FORGOT PASSWORD
-  // ============================================
   async forgotPassword(email: string): Promise<{ message: string }> {
     const user = await this.prisma.user.findUnique({
       where: { email: email.toLowerCase() },
@@ -269,9 +299,6 @@ export class AuthService {
     return { message: 'If an account exists, a reset link has been sent' };
   }
 
-  // ============================================
-  // RESET PASSWORD
-  // ============================================
   async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
     const passwordReset = await this.prisma.passwordReset.findUnique({
       where: { token },
@@ -302,9 +329,6 @@ export class AuthService {
     return { message: 'Password reset successfully' };
   }
 
-  // ============================================
-  // GET CURRENT USER
-  // ============================================
   async getCurrentUser(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -323,8 +347,14 @@ export class AuthService {
         isVerified: true,
         specialty: true,
         licenseNumber: true,
+        licenseDocument: true,
         bio: true,
         consultationFee: true,
+        affiliation: true,
+        yearsOfExperience: true,
+        clinicAddress: true,
+        clinicContactPerson: true,
+        clinicPhone: true,
         isTwoFactorEnabled: true,
         createdAt: true,
         lastLoginAt: true,
@@ -338,9 +368,6 @@ export class AuthService {
     return user;
   }
 
-  // ============================================
-  // GOOGLE OAUTH
-  // ============================================
   async googleLogin(googleUser: {
     googleId: string;
     email: string;
@@ -396,14 +423,27 @@ export class AuthService {
         lastName: user.lastName,
         role: user.role,
         avatar: user.avatar,
+        phone: user.phone,
+        gender: user.gender,
+        dateOfBirth: user.dateOfBirth,
+        bio: user.bio,
+        specialty: user.specialty,
+        licenseNumber: user.licenseNumber,
+        consultationFee: user.consultationFee,
+        affiliation: user.affiliation,
+        yearsOfExperience: user.yearsOfExperience,
+        clinicAddress: user.clinicAddress,
+        clinicContactPerson: user.clinicContactPerson,
+        clinicPhone: user.clinicPhone,
+        licenseDocument: user.licenseDocument,
+        isActive: user.isActive,
+        isEmailVerified: user.isEmailVerified,
+        createdAt: user.createdAt,
       },
       tokens,
     };
   }
 
-  // ============================================
-  // HELPER METHODS
-  // ============================================
   private async hashPassword(password: string): Promise<string> {
     const saltRounds = 12;
     return bcrypt.hash(password, saltRounds);

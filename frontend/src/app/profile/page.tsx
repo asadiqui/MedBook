@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore, User } from '@/lib/auth';
 import api from '@/lib/api';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:3001';
+
 export default function ProfilePage() {
   const router = useRouter();
   const { user, isAuthenticated, isLoading, fetchUser, logout, setUser } = useAuthStore();
@@ -29,9 +31,13 @@ export default function ProfilePage() {
     confirmPassword: '',
   });
 
+  // Only fetch user if we have a token but no user data (e.g., after page hard refresh)
   useEffect(() => {
-    fetchUser();
-  }, [fetchUser]);
+    const token = localStorage.getItem('accessToken');
+    if (token && !user && !isLoading) {
+      fetchUser();
+    }
+  }, [fetchUser, user, isLoading]);
 
   useEffect(() => {
     if (user) {
@@ -69,7 +75,7 @@ export default function ProfilePage() {
     setIsSaving(true);
     setMessage(null);
     try {
-      const response = await api.patch('/users/me', formData);
+      const response = await api.patch(`/users/${user?.id}`, formData);
       setUser(response.data);
       setIsEditing(false);
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
@@ -117,14 +123,17 @@ export default function ProfilePage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const formData = new FormData();
-    formData.append('file', file);
+    const avatarFormData = new FormData();
+    avatarFormData.append('avatar', file);
 
     try {
-      const response = await api.post('/users/avatar', formData, {
+      const response = await api.post(`/users/${user?.id}/avatar`, avatarFormData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      setUser(response.data);
+      // Only update the avatar field, keep other user data
+      if (user) {
+        setUser({ ...user, avatar: response.data.avatar });
+      }
       setMessage({ type: 'success', text: 'Avatar updated successfully!' });
     } catch (error: any) {
       setMessage({ 
@@ -188,9 +197,9 @@ export default function ProfilePage() {
                 className="relative cursor-pointer group"
               >
                 <div className="w-24 h-24 rounded-full bg-white flex items-center justify-center overflow-hidden">
-                  {user.avatarUrl ? (
+                  {user.avatar ? (
                     <img
-                      src={user.avatarUrl}
+                      src={`${API_BASE_URL}${user.avatar}`}
                       alt="Avatar"
                       className="w-full h-full object-cover"
                     />
