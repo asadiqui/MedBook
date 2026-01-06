@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  DOCTOR
+  PATIENT
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+model User {
+  id                  String    @id @default(uuid())
+  email               String    @unique
+  password            String?
+  firstName           String
+  lastName            String
+  phone               String?
+  avatar              String?
+  role                Role      @default(PATIENT)
+  gender              Gender?
+  dateOfBirth         DateTime?
+  bio                 String?
+  
+  // Doctor-specific fields
+  specialty           String?
+  licenseNumber       String?
+  consultationFee     Float?
+  isVerified          Boolean   @default(false)
+  
+  // Account status
+  isActive            Boolean   @default(true)
+  isEmailVerified     Boolean   @default(false)
+  
+  // Two-factor authentication
+  isTwoFactorEnabled  Boolean   @default(false)
+  twoFactorSecret     String?
+  
+  // OAuth
+  googleId            String?   @unique
+  
+  // Timestamps
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  lastLoginAt         DateTime?
+  
+  // Relations
+  refreshTokens       RefreshToken[]
+  passwordResets      PasswordReset[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id          String   @id @default(uuid())
+  token       String   @unique
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  
+  @@map("refresh_tokens")
+}
+
+model PasswordReset {
+  id          String   @id @default(uuid())
+  token       String   @unique
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt   DateTime
+  used        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  
+  @@map("password_resets")
+}
