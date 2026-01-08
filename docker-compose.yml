@@ -4,7 +4,7 @@ services:
     container_name: appointment_db
     restart: unless-stopped
     env_file:
-      - .env
+      - .env.example
     ports:
       - "5432:5432"
     volumes:
@@ -30,12 +30,13 @@ services:
       - /app/node_modules
       - /app/node_modules/.prisma
     env_file:
-      - .env
+      - .env.example
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - app-network
+    command: sh -c "npx prisma generate && npx prisma migrate deploy && npx prisma db seed && npm run start:dev"
 
   frontend:
     build:
@@ -50,7 +51,7 @@ services:
       - /app/node_modules
       - /app/.next
     env_file:
-      - .env
+      - .env.example
     depends_on:
       - backend
     networks:
