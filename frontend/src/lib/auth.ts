@@ -20,6 +20,12 @@ export interface User {
   gender?: string;
   dateOfBirth?: string;
   licenseNumber?: string;
+  affiliation?: string;
+  yearsOfExperience?: number;
+  clinicAddress?: string;
+  clinicContactPerson?: string;
+  clinicPhone?: string;
+  licenseDocument?: string;
   createdAt?: string;
   lastLoginAt?: string;
 }

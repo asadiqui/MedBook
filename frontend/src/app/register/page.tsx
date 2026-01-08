@@ -19,9 +19,15 @@ export default function RegisterPage() {
     lastName: '',
     role: 'PATIENT' as Role,
     phone: '',
+    dateOfBirth: '',
     // Doctor-specific fields
     specialty: '',
     licenseNumber: '',
+    affiliation: '',
+    yearsOfExperience: '',
+    clinicAddress: '',
+    clinicContactPerson: '',
+    clinicPhone: '',
   });
 
   const [passwordError, setPasswordError] = useState('');
@@ -60,9 +66,18 @@ export default function RegisterPage() {
       registerData.phone = formData.phone;
     }
 
+    if (formData.dateOfBirth) {
+      registerData.dateOfBirth = formData.dateOfBirth;
+    }
+
     if (formData.role === 'DOCTOR') {
       registerData.specialty = formData.specialty;
       registerData.licenseNumber = formData.licenseNumber;
+      if (formData.affiliation) registerData.affiliation = formData.affiliation;
+      if (formData.yearsOfExperience) registerData.yearsOfExperience = parseInt(formData.yearsOfExperience);
+      if (formData.clinicAddress) registerData.clinicAddress = formData.clinicAddress;
+      if (formData.clinicContactPerson) registerData.clinicContactPerson = formData.clinicContactPerson;
+      if (formData.clinicPhone) registerData.clinicPhone = formData.clinicPhone;
     }
 
     const success = await register(registerData);
@@ -197,12 +212,30 @@ export default function RegisterPage() {
               />
             </div>
 
+            {/* Date of Birth */}
+            <div>
+              <label htmlFor="dateOfBirth" className="block text-sm font-medium text-gray-700 mb-1">
+                Date of Birth
+              </label>
+              <input
+                id="dateOfBirth"
+                name="dateOfBirth"
+                type="date"
+                value={formData.dateOfBirth}
+                onChange={handleChange}
+                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 rounded-lg placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+              />
+            </div>
+
             {/* Doctor-specific fields */}
             {formData.role === 'DOCTOR' && (
               <>
+                <div className="border-t pt-4 mt-4">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Professional Information</h3>
+                </div>
                 <div>
                   <label htmlFor="specialty" className="block text-sm font-medium text-gray-700 mb-1">
-                    Specialty
+                    Specialty *
                   </label>
                   <input
                     id="specialty"
@@ -217,7 +250,7 @@ export default function RegisterPage() {
                 </div>
                 <div>
                   <label htmlFor="licenseNumber" className="block text-sm font-medium text-gray-700 mb-1">
-                    License Number
+                    License Number *
                   </label>
                   <input
                     id="licenseNumber"
@@ -229,6 +262,85 @@ export default function RegisterPage() {
                     className="appearance-none relative block w-full px-3 py-2 border border-gray-300 rounded-lg placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                     placeholder="Your medical license number"
                   />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="affiliation" className="block text-sm font-medium text-gray-700 mb-1">
+                      Hospital/Clinic Affiliation
+                    </label>
+                    <input
+                      id="affiliation"
+                      name="affiliation"
+                      type="text"
+                      value={formData.affiliation}
+                      onChange={handleChange}
+                      className="appearance-none relative block w-full px-3 py-2 border border-gray-300 rounded-lg placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                      placeholder="e.g., City Hospital"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="yearsOfExperience" className="block text-sm font-medium text-gray-700 mb-1">
+                      Years of Experience
+                    </label>
+                    <input
+                      id="yearsOfExperience"
+                      name="yearsOfExperience"
+                      type="number"
+                      min="0"
+                      value={formData.yearsOfExperience}
+                      onChange={handleChange}
+                      className="appearance-none relative block w-full px-3 py-2 border border-gray-300 rounded-lg placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                      placeholder="e.g., 5"
+                    />
+                  </div>
+                </div>
+                
+                <div className="border-t pt-4 mt-4">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Clinic Information</h3>
+                </div>
+                <div>
+                  <label htmlFor="clinicAddress" className="block text-sm font-medium text-gray-700 mb-1">
+                    Clinic Address
+                  </label>
+                  <input
+                    id="clinicAddress"
+                    name="clinicAddress"
+                    type="text"
+                    value={formData.clinicAddress}
+                    onChange={handleChange}
+                    className="appearance-none relative block w-full px-3 py-2 border border-gray-300 rounded-lg placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                    placeholder="123 Medical St, Suite 100"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="clinicContactPerson" className="block text-sm font-medium text-gray-700 mb-1">
+                      Clinic Contact Person
+                    </label>
+                    <input
+                      id="clinicContactPerson"
+                      name="clinicContactPerson"
+                      type="text"
+                      value={formData.clinicContactPerson}
+                      onChange={handleChange}
+                      className="appearance-none relative block w-full px-3 py-2 border border-gray-300 rounded-lg placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                      placeholder="Receptionist name"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="clinicPhone" className="block text-sm font-medium text-gray-700 mb-1">
+                      Clinic Phone
+                    </label>
+                    <input
+                      id="clinicPhone"
+                      name="clinicPhone"
+                      type="tel"
+                      value={formData.clinicPhone}
+                      onChange={handleChange}
+                      className="appearance-none relative block w-full px-3 py-2 border border-gray-300 rounded-lg placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                      placeholder="+1234567890"
+                    />
+                  </div>
                 </div>
               </>
             )}

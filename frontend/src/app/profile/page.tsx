@@ -23,6 +23,12 @@ export default function ProfilePage() {
     phone: '',
     bio: '',
     specialty: '',
+    consultationFee: '',
+    affiliation: '',
+    yearsOfExperience: '',
+    clinicAddress: '',
+    clinicContactPerson: '',
+    clinicPhone: '',
   });
 
   const [passwordData, setPasswordData] = useState({
@@ -47,6 +53,12 @@ export default function ProfilePage() {
         phone: user.phone || '',
         bio: user.bio || '',
         specialty: user.specialty || '',
+        consultationFee: user.consultationFee?.toString() || '',
+        affiliation: user.affiliation || '',
+        yearsOfExperience: user.yearsOfExperience?.toString() || '',
+        clinicAddress: user.clinicAddress || '',
+        clinicContactPerson: user.clinicContactPerson || '',
+        clinicPhone: user.clinicPhone || '',
       });
     }
   }, [user]);
@@ -75,7 +87,19 @@ export default function ProfilePage() {
     setIsSaving(true);
     setMessage(null);
     try {
-      const response = await api.patch(`/users/${user?.id}`, formData);
+      const updateData: any = { ...formData };
+      // Convert numeric fields
+      if (updateData.consultationFee) {
+        updateData.consultationFee = parseFloat(updateData.consultationFee);
+      } else {
+        delete updateData.consultationFee;
+      }
+      if (updateData.yearsOfExperience) {
+        updateData.yearsOfExperience = parseInt(updateData.yearsOfExperience);
+      } else {
+        delete updateData.yearsOfExperience;
+      }
+      const response = await api.patch(`/users/${user?.id}`, updateData);
       setUser(response.data);
       setIsEditing(false);
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
@@ -273,18 +297,104 @@ export default function ProfilePage() {
                   />
                 </div>
                 {user.role === 'DOCTOR' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Specialty
-                    </label>
-                    <input
-                      type="text"
-                      name="specialty"
-                      value={formData.specialty}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
-                    />
-                  </div>
+                  <>
+                    <div className="border-t pt-4 mt-2">
+                      <h3 className="text-md font-medium text-gray-900 mb-3">Professional Information</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Specialty
+                        </label>
+                        <input
+                          type="text"
+                          name="specialty"
+                          value={formData.specialty}
+                          onChange={handleChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Consultation Fee (MAD)
+                        </label>
+                        <input
+                          type="number"
+                          name="consultationFee"
+                          value={formData.consultationFee}
+                          onChange={handleChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Affiliation
+                        </label>
+                        <input
+                          type="text"
+                          name="affiliation"
+                          value={formData.affiliation}
+                          onChange={handleChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Years of Experience
+                        </label>
+                        <input
+                          type="number"
+                          name="yearsOfExperience"
+                          value={formData.yearsOfExperience}
+                          onChange={handleChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+                        />
+                      </div>
+                    </div>
+                    <div className="border-t pt-4 mt-2">
+                      <h3 className="text-md font-medium text-gray-900 mb-3">Clinic Information</h3>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Clinic Address
+                      </label>
+                      <input
+                        type="text"
+                        name="clinicAddress"
+                        value={formData.clinicAddress}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Clinic Contact Person
+                        </label>
+                        <input
+                          type="text"
+                          name="clinicContactPerson"
+                          value={formData.clinicContactPerson}
+                          onChange={handleChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Clinic Phone
+                        </label>
+                        <input
+                          type="tel"
+                          name="clinicPhone"
+                          value={formData.clinicPhone}
+                          onChange={handleChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+                        />
+                      </div>
+                    </div>
+                  </>
                 )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -336,14 +446,63 @@ export default function ProfilePage() {
                 </div>
                 {user.role === 'DOCTOR' && (
                   <>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Specialty</label>
-                      <p className="mt-1 text-gray-900">{user.specialty || 'Not set'}</p>
+                    <div className="border-t pt-4 mt-2">
+                      <h3 className="text-md font-medium text-gray-900 mb-3">Professional Information</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500">Specialty</label>
+                        <p className="mt-1 text-gray-900">{user.specialty || 'Not set'}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500">License Number</label>
+                        <p className="mt-1 text-gray-900">{user.licenseNumber || 'Not set'}</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500">Affiliation</label>
+                        <p className="mt-1 text-gray-900">{user.affiliation || 'Not set'}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500">Years of Experience</label>
+                        <p className="mt-1 text-gray-900">{user.yearsOfExperience || 'Not set'}</p>
+                      </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-500">License Number</label>
-                      <p className="mt-1 text-gray-900">{user.licenseNumber || 'Not set'}</p>
+                      <label className="block text-sm font-medium text-gray-500">Consultation Fee</label>
+                      <p className="mt-1 text-gray-900">{user.consultationFee ? `${user.consultationFee} MAD` : 'Not set'}</p>
                     </div>
+                    <div className="border-t pt-4 mt-2">
+                      <h3 className="text-md font-medium text-gray-900 mb-3">Clinic Information</h3>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Clinic Address</label>
+                      <p className="mt-1 text-gray-900">{user.clinicAddress || 'Not set'}</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500">Clinic Contact Person</label>
+                        <p className="mt-1 text-gray-900">{user.clinicContactPerson || 'Not set'}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500">Clinic Phone</label>
+                        <p className="mt-1 text-gray-900">{user.clinicPhone || 'Not set'}</p>
+                      </div>
+                    </div>
+                    {user.licenseDocument && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500">License Document</label>
+                        <a 
+                          href={`${API_BASE_URL}${user.licenseDocument}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-1 text-primary-600 hover:text-primary-700 inline-flex items-center"
+                        >
+                          View Document →
+                        </a>
+                      </div>
+                    )}
                   </>
                 )}
                 <div>
