@@ -6,7 +6,7 @@ import { CreateAvailabilityDto } from './dto/create-availability.dto';
 
 @Controller('availability')
 export class AvailabilityController {
-  constructor(
+  constructor( 
     private readonly availabilityService: AvailabilityService,
   ) {}
 
