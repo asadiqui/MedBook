@@ -10,13 +10,13 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'ht
 export default function ProfilePage() {
   const router = useRouter();
   const { user, isAuthenticated, isLoading, fetchUser, logout, setUser } = useAuthStore();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const licenseInputRef = useRef<HTMLInputElement>(null);
+
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  
+
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -29,12 +29,6 @@ export default function ProfilePage() {
     clinicAddress: '',
     clinicContactPerson: '',
     clinicPhone: '',
-  });
-
-  const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
   });
 
   // Only fetch user if we have a token but no user data (e.g., after page hard refresh)
@@ -63,107 +57,110 @@ export default function ProfilePage() {
     }
   }, [user]);
 
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push('/login');
-    }
-  }, [isLoading, isAuthenticated, router]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value,
-    }));
-  };
-
-  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPasswordData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
+      [name]: value,
     }));
   };
 
   const handleSave = async () => {
+    if (!user) return;
+
     setIsSaving(true);
     setMessage(null);
+
     try {
-      const updateData: any = { ...formData };
-      // Convert numeric fields
-      if (updateData.consultationFee) {
-        updateData.consultationFee = parseFloat(updateData.consultationFee);
-      } else {
-        delete updateData.consultationFee;
+      const updateData: Partial<User> = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phone: formData.phone || undefined,
+        bio: formData.bio || undefined,
+      };
+
+      if (user.role === 'DOCTOR') {
+        updateData.specialty = formData.specialty || undefined;
+        updateData.consultationFee = formData.consultationFee ? parseFloat(formData.consultationFee) : undefined;
+        updateData.affiliation = formData.affiliation || undefined;
+        updateData.yearsOfExperience = formData.yearsOfExperience ? parseInt(formData.yearsOfExperience) : undefined;
+        updateData.clinicAddress = formData.clinicAddress || undefined;
+        updateData.clinicContactPerson = formData.clinicContactPerson || undefined;
+        updateData.clinicPhone = formData.clinicPhone || undefined;
       }
-      if (updateData.yearsOfExperience) {
-        updateData.yearsOfExperience = parseInt(updateData.yearsOfExperience);
-      } else {
-        delete updateData.yearsOfExperience;
-      }
-      const response = await api.patch(`/users/${user?.id}`, updateData);
+
+      const response = await api.patch(`/users/${user.id}`, updateData);
       setUser(response.data);
       setIsEditing(false);
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
     } catch (error: any) {
-      setMessage({ 
-        type: 'error', 
-        text: error.response?.data?.message || 'Failed to update profile' 
-      });
+      setMessage({ type: 'error', text: error.response?.data?.message || 'Failed to update profile' });
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handlePasswordSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setMessage({ type: 'error', text: 'New passwords do not match' });
-      return;
-    }
-    setIsSaving(true);
-    setMessage(null);
-    try {
-      await api.post('/auth/change-password', {
-        currentPassword: passwordData.currentPassword,
-        newPassword: passwordData.newPassword,
-      });
-      setIsChangingPassword(false);
-      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      setMessage({ type: 'success', text: 'Password changed successfully!' });
-    } catch (error: any) {
-      setMessage({ 
-        type: 'error', 
-        text: error.response?.data?.message || 'Failed to change password' 
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleAvatarClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !user) return;
 
-    const avatarFormData = new FormData();
-    avatarFormData.append('avatar', file);
+    const formData = new FormData();
+    formData.append('avatar', file);
 
     try {
-      const response = await api.post(`/users/${user?.id}/avatar`, avatarFormData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      const response = await api.post(`/users/${user.id}/avatar`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
-      // Only update the avatar field, keep other user data
-      if (user) {
-        setUser({ ...user, avatar: response.data.avatar });
-      }
+      await fetchUser();
       setMessage({ type: 'success', text: 'Avatar updated successfully!' });
     } catch (error: any) {
-      setMessage({ 
-        type: 'error', 
-        text: error.response?.data?.message || 'Failed to upload avatar' 
+      setMessage({ type: 'error', text: error.response?.data?.message || 'Failed to upload avatar' });
+    }
+  };
+
+  const handleAvatarDelete = async () => {
+    if (!user) return;
+
+    try {
+      const response = await api.delete(`/users/${user.id}/avatar`);
+      await fetchUser();
+      setMessage({ type: 'success', text: 'Avatar deleted successfully!' });
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.response?.data?.message || 'Failed to delete avatar' });
+    }
+  };
+
+  const handleLicenseUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    const formData = new FormData();
+    formData.append('licenseDocument', file);
+
+    try {
+      const response = await api.post(`/users/${user.id}/license-document`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
+      await fetchUser();
+      setMessage({ type: 'success', text: 'License document updated successfully!' });
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.response?.data?.message || 'Failed to upload license document' });
+    }
+  };
+
+  const handleLicenseDelete = async () => {
+    if (!user) return;
+
+    try {
+      const response = await api.delete(`/users/${user.id}/license-document`);
+      await fetchUser();
+      setMessage({ type: 'success', text: 'License document deleted successfully!' });
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.response?.data?.message || 'Failed to delete license document' });
     }
   };
 
@@ -175,7 +172,7 @@ export default function ProfilePage() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
       </div>
     );
   }
@@ -187,449 +184,330 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Profile</h1>
-          <button
-            onClick={handleLogout}
-            className="text-red-600 hover:text-red-700 font-medium"
-          >
-            Sign out
-          </button>
-        </div>
-
-        {/* Message */}
-        {message && (
-          <div
-            className={`mb-6 px-4 py-3 rounded ${
-              message.type === 'success'
-                ? 'bg-green-50 border border-green-200 text-green-700'
-                : 'bg-red-50 border border-red-200 text-red-700'
-            }`}
-          >
-            {message.text}
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          {/* Header */}
+          <div className="flex justify-between items-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">Profile</h1>
+            <button
+              onClick={handleLogout}
+              className="text-red-600 hover:text-red-700 font-medium"
+            >
+              Sign out
+            </button>
           </div>
-        )}
 
-        {/* Profile Card */}
-        <div className="bg-white shadow rounded-lg overflow-hidden">
+          {message && (
+            <div className={`mb-6 p-4 rounded-md ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+              {message.text}
+            </div>
+          )}
+
           {/* Avatar Section */}
-          <div className="bg-gradient-to-r from-primary-500 to-primary-600 px-6 py-8">
-            <div className="flex items-center">
-              <div
-                onClick={handleAvatarClick}
-                className="relative cursor-pointer group"
-              >
-                <div className="w-24 h-24 rounded-full bg-white flex items-center justify-center overflow-hidden">
-                  {user.avatar ? (
-                    <img
-                      src={`${API_BASE_URL}${user.avatar}`}
-                      alt="Avatar"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-3xl font-bold text-primary-600">
-                      {user.firstName?.[0]}{user.lastName?.[0]}
-                    </span>
-                  )}
-                </div>
-                <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <span className="text-white text-xs">Change</span>
-                </div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleAvatarChange}
-                  className="hidden"
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">Profile Picture</h2>
+            <div className="flex items-center space-x-4">
+              {user.avatar ? (
+                <img
+                  src={`${API_BASE_URL}${user.avatar}`}
+                  alt="Avatar"
+                  className="w-20 h-20 rounded-full object-cover"
                 />
-              </div>
-              <div className="ml-6 text-white">
-                <h2 className="text-2xl font-bold">{user.firstName} {user.lastName}</h2>
-                <p className="text-primary-100">{user.email}</p>
-                <span className="inline-block mt-2 px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm">
-                  {user.role}
-                </span>
+              ) : (
+                <div className="w-20 h-20 rounded-full bg-gray-300 flex items-center justify-center">
+                  <span className="text-gray-600 text-2xl font-bold">
+                    {user.firstName?.[0]}{user.lastName?.[0]}
+                  </span>
+                </div>
+              )}
+              <div className="space-x-2">
+                <button
+                  onClick={() => avatarInputRef.current?.click()}
+                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                >
+                  Upload
+                </button>
+                {user.avatar && (
+                  <button
+                    onClick={handleAvatarDelete}
+                    className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+                  >
+                    Delete
+                  </button>
+                )}
               </div>
             </div>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleAvatarUpload}
+              className="hidden"
+            />
           </div>
 
-          {/* Profile Info */}
-          <div className="px-6 py-6">
-            {isEditing ? (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      First Name
-                    </label>
-                    <input
-                      type="text"
-                      name="firstName"
-                      value={formData.firstName}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Last Name
-                    </label>
-                    <input
-                      type="text"
-                      name="lastName"
-                      value={formData.lastName}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Phone
-                  </label>
+          {/* Profile Information */}
+          <div className="mb-8">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-gray-800">Personal Information</h2>
+              <button
+                onClick={() => setIsEditing(!isEditing)}
+                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+              >
+                {isEditing ? 'Cancel' : 'Edit'}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="firstName"
+                    value={formData.firstName}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                ) : (
+                  <p className="text-lg text-gray-900">{user.firstName}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="lastName"
+                    value={formData.lastName}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                ) : (
+                  <p className="text-lg text-gray-900">{user.lastName}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <p className="text-lg text-gray-900">{user.email}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                {isEditing ? (
                   <input
                     type="tel"
                     name="phone"
                     value={formData.phone}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
-                </div>
-                {user.role === 'DOCTOR' && (
-                  <>
-                    <div className="border-t pt-4 mt-2">
-                      <h3 className="text-md font-medium text-gray-900 mb-3">Professional Information</h3>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Specialty
-                        </label>
-                        <input
-                          type="text"
-                          name="specialty"
-                          value={formData.specialty}
-                          onChange={handleChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Consultation Fee (MAD)
-                        </label>
-                        <input
-                          type="number"
-                          name="consultationFee"
-                          value={formData.consultationFee}
-                          onChange={handleChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Affiliation
-                        </label>
-                        <input
-                          type="text"
-                          name="affiliation"
-                          value={formData.affiliation}
-                          onChange={handleChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Years of Experience
-                        </label>
-                        <input
-                          type="number"
-                          name="yearsOfExperience"
-                          value={formData.yearsOfExperience}
-                          onChange={handleChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
-                        />
-                      </div>
-                    </div>
-                    <div className="border-t pt-4 mt-2">
-                      <h3 className="text-md font-medium text-gray-900 mb-3">Clinic Information</h3>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Clinic Address
-                      </label>
-                      <input
-                        type="text"
-                        name="clinicAddress"
-                        value={formData.clinicAddress}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Clinic Contact Person
-                        </label>
-                        <input
-                          type="text"
-                          name="clinicContactPerson"
-                          value={formData.clinicContactPerson}
-                          onChange={handleChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Clinic Phone
-                        </label>
-                        <input
-                          type="tel"
-                          name="clinicPhone"
-                          value={formData.clinicPhone}
-                          onChange={handleChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
-                        />
-                      </div>
-                    </div>
-                  </>
+                ) : (
+                  <p className="text-lg text-gray-900">{user.phone || 'Not provided'}</p>
                 )}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Bio
-                  </label>
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
+                {isEditing ? (
                   <textarea
                     name="bio"
                     value={formData.bio}
-                    onChange={handleChange}
+                    onChange={handleInputChange}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
-                </div>
-                <div className="flex gap-3">
-                  <button
-                    onClick={handleSave}
-                    disabled={isSaving}
-                    className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
-                  >
-                    {isSaving ? 'Saving...' : 'Save Changes'}
-                  </button>
-                  <button
-                    onClick={() => setIsEditing(false)}
-                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-500">First Name</label>
-                    <p className="mt-1 text-gray-900">{user.firstName}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-500">Last Name</label>
-                    <p className="mt-1 text-gray-900">{user.lastName}</p>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-500">Email</label>
-                  <p className="mt-1 text-gray-900">{user.email}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-500">Phone</label>
-                  <p className="mt-1 text-gray-900">{user.phone || 'Not set'}</p>
-                </div>
-                {user.role === 'DOCTOR' && (
-                  <>
-                    <div className="border-t pt-4 mt-2">
-                      <h3 className="text-md font-medium text-gray-900 mb-3">Professional Information</h3>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-500">Specialty</label>
-                        <p className="mt-1 text-gray-900">{user.specialty || 'Not set'}</p>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-500">License Number</label>
-                        <p className="mt-1 text-gray-900">{user.licenseNumber || 'Not set'}</p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-500">Affiliation</label>
-                        <p className="mt-1 text-gray-900">{user.affiliation || 'Not set'}</p>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-500">Years of Experience</label>
-                        <p className="mt-1 text-gray-900">{user.yearsOfExperience || 'Not set'}</p>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Consultation Fee</label>
-                      <p className="mt-1 text-gray-900">{user.consultationFee ? `${user.consultationFee} MAD` : 'Not set'}</p>
-                    </div>
-                    <div className="border-t pt-4 mt-2">
-                      <h3 className="text-md font-medium text-gray-900 mb-3">Clinic Information</h3>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Clinic Address</label>
-                      <p className="mt-1 text-gray-900">{user.clinicAddress || 'Not set'}</p>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-500">Clinic Contact Person</label>
-                        <p className="mt-1 text-gray-900">{user.clinicContactPerson || 'Not set'}</p>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-500">Clinic Phone</label>
-                        <p className="mt-1 text-gray-900">{user.clinicPhone || 'Not set'}</p>
-                      </div>
-                    </div>
-                    {user.licenseDocument && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-500">License Document</label>
-                        <a 
-                          href={`${API_BASE_URL}${user.licenseDocument}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="mt-1 text-primary-600 hover:text-primary-700 inline-flex items-center"
-                        >
-                          View Document →
-                        </a>
-                      </div>
-                    )}
-                  </>
+                ) : (
+                  <p className="text-lg text-gray-900">{user.bio || 'No bio provided'}</p>
                 )}
-                <div>
-                  <label className="block text-sm font-medium text-gray-500">Bio</label>
-                  <p className="mt-1 text-gray-900">{user.bio || 'No bio yet'}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-500">Member since</label>
-                  <p className="mt-1 text-gray-900">
-                    {new Date(user.createdAt).toLocaleDateString()}
-                  </p>
-                </div>
+              </div>
+            </div>
+
+            {isEditing && (
+              <div className="mt-6">
                 <button
-                  onClick={() => setIsEditing(true)}
-                  className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 disabled:opacity-50"
                 >
-                  Edit Profile
+                  {isSaving ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             )}
           </div>
-        </div>
 
-        {/* Change Password Section */}
-        <div className="mt-8 bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Security</h3>
-          
-          {isChangingPassword ? (
-            <form onSubmit={handlePasswordSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Current Password
-                </label>
-                <input
-                  type="password"
-                  name="currentPassword"
-                  value={passwordData.currentPassword}
-                  onChange={handlePasswordChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
-                />
+          {/* Doctor-specific fields */}
+          {user.role === 'DOCTOR' && (
+            <div className="mb-8">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-gray-800">Doctor Information</h2>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  New Password
-                </label>
-                <input
-                  type="password"
-                  name="newPassword"
-                  value={passwordData.newPassword}
-                  onChange={handlePasswordChange}
-                  required
-                  minLength={8}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
-                />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Specialty</label>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      name="specialty"
+                      value={formData.specialty}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  ) : (
+                    <p className="text-lg text-gray-900">{user.specialty || 'Not specified'}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Consultation Fee</label>
+                  {isEditing ? (
+                    <input
+                      type="number"
+                      name="consultationFee"
+                      value={formData.consultationFee}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  ) : (
+                    <p className="text-lg text-gray-900">{user.consultationFee ? `$${user.consultationFee}` : 'Not set'}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Affiliation</label>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      name="affiliation"
+                      value={formData.affiliation}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  ) : (
+                    <p className="text-lg text-gray-900">{user.affiliation || 'Not specified'}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Years of Experience</label>
+                  {isEditing ? (
+                    <input
+                      type="number"
+                      name="yearsOfExperience"
+                      value={formData.yearsOfExperience}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  ) : (
+                    <p className="text-lg text-gray-900">{user.yearsOfExperience || 'Not specified'}</p>
+                  )}
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Clinic Address</label>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      name="clinicAddress"
+                      value={formData.clinicAddress}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  ) : (
+                    <p className="text-lg text-gray-900">{user.clinicAddress || 'Not specified'}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Clinic Contact Person</label>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      name="clinicContactPerson"
+                      value={formData.clinicContactPerson}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  ) : (
+                    <p className="text-lg text-gray-900">{user.clinicContactPerson || 'Not specified'}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Clinic Phone</label>
+                  {isEditing ? (
+                    <input
+                      type="tel"
+                      name="clinicPhone"
+                      value={formData.clinicPhone}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  ) : (
+                    <p className="text-lg text-gray-900">{user.clinicPhone || 'Not specified'}</p>
+                  )}
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Confirm New Password
-                </label>
-                <input
-                  type="password"
-                  name="confirmPassword"
-                  value={passwordData.confirmPassword}
-                  onChange={handlePasswordChange}
-                  required
-                  minLength={8}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
-                />
+
+              {/* License Document */}
+              <div className="mt-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">License Document</h3>
+                {user.licenseDocument ? (
+                  <div className="flex items-center space-x-4">
+                    <a
+                      href={`${API_BASE_URL}${user.licenseDocument}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800"
+                    >
+                      View License Document
+                    </a>
+                    <button
+                      onClick={handleLicenseDelete}
+                      className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <input
+                      ref={licenseInputRef}
+                      type="file"
+                      accept=".pdf,.doc,.docx"
+                      onChange={handleLicenseUpload}
+                      className="mb-2"
+                    />
+                    <p className="text-sm text-gray-600">Upload your medical license document</p>
+                  </div>
+                )}
               </div>
-              <div className="flex gap-3">
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
-                >
-                  {isSaving ? 'Changing...' : 'Change Password'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsChangingPassword(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          ) : (
-            <button
-              onClick={() => setIsChangingPassword(true)}
-              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-            >
-              Change Password
-            </button>
+            </div>
           )}
-        </div>
 
-        {/* Account Info */}
-        <div className="mt-8 bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Account Information</h3>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="text-gray-500">Account Status:</span>
-              <span className={`ml-2 font-medium ${user.isActive ? 'text-green-600' : 'text-red-600'}`}>
-                {user.isActive ? 'Active' : 'Inactive'}
-              </span>
-            </div>
-            <div>
-              <span className="text-gray-500">Email Verified:</span>
-              <span className={`ml-2 font-medium ${user.isEmailVerified ? 'text-green-600' : 'text-yellow-600'}`}>
-                {user.isEmailVerified ? 'Yes' : 'No'}
-              </span>
-            </div>
-            <div>
-              <span className="text-gray-500">2FA Enabled:</span>
-              <span className={`ml-2 font-medium ${user.isTwoFactorEnabled ? 'text-green-600' : 'text-gray-600'}`}>
-                {user.isTwoFactorEnabled ? 'Yes' : 'No'}
-              </span>
-            </div>
-            {user.role === 'DOCTOR' && (
+          {/* Account Status */}
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">Account Status</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <span className="text-gray-500">Verified Doctor:</span>
-                <span className={`ml-2 font-medium ${user.isVerified ? 'text-green-600' : 'text-yellow-600'}`}>
-                  {user.isVerified ? 'Yes' : 'Pending'}
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email Verified</label>
+                <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${user.isEmailVerified ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                  {user.isEmailVerified ? 'Yes' : 'No'}
                 </span>
               </div>
-            )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Account Active</label>
+                <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                  {user.isActive ? 'Yes' : 'No'}
+                </span>
+              </div>
+              {user.role === 'DOCTOR' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Verified Doctor</label>
+                  <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${user.isVerified ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    {user.isVerified ? 'Yes' : 'Pending'}
+                  </span>
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Two-Factor Auth</label>
+                <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${user.isTwoFactorEnabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                  {user.isTwoFactorEnabled ? 'Enabled' : 'Disabled'}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </div>

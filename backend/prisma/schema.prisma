@@ -19,6 +19,13 @@ enum Gender {
   OTHER
 }
 
+enum BookingStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
 model User {
   id                  String    @id @default(uuid())
   email               String    @unique
@@ -63,6 +70,9 @@ model User {
   // Relations
   refreshTokens       RefreshToken[]
   passwordResets      PasswordReset[]
+  availabilities      Availability[] @relation("DoctorAvailability")
+  bookingsAsDoctor    Booking[]      @relation("DoctorBookings")
+  bookingsAsPatient   Booking[]      @relation("PatientBookings")
 
   @@map("users")
 }
@@ -88,4 +98,34 @@ model PasswordReset {
   createdAt   DateTime @default(now())
   
   @@map("password_resets")
+}
+
+model Availability {
+  id        String   @id @default(uuid())
+  date      String
+  startTime String
+  endTime   String
+  doctorId  String
+  doctor    User     @relation("DoctorAvailability", fields: [doctorId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("availabilities")
+}
+
+model Booking {
+  id        String   @id @default(uuid())
+  date      String
+  startTime String
+  endTime   String
+  duration  Int
+  status    BookingStatus
+  doctorId  String
+  patientId String
+  doctor    User     @relation("DoctorBookings", fields: [doctorId], references: [id])
+  patient   User     @relation("PatientBookings", fields: [patientId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("bookings")
 }

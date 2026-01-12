@@ -51,9 +51,18 @@ interface RegisterData {
   firstName: string;
   lastName: string;
   role?: 'PATIENT' | 'DOCTOR';
+  phone?: string;
+  dateOfBirth?: string;
+  // Doctor-specific fields
   specialty?: string;
   licenseNumber?: string;
-  phone?: string;
+  affiliation?: string;
+  yearsOfExperience?: number;
+  clinicAddress?: string;
+  clinicContactPerson?: string;
+  clinicPhone?: string;
+  bio?: string;
+  consultationFee?: number;
 }
 
 export const useAuthStore = create<AuthState>()(

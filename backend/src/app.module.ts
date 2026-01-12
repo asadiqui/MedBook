@@ -6,6 +6,8 @@ import { join } from 'path';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { AvailabilityModule } from './availability/availability.module';
+import { BookingModule } from './booking/booking.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 
 @Module({
@@ -17,7 +19,7 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
     }),
     // Serve static files (avatars, uploads)
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'uploads'),
+      rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
     }),
     // Database
@@ -25,10 +27,9 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
     // Features
     AuthModule,
     UsersModule,
+    AvailabilityModule,
+    BookingModule,
     // Other modules will be added by teammates:
-    // BookingsModule (Mouad)
-    // AvailabilityModule (Mouad)
-    // NotificationsModule (Salah)
     // ChatModule (Douae)
     // LlmModule (lmodir)
   ],
