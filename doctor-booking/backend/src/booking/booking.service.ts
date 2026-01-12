@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { CreateBookingDto } from './dto/create-booking.dto';
-import { timeConversion , overlapcheck} from 'src/common/utlis/time';
+import { timeConversion } from 'src/common/utlis/time';
 
 @Injectable()
 export class BookingService {
@@ -31,38 +31,67 @@ export class BookingService {
         const existingAvailabilities = await this.prisma.availability.findMany({
             where: {
                 doctorId: dto.doctorId,
-                date: dto.date,
+                date : dto.date,    
             },
         });
 
-        let isFitting = false;
-
-        for (const availability of existingAvailabilities) {
-            if (
-                overlapcheck(
-                    startTime,
-                    endTimeStr,
-                    availability.startTime,
-                    availability.endTime,
-                )
-            ) {
-                isFitting = true;
-                break;
-            }
+        // check if any availability fits the booking
+        
+        if (existingAvailabilities.length === 0) {
+            throw new BadRequestException('No availability found for this doctor on the selected date');
         }
 
-        if (!isFitting) {
-            throw new BadRequestException(
-                'No available slots for the requested time',
+        const bookingStart = timeConversion(startTime);
+        const bookingEnd = timeConversion(endTimeStr);
+
+        const bookingFitsInAvailability = existingAvailabilities.some((availability: { startTime: string; endTime: string; }) => {
+            const availabilityStart = timeConversion(availability.startTime);
+            const availabilityEnd = timeConversion(availability.endTime);
+
+            return (
+                bookingStart >= availabilityStart &&
+                bookingEnd <= availabilityEnd
             );
+        });
+
+        if (!bookingFitsInAvailability) {
+            throw new BadRequestException('Booking time does not fit within doctor availability');
         }
 
+        // check for overlapping bookings
+
+        const existingBookings = await this.prisma.booking.findMany({
+            where: {
+              doctorId: dto.doctorId,
+              date: dto.date,
+            },
+          });
+          
+          for (const booking of existingBookings) {
+            const existingStart = timeConversion(booking.startTime);
+            const existingEnd = timeConversion(booking.endTime);
+          
+            const overlaps =
+              bookingStart < existingEnd &&
+              existingStart < bookingEnd;
+          
+            if (overlaps) {
+              throw new BadRequestException('Time slot already booked');
+            }
+          }
+          
         // If all checks pass, create the booking
-        
-        
-        
 
+        return this.prisma.booking.create({
+            data: {
+                doctorId: dto.doctorId,
+                patientId: '1', // gonna be replaced with auth user
+                date: dto.date,
+                startTime: startTime,
+                endTime: endTimeStr,
+                duration: duration,
+                status: 'PENDING',
+            },
+        }); 
     }
-
-
 }
