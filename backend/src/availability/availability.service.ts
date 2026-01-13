@@ -70,4 +70,51 @@ export class AvailabilityService {
       where: { id },
     });
   }
+
+  async getCalendar(
+    doctorId: string,
+    from: string,
+    to: string,
+  ) {
+    // 1️⃣ Basic validation
+    if (!doctorId || !from || !to) {
+      throw new BadRequestException('doctorId, from and to are required');
+    }
+
+    if (from > to) {
+      throw new BadRequestException('"from" date must be before "to" date');
+    }
+
+    // 2️⃣ Fetch availability in range
+    const availabilities = await this.prisma.availability.findMany({
+      where: {
+        doctorId,
+        date: {
+          gte: from,
+          lte: to,
+        },
+      },
+      orderBy: [
+        { date: 'asc' },
+        { startTime: 'asc' },
+      ],
+    });
+
+    // 3️⃣ Group by date (calendar-friendly)
+    const calendar: Record<string, any[]> = {};
+
+    for (const slot of availabilities) {
+      if (!calendar[slot.date]) {
+        calendar[slot.date] = [];
+      }
+
+      calendar[slot.date].push({
+        id: slot.id,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+      });
+    }
+
+    return calendar;
+  }
 }

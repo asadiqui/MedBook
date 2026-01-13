@@ -27,4 +27,12 @@ export class AvailabilityController {
   remove(@Param('id') id: string) {
     return this.availabilityService.remove(id);
   }
+  @Get('calendar')
+  getCalendar(
+    @Query('doctorId') doctorId: string,
+    @Query('from') from: string,
+    @Query('to') to: string,
+  ) {
+    return this.availabilityService.getCalendar(doctorId, from, to);
+  }
 }

@@ -1,4 +1,4 @@
-import { Controller, Post,Patch , Param , Body, UseGuards, Get } from '@nestjs/common';
+import { Controller, Post,Patch , Param , Body, UseGuards, Get, Query } from '@nestjs/common';
 import { BookingService } from './booking.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -16,6 +16,7 @@ export class BookingController {
     return this.bookingService.createBooking(dto, userId);
   }
 
+
   @UseGuards(JwtAuthGuard)
   @Get('patient')
   getPatientBookings(@CurrentUser('id') userId: string) {
@@ -27,6 +28,17 @@ export class BookingController {
   getDoctorBookings(@CurrentUser('id') userId: string) {
     return this.bookingService.getDoctorBookings(userId);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('doctor/:id')
+  getDoctorSchedule(
+    @Param('id') doctorId: string,
+    @Query('date') date: string | undefined,
+    @CurrentUser() user,
+  ) {
+    return this.bookingService.getDoctorSchedule(doctorId, user, date);
+  }
+
 
   @UseGuards(JwtAuthGuard)
   @Patch(':id/accept')
@@ -45,5 +57,7 @@ export class BookingController {
   cancel(@Param('id') id: string, @CurrentUser() user: { id: string; name: string }) {
     return this.bookingService.cancelBooking(id, user);
   }
+
+  
 }
 
