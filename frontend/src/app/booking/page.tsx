@@ -60,11 +60,12 @@ export default function BookingPage() {
     setSubmitting(true);
     setMessage('');
     try {
-      await api.post('/booking', formData);
-      setMessage('Booking request submitted successfully!');
+      const response = await api.post('/booking', formData);
+      setMessage(`Booking request submitted successfully! Status: ${response.data.status}`);
       setFormData({ doctorId: '', date: '', startTime: '', duration: 60 });
     } catch (error: any) {
-      setMessage(error.response?.data?.message || 'Failed to create booking');
+      const errorMessage = error.response?.data?.message || 'Failed to create booking';
+      setMessage(errorMessage);
     } finally {
       setSubmitting(false);
     }

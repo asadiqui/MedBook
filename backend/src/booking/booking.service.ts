@@ -74,6 +74,9 @@ export class BookingService {
       where: {
         doctorId: dto.doctorId,
         date: dto.date,
+        status: {
+          not: 'CANCELLED',
+        },
       },
     });
 
@@ -181,6 +184,58 @@ export class BookingService {
     return this.prisma.booking.update({
       where: { id: bookingId },
       data: { status: 'CANCELLED' },
+    });
+  }
+
+  async getPatientBookings(patientId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: patientId },
+    });
+
+    if (!user || user.role !== 'PATIENT') {
+      throw new ForbiddenException('Only patients can view their bookings');
+    }
+
+    return this.prisma.booking.findMany({
+      where: { patientId },
+      include: {
+        doctor: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            specialty: true,
+            avatar: true,
+          },
+        },
+      },
+      orderBy: { date: 'desc' },
+    });
+  }
+
+  async getDoctorBookings(doctorId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: doctorId },
+    });
+
+    if (!user || user.role !== 'DOCTOR') {
+      throw new ForbiddenException('Only doctors can view their bookings');
+    }
+
+    return this.prisma.booking.findMany({
+      where: { doctorId },
+      include: {
+        patient: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { date: 'desc' },
     });
   }
 }
