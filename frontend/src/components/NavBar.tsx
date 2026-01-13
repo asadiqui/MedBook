@@ -33,20 +33,36 @@ export default function NavBar() {
                   Profile
                 </Link>
                 {user.role === 'DOCTOR' && (
-                  <Link
-                    href="/availability"
-                    className="text-gray-700 hover:text-green-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-                  >
-                    Availability
-                  </Link>
+                  <>
+                    <Link
+                      href="/doctor/appointments"
+                      className="text-gray-700 hover:text-green-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                    >
+                      My Appointments
+                    </Link>
+                    <Link
+                      href="/availability"
+                      className="text-gray-700 hover:text-green-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                    >
+                      Availability
+                    </Link>
+                  </>
                 )}
                 {user.role === 'PATIENT' && (
-                  <Link
-                    href="/booking"
-                    className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-                  >
-                    Book
-                  </Link>
+                  <>
+                    <Link
+                      href="/appointments"
+                      className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                    >
+                      My Appointments
+                    </Link>
+                    <Link
+                      href="/booking"
+                      className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                    >
+                      Book
+                    </Link>
+                  </>
                 )}
                 {user.role === 'ADMIN' && (
                   <Link

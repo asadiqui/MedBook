@@ -1,15 +1,24 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable , ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { timeConversion } from '../common/utils/time';
 
 @Injectable()
 export class BookingService {
-  constructor(private readonly prisma: PrismaService) {}
 
+  constructor(private readonly prisma: PrismaService) {}
+ 
   async createBooking(dto: CreateBookingDto, patientId: string) {
     // Implementation for creating a booking
 
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: patientId },
+    });
+
+    if (!user || user.role !== 'PATIENT') {
+      throw new ForbiddenException('Only patients can create bookings');
+    }
     // get data from dto
     const { duration, startTime } = dto;
     let endTime = timeConversion(startTime) + duration;
@@ -65,6 +74,9 @@ export class BookingService {
       where: {
         doctorId: dto.doctorId,
         date: dto.date,
+        status: {
+          not: 'CANCELLED',
+        },
       },
     });
 
@@ -92,6 +104,138 @@ export class BookingService {
         duration: duration,
         status: 'PENDING',
       },
+    });
+  }
+
+  async acceptBooking(bookingId: string, user: any) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Booking not found');
+    }
+
+    if (user.role !== 'DOCTOR') {
+      throw new ForbiddenException('Only doctors can accept bookings');
+    }
+
+    if (booking.doctorId !== user.id) {
+      throw new ForbiddenException('You are not authorized to accept this booking');
+    }
+
+    if (booking.status !== 'PENDING') {
+      throw new BadRequestException('Booking is not in a pending state');
+    }
+
+    return this.prisma.booking.update({
+      where: { id: bookingId },
+      data: { status: 'ACCEPTED' },
+    });
+  }
+
+  async rejectBooking(bookingId: string, user: any) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Booking not found');
+    }
+
+    if (user.role !== 'DOCTOR') {
+      throw new ForbiddenException('Only doctors can reject bookings');
+    }
+
+    if (booking.doctorId !== user.id) {
+      throw new ForbiddenException('You are not authorized to reject this booking');
+    }
+
+    if (booking.status !== 'PENDING') {
+      throw new BadRequestException('Booking is not in a pending state');
+    }
+
+    return this.prisma.booking.update({
+      where: { id: bookingId },
+      data: { status: 'REJECTED' },
+    });
+  }
+
+  async cancelBooking(bookingId: string, user: any) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Booking not found');
+    }
+
+    const isPatient = booking.patientId === user.id;
+    const isDoctor = booking.doctorId === user.id;
+
+    if (!isPatient && !isDoctor) {
+      throw new ForbiddenException('You are not authorized to cancel this booking');
+    }
+
+    if (booking.status !== 'PENDING' && booking.status !== 'ACCEPTED') {
+      throw new BadRequestException('Only pending or accepted bookings can be cancelled');
+    }
+
+    return this.prisma.booking.update({
+      where: { id: bookingId },
+      data: { status: 'CANCELLED' },
+    });
+  }
+
+  async getPatientBookings(patientId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: patientId },
+    });
+
+    if (!user || user.role !== 'PATIENT') {
+      throw new ForbiddenException('Only patients can view their bookings');
+    }
+
+    return this.prisma.booking.findMany({
+      where: { patientId },
+      include: {
+        doctor: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            specialty: true,
+            avatar: true,
+          },
+        },
+      },
+      orderBy: { date: 'desc' },
+    });
+  }
+
+  async getDoctorBookings(doctorId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: doctorId },
+    });
+
+    if (!user || user.role !== 'DOCTOR') {
+      throw new ForbiddenException('Only doctors can view their bookings');
+    }
+
+    return this.prisma.booking.findMany({
+      where: { doctorId },
+      include: {
+        patient: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { date: 'desc' },
     });
   }
 }

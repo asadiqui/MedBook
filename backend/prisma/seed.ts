@@ -72,6 +72,37 @@ async function main() {
     console.log('✅ Doctor account already exists:', existingDoctor.email);
   }
 
+  // Check if patient already exists
+  const existingPatient = await prisma.user.findFirst({
+    where: { role: Role.PATIENT },
+  });
+
+  if (!existingPatient) {
+    // Create patient account
+    const patientHashedPassword = await bcrypt.hash('Patient123!@#', 12);
+
+    const patient = await prisma.user.create({
+      data: {
+        email: 'patient@medbook.com',
+        password: patientHashedPassword,
+        firstName: 'John',
+        lastName: 'Doe',
+        role: Role.PATIENT,
+        phone: '+1234567892',
+        dateOfBirth: '1990-01-01',
+        isActive: true,
+        isEmailVerified: true,
+      },
+    });
+
+    console.log('✅ Patient account created successfully!');
+    console.log('   Email:', patient.email);
+    console.log('   Password: Patient123!@#');
+    console.log('');
+  } else {
+    console.log('✅ Patient account already exists:', existingPatient.email);
+  }
+
   // Create some availability for the doctor
   const doctorForAvailability = await prisma.user.findFirst({
     where: { role: Role.DOCTOR },

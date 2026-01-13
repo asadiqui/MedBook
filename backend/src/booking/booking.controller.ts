@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post,Patch , Param , Body, UseGuards, Get } from '@nestjs/common';
 import { BookingService } from './booking.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -12,7 +12,38 @@ export class BookingController {
 
   @UseGuards(JwtAuthGuard)
   @Post()
-  create(@Body() dto: CreateBookingDto, @CurrentUser() user: any) {
-    return this.bookingService.createBooking(dto, user.id);
+  create(@Body() dto: CreateBookingDto, @CurrentUser('id') userId: string) {
+    return this.bookingService.createBooking(dto, userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('patient')
+  getPatientBookings(@CurrentUser('id') userId: string) {
+    return this.bookingService.getPatientBookings(userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('doctor')
+  getDoctorBookings(@CurrentUser('id') userId: string) {
+    return this.bookingService.getDoctorBookings(userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id/accept')
+  accept(@Param('id') id: string, @CurrentUser() user: { id: string; name: string }) {
+    return this.bookingService.acceptBooking(id, user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id/reject')
+  reject(@Param('id') id: string, @CurrentUser() user: { id: string; name: string }) {
+    return this.bookingService.rejectBooking(id, user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id/cancel')
+  cancel(@Param('id') id: string, @CurrentUser() user: { id: string; name: string }) {
+    return this.bookingService.cancelBooking(id, user);
   }
 }
+
