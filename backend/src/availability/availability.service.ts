@@ -76,7 +76,7 @@ export class AvailabilityService {
     from: string,
     to: string,
   ) {
-    // 1️⃣ Basic validation
+
     if (!doctorId || !from || !to) {
       throw new BadRequestException('doctorId, from and to are required');
     }
@@ -85,7 +85,7 @@ export class AvailabilityService {
       throw new BadRequestException('"from" date must be before "to" date');
     }
 
-    // 2️⃣ Fetch availability in range
+
     const availabilities = await this.prisma.availability.findMany({
       where: {
         doctorId,
@@ -99,8 +99,7 @@ export class AvailabilityService {
         { startTime: 'asc' },
       ],
     });
-
-    // 3️⃣ Group by date (calendar-friendly)
+    
     const calendar: Record<string, any[]> = {};
 
     for (const slot of availabilities) {

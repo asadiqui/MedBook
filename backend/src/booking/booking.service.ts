@@ -244,17 +244,16 @@ export class BookingService {
     user: { id: string; role: string },
     date?: string,
   ) {
-    // 1️⃣ Role check
+
     if (user.role !== 'DOCTOR') {
       throw new ForbiddenException('Only doctors can view schedules');
     }
 
-    // 2️⃣ Ownership check
+
     if (doctorId !== user.id) {
       throw new ForbiddenException('You can only view your own schedule');
     }
 
-    // 3️⃣ Build where clause
     const where: any = {
       doctorId,
     };
@@ -263,7 +262,7 @@ export class BookingService {
       where.date = date; // YYYY-MM-DD
     }
 
-    // 4️⃣ Query bookings
+
     return this.prisma.booking.findMany({
       where,
       include: {
