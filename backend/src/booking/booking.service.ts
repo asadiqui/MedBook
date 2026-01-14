@@ -11,7 +11,15 @@ export class BookingService {
   async createBooking(dto: CreateBookingDto, patientId: string) {
     // Implementation for creating a booking
 
+    let CheckDate = new Date(dto.date);
+    const today = new Date();
 
+    // Prevent creating availability for past dates
+    if (CheckDate < new Date(today.toDateString())) {
+      throw new BadRequestException('Cannot create availability for past dates');
+    }
+
+    
     const user = await this.prisma.user.findUnique({
       where: { id: patientId },
     });

@@ -10,6 +10,20 @@ export class AvailabilityService {
   async create(dto: CreateAvailabilityDto) {
     let first = timeConversion(dto.startTime);
     let second = timeConversion(dto.endTime);
+    let CheckDate = new Date(dto.date);
+    const today = new Date();
+
+    // Prevent creating availability for past dates
+    if (CheckDate < new Date(today.toDateString())) {
+      throw new BadRequestException('Cannot create availability for past dates');
+    }
+
+    const maxfuture = new Date();
+    maxfuture.setDate(maxfuture.getDate() + 30);
+
+    if (CheckDate > maxfuture) {
+      throw new BadRequestException('Date is too far in the future');
+    }
 
     if (first >= second) {
       throw new BadRequestException('Start time must be before end time');

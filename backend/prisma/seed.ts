@@ -89,7 +89,7 @@ async function main() {
         lastName: 'Doe',
         role: Role.PATIENT,
         phone: '+1234567892',
-        dateOfBirth: '1990-01-01',
+        dateOfBirth: "1990-01-01T00:00:00.000Z",
         isActive: true,
         isEmailVerified: true,
       },

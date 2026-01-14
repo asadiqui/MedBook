@@ -22,6 +22,7 @@ export default function AvailabilityPage() {
     endTime: '',
   });
   const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState(''); // Add this state
 
   useEffect(() => {
     fetchAvailabilities();
@@ -43,15 +44,19 @@ export default function AvailabilityPage() {
     if (!user) return;
 
     setSubmitting(true);
+    setMessage('');
+
     try {
       await api.post('/availability', {
         ...formData,
         doctorId: user.id,
       });
       setFormData({ date: '', startTime: '', endTime: '' });
+      setMessage('Availability added successfully!');
       fetchAvailabilities();
-    } catch (error) {
-      console.error('Failed to create availability:', error);
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || 'Failed to create availability';
+      setMessage(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -60,9 +65,12 @@ export default function AvailabilityPage() {
   const handleDelete = async (id: string) => {
     try {
       await api.delete(`/availability/${id}`);
+      setMessage('Availability deleted successfully!');
       fetchAvailabilities();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to delete availability:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to delete availability';
+      setMessage(errorMessage);
     }
   };
 
@@ -126,6 +134,14 @@ export default function AvailabilityPage() {
                 />
               </div>
             </div>
+
+            {/* Add error/success message display */}
+            {message && (
+              <div className={`p-4 rounded-md ${message.includes('successfully') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                {message}
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={submitting}
