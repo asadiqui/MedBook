@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Post,
   Patch,
   Delete,
   Param,
@@ -90,5 +91,26 @@ export class UsersController {
     @CurrentUser('role') userRole: Role,
   ) {
     return this.usersService.remove(id, userId, userRole);
+  }
+
+  // POST /api/users/:id/approve-doctor - Admin only
+  @Post(':id/approve-doctor')
+  @Roles(Role.ADMIN)
+  async approveDoctor(@Param('id', ParseUUIDPipe) id: string) {
+    return this.usersService.approveDoctor(id);
+  }
+
+  // DELETE /api/users/:id/admin - Admin only
+  @Delete(':id/admin')
+  @Roles(Role.ADMIN)
+  async adminDeleteUser(@Param('id', ParseUUIDPipe) id: string) {
+    return this.usersService.adminDeleteUser(id);
+  }
+
+  // GET /api/users/:id/document - Admin only
+  @Get(':id/document')
+  @Roles(Role.ADMIN)
+  async getDoctorDocument(@Param('id', ParseUUIDPipe) id: string) {
+    return this.usersService.getDoctorDocument(id);
   }
 }

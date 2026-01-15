@@ -114,7 +114,7 @@ export default function AppointmentsPage() {
                   <div className="flex items-start space-x-4 flex-1">
                     {booking.doctor.avatar ? (
                       <img
-                        src={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${booking.doctor.avatar}`}
+                        src={booking.doctor.avatar.startsWith('http') ? booking.doctor.avatar : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${booking.doctor.avatar}`}
                         alt="Doctor avatar"
                         className="w-16 h-16 rounded-full object-cover"
                       />

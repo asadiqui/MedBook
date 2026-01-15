@@ -168,7 +168,7 @@ export default function BookingPage() {
                     <div className="flex items-start space-x-4">
                       {selectedDoctor.avatar ? (
                         <img
-                          src={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${selectedDoctor.avatar}`}
+                          src={selectedDoctor.avatar.startsWith('http') ? selectedDoctor.avatar : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${selectedDoctor.avatar}`}
                           alt="Doctor avatar"
                           className="w-16 h-16 rounded-full object-cover"
                         />

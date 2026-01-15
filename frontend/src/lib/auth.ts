@@ -17,6 +17,7 @@ export interface User {
   isEmailVerified?: boolean;
   isVerified?: boolean;
   isTwoFactorEnabled?: boolean;
+  isOAuth?: boolean;
   gender?: string;
   dateOfBirth?: string;
   licenseNumber?: string;
@@ -35,6 +36,7 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  success: string | null;
   
   // Actions
   login: (email: string, password: string) => Promise<boolean>;
@@ -43,6 +45,7 @@ interface AuthState {
   fetchUser: () => Promise<void>;
   setUser: (user: User | null) => void;
   clearError: () => void;
+  clearSuccess: () => void;
 }
 
 interface RegisterData {
@@ -63,6 +66,7 @@ interface RegisterData {
   clinicPhone?: string;
   bio?: string;
   consultationFee?: number;
+  licenseDocument?: File;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -70,10 +74,13 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       user: null,
       isAuthenticated: false,
-      isLoading: true, // Start with loading true until hydrated
+      isLoading: false,
       error: null,
+      success: null,
 
       clearError: () => set({ error: null }),
+
+      clearSuccess: () => set({ success: null }),
 
       login: async (email: string, password: string) => {
         set({ isLoading: true, error: null });
@@ -93,16 +100,46 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      register: async (data: RegisterData) => {
+      register: async (data: RegisterData & { licenseDocument?: File }) => {
         set({ isLoading: true, error: null });
         try {
-          const response = await api.post('/auth/register', data);
-          const { user, tokens } = response.data;
+          // Create FormData for file upload
+          const formData = new FormData();
+          
+          // Add all text fields
+          Object.entries(data).forEach(([key, value]) => {
+            if (key === 'licenseDocument') {
+              // Handle file separately
+              if (value instanceof File) {
+                formData.append('licenseDocument', value);
+              }
+            } else if (value !== undefined && value !== null) {
+              formData.append(key, value.toString());
+            }
+          });
 
-          localStorage.setItem('accessToken', tokens.accessToken);
-          localStorage.setItem('refreshToken', tokens.refreshToken);
+          const response = await api.post('/auth/register', formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          });
+          const { user, tokens, message } = response.data;
 
-          set({ user, isAuthenticated: true, isLoading: false });
+          // Only set tokens and authenticate if they exist
+          if (tokens) {
+            localStorage.setItem('accessToken', tokens.accessToken);
+            localStorage.setItem('refreshToken', tokens.refreshToken);
+            set({ user, isAuthenticated: true, isLoading: false });
+          } else {
+            // Registration successful but no tokens (email verification required)
+            set({ user: null, isAuthenticated: false, isLoading: false });
+          }
+
+          // Store the message for display
+          if (message) {
+            set({ success: message }); // Using success field to display success message
+          }
+
           return true;
         } catch (error: any) {
           const message = error.response?.data?.message || 'Registration failed';
@@ -127,9 +164,6 @@ export const useAuthStore = create<AuthState>()(
       },
 
       fetchUser: async () => {
-        // Wait for client-side hydration
-        if (typeof window === 'undefined') return;
-        
         const token = localStorage.getItem('accessToken');
         if (!token) {
           set({ user: null, isAuthenticated: false, isLoading: false });
@@ -161,12 +195,6 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'auth-storage',
       partialize: (state) => ({ user: state.user, isAuthenticated: state.isAuthenticated }),
-      onRehydrateStorage: () => (state) => {
-        // When storage is rehydrated, set loading to false
-        if (state) {
-          state.isLoading = false;
-        }
-      },
     }
   )
 );

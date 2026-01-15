@@ -95,6 +95,12 @@ export default function LoginPage() {
               </button>
             </div>
 
+            <div className="text-center">
+              <Link href="/forgot-password" className="text-sm text-blue-600 hover:text-blue-500">
+                Forgot your password?
+              </Link>
+            </div>
+
             <div className="mt-6">
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">

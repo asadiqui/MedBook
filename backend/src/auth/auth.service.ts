@@ -9,9 +9,12 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
+import { authenticator } from 'otplib';
+import { toDataURL } from 'qrcode';
 import { PrismaService } from '../prisma/prisma.service';
-import { RegisterDto, LoginDto, ChangePasswordDto } from './dto';
+import { RegisterDto, LoginDto, ChangePasswordDto, Enable2FADto, Verify2FADto, VerifyEmailDto } from './dto';
 import { Role } from '@prisma/client';
+import { EmailService } from '../common/email.service';
 
 export interface TokenPayload {
   accessToken: string;
@@ -41,10 +44,52 @@ export interface AuthResponse {
     licenseDocument: string | null;
     isActive: boolean;
     isEmailVerified: boolean;
-    createdAt: Date;
+    isOAuth: boolean;
   };
-  tokens: TokenPayload;
+  tokens: TokenPayload | null;
+  message?: string;
 }
+
+export interface Enable2FAResponse {
+  secret: string;
+  qrCodeUrl: string;
+}
+
+export interface EmailVerificationResponse {
+  message: string;
+}
+
+const USER_SELECT = {
+  id: true,
+  email: true,
+  firstName: true,
+  lastName: true,
+  role: true,
+  avatar: true,
+  phone: true,
+  gender: true,
+  dateOfBirth: true,
+  bio: true,
+  specialty: true,
+  licenseNumber: true,
+  consultationFee: true,
+  affiliation: true,
+  yearsOfExperience: true,
+  clinicAddress: true,
+  clinicContactPerson: true,
+  clinicPhone: true,
+  licenseDocument: true,
+  isActive: true,
+  isEmailVerified: true,
+  googleId: true,
+} as const;
+
+const LOGIN_USER_SELECT = {
+  ...USER_SELECT,
+  password: true,
+  isTwoFactorEnabled: true,
+  twoFactorSecret: true,
+} as const;
 
 @Injectable()
 export class AuthService {
@@ -52,11 +97,13 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private emailService: EmailService,
   ) {}
 
   async register(dto: RegisterDto): Promise<AuthResponse> {
+    const email = dto.email.toLowerCase();
     const existingUser = await this.prisma.user.findUnique({
-      where: { email: dto.email.toLowerCase() },
+      where: { email },
     });
 
     if (existingUser) {
@@ -65,65 +112,55 @@ export class AuthService {
 
     // Validate doctor-specific fields
     if (dto.role === Role.DOCTOR) {
-      if (!dto.specialty) {
-        throw new BadRequestException('Specialty is required for doctors');
-      }
-      if (!dto.licenseNumber) {
-        throw new BadRequestException('License number is required for doctors');
-      }
+      this.validateDoctorFields(dto);
     }
 
     const hashedPassword = await this.hashPassword(dto.password);
 
     const user = await this.prisma.user.create({
       data: {
-        email: dto.email.toLowerCase(),
+        email,
         password: hashedPassword,
         firstName: dto.firstName,
         lastName: dto.lastName,
         role: dto.role || Role.PATIENT,
         phone: dto.phone,
         dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : undefined,
-        // Doctor-specific fields
-        specialty: dto.role === Role.DOCTOR ? dto.specialty : undefined,
-        licenseNumber: dto.role === Role.DOCTOR ? dto.licenseNumber : undefined,
-        affiliation: dto.role === Role.DOCTOR ? dto.affiliation : undefined,
-        yearsOfExperience: dto.role === Role.DOCTOR ? dto.yearsOfExperience : undefined,
-        clinicAddress: dto.role === Role.DOCTOR ? dto.clinicAddress : undefined,
-        clinicContactPerson: dto.role === Role.DOCTOR ? dto.clinicContactPerson : undefined,
-        clinicPhone: dto.role === Role.DOCTOR ? dto.clinicPhone : undefined,
+        isActive: dto.role === Role.DOCTOR ? false : true, // Doctors need admin approval
+        licenseDocument: dto.licenseDocument ? `/uploads/documents/${dto.licenseDocument.filename}` : null,
+        ...this.getDoctorData(dto),
       },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        role: true,
-        avatar: true,
-        phone: true,
-        gender: true,
-        dateOfBirth: true,
-        bio: true,
-        specialty: true,
-        licenseNumber: true,
-        consultationFee: true,
-        affiliation: true,
-        yearsOfExperience: true,
-        clinicAddress: true,
-        clinicContactPerson: true,
-        clinicPhone: true,
-        licenseDocument: true,
-        isActive: true,
-        isEmailVerified: true,
-        createdAt: true,
-      },
+      select: USER_SELECT,
     });
 
-    const tokens = await this.generateTokens(user.id, user.email, user.role);
+    // Send email verification only for non-doctors
+    if (dto.role !== Role.DOCTOR) {
+      try {
+        await this.sendEmailVerification(user.id);
+      } catch (error) {
+        // Log error but don't fail registration
+        console.error('Failed to send verification email:', error);
+      }
+    }
+
+    // For doctors, send additional email about approval process
+    if (dto.role === Role.DOCTOR) {
+      try {
+        await this.sendDoctorRegistrationEmail(user.id);
+      } catch (error) {
+        console.error('Failed to send doctor registration email:', error);
+      }
+    }
 
     return {
-      user,
-      tokens,
+      user: {
+        ...user,
+        isOAuth: false,
+      },
+      tokens: null, // No tokens until email verification
+      message: dto.role === Role.DOCTOR 
+        ? 'Registration successful! Please verify your email and wait for admin approval.'
+        : 'Registration successful! Please verify your email to complete your account setup.',
     };
   }
 
@@ -131,6 +168,7 @@ export class AuthService {
     // Find user by email
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email.toLowerCase() },
+      select: LOGIN_USER_SELECT,
     });
 
     if (!user) {
@@ -145,6 +183,10 @@ export class AuthService {
 
     if (!user.isActive) {
       throw new UnauthorizedException('Your account has been deactivated');
+    }
+
+    if (!user.isEmailVerified) {
+      throw new UnauthorizedException('Please verify your email address before logging in');
     }
 
     const isPasswordValid = await this.comparePasswords(dto.password, user.password);
@@ -171,30 +213,12 @@ export class AuthService {
 
     const tokens = await this.generateTokens(user.id, user.email, user.role);
 
+    const { password, twoFactorSecret, googleId, ...userWithoutSensitive } = user;
+
     return {
       user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-        avatar: user.avatar,
-        phone: user.phone,
-        gender: user.gender,
-        dateOfBirth: user.dateOfBirth,
-        bio: user.bio,
-        specialty: user.specialty,
-        licenseNumber: user.licenseNumber,
-        consultationFee: user.consultationFee,
-        affiliation: user.affiliation,
-        yearsOfExperience: user.yearsOfExperience,
-        clinicAddress: user.clinicAddress,
-        clinicContactPerson: user.clinicContactPerson,
-        clinicPhone: user.clinicPhone,
-        licenseDocument: user.licenseDocument,
-        isActive: user.isActive,
-        isEmailVerified: user.isEmailVerified,
-        createdAt: user.createdAt,
+        ...userWithoutSensitive,
+        isOAuth: !!googleId,
       },
       tokens,
     };
@@ -233,9 +257,12 @@ export class AuthService {
       throw new UnauthorizedException('User not found or inactive');
     }
 
+    // Generate new tokens and delete old refresh token in transaction
+    const tokens = await this.generateTokens(user.id, user.email, user.role);
+    
     await this.prisma.refreshToken.delete({ where: { id: storedToken.id } });
 
-    return this.generateTokens(user.id, user.email, user.role);
+    return tokens;
   }
 
   async changePassword(userId: string, dto: ChangePasswordDto): Promise<{ message: string }> {
@@ -274,6 +301,11 @@ export class AuthService {
 
     if (!user) {
       return { message: 'If an account exists, a reset link has been sent' };
+    }
+
+    // Check if user is OAuth user
+    if (user.googleId) {
+      return { message: 'This account uses Google login. Please sign in with Google.' };
     }
 
     // Delete any existing reset tokens for this user
@@ -329,6 +361,189 @@ export class AuthService {
     return { message: 'Password reset successfully' };
   }
 
+  async enable2FA(userId: string): Promise<Enable2FAResponse> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.isTwoFactorEnabled) {
+      throw new BadRequestException('Two-factor authentication is already enabled');
+    }
+
+    const secret = authenticator.generateSecret();
+    const appName = this.configService.get<string>('APP_NAME', 'MedBook');
+    const otpauth = authenticator.keyuri(user.email, appName, secret);
+
+    const qrCodeUrl = await toDataURL(otpauth);
+
+    // Store the secret temporarily (not yet enabled)
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { twoFactorSecret: secret },
+    });
+
+    return {
+      secret,
+      qrCodeUrl,
+    };
+  }
+
+  async verifyAndEnable2FA(userId: string, dto: Enable2FADto): Promise<{ message: string }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user || !user.twoFactorSecret) {
+      throw new BadRequestException('Two-factor authentication setup not initiated');
+    }
+
+    if (user.isTwoFactorEnabled) {
+      throw new BadRequestException('Two-factor authentication is already enabled');
+    }
+
+    const isValid = authenticator.verify({
+      token: dto.code,
+      secret: user.twoFactorSecret,
+    });
+
+    if (!isValid) {
+      throw new UnauthorizedException('Invalid two-factor code');
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { isTwoFactorEnabled: true },
+    });
+
+    return { message: 'Two-factor authentication enabled successfully' };
+  }
+
+  async disable2FA(userId: string, dto: Verify2FADto): Promise<{ message: string }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user || !user.isTwoFactorEnabled || !user.twoFactorSecret) {
+      throw new BadRequestException('Two-factor authentication is not enabled');
+    }
+
+    const isValid = authenticator.verify({
+      token: dto.code,
+      secret: user.twoFactorSecret,
+    });
+
+    if (!isValid) {
+      throw new UnauthorizedException('Invalid two-factor code');
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        isTwoFactorEnabled: false,
+        twoFactorSecret: null,
+      },
+    });
+
+    return { message: 'Two-factor authentication disabled successfully' };
+  }
+
+  async sendEmailVerification(userId: string, isDoctorApproval: boolean = false): Promise<EmailVerificationResponse> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.isEmailVerified) {
+      throw new BadRequestException('Email is already verified');
+    }
+
+    // Delete any existing verification tokens for this user
+    await this.prisma.passwordReset.deleteMany({
+      where: { userId },
+    });
+
+    // Create new verification token (reuse password reset table for simplicity)
+    const verificationToken = uuidv4();
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    await this.prisma.passwordReset.create({
+      data: {
+        token: verificationToken,
+        userId,
+        expiresAt,
+      },
+    });
+
+    // Send email with verification link
+    await this.emailService.sendVerificationEmail(user.email, verificationToken, isDoctorApproval);
+
+    return { message: 'Verification email sent' };
+  }
+
+  async sendDoctorRegistrationEmail(userId: string): Promise<EmailVerificationResponse> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Send email to doctor about registration and approval process
+    const doctorName = `${user.firstName} ${user.lastName}`;
+    await this.emailService.sendDoctorVerificationEmail(user.email, doctorName);
+
+    return { message: 'Doctor registration email sent' };
+  }
+
+  async sendDoctorApprovalEmail(userId: string): Promise<EmailVerificationResponse> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Send email to doctor with login link
+    const doctorName = `${user.firstName} ${user.lastName}`;
+    await this.emailService.sendDoctorApprovalEmail(user.email, doctorName);
+
+    return { message: 'Doctor approval email sent' };
+  }
+
+  async verifyEmail(dto: VerifyEmailDto): Promise<EmailVerificationResponse> {
+    const verification = await this.prisma.passwordReset.findUnique({
+      where: { token: dto.token },
+      include: { user: true },
+    });
+
+    if (!verification || verification.used || verification.expiresAt < new Date()) {
+      throw new BadRequestException('Invalid or expired verification token');
+    }
+
+    // Update user and mark token as used
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: verification.userId },
+        data: { isEmailVerified: true },
+      }),
+      this.prisma.passwordReset.update({
+        where: { id: verification.id },
+        data: { used: true },
+      }),
+    ]);
+
+    return { message: 'Email verified successfully' };
+  }
+
   async getCurrentUser(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -356,6 +571,7 @@ export class AuthService {
         clinicContactPerson: true,
         clinicPhone: true,
         isTwoFactorEnabled: true,
+        googleId: true,
         createdAt: true,
         lastLoginAt: true,
       },
@@ -365,7 +581,10 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
 
-    return user;
+    return {
+      ...user,
+      isOAuth: !!user.googleId,
+    };
   }
 
   async googleLogin(googleUser: {
@@ -377,6 +596,7 @@ export class AuthService {
   }): Promise<AuthResponse> {
     let user = await this.prisma.user.findUnique({
       where: { googleId: googleUser.googleId },
+      select: USER_SELECT,
     });
 
     if (!user) {
@@ -389,9 +609,10 @@ export class AuthService {
           where: { id: existingUser.id },
           data: {
             googleId: googleUser.googleId,
-            avatar: existingUser.avatar || googleUser.avatar,
+            avatar: googleUser.avatar || existingUser.avatar,
             isEmailVerified: true,
           },
+          select: USER_SELECT,
         });
       } else {
         user = await this.prisma.user.create({
@@ -404,6 +625,7 @@ export class AuthService {
             isEmailVerified: true,
             role: Role.PATIENT,
           },
+          select: USER_SELECT,
         });
       }
     }
@@ -417,35 +639,37 @@ export class AuthService {
 
     return {
       user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-        avatar: user.avatar,
-        phone: user.phone,
-        gender: user.gender,
-        dateOfBirth: user.dateOfBirth,
-        bio: user.bio,
-        specialty: user.specialty,
-        licenseNumber: user.licenseNumber,
-        consultationFee: user.consultationFee,
-        affiliation: user.affiliation,
-        yearsOfExperience: user.yearsOfExperience,
-        clinicAddress: user.clinicAddress,
-        clinicContactPerson: user.clinicContactPerson,
-        clinicPhone: user.clinicPhone,
-        licenseDocument: user.licenseDocument,
-        isActive: user.isActive,
-        isEmailVerified: user.isEmailVerified,
-        createdAt: user.createdAt,
+        ...user,
+        isOAuth: true,
       },
       tokens,
     };
   }
 
+  private validateDoctorFields(dto: RegisterDto): void {
+    if (!dto.specialty) {
+      throw new BadRequestException('Specialty is required for doctors');
+    }
+    if (!dto.licenseNumber) {
+      throw new BadRequestException('License number is required for doctors');
+    }
+  }
+
+  private getDoctorData(dto: RegisterDto) {
+    if (dto.role !== Role.DOCTOR) return {};
+    return {
+      specialty: dto.specialty,
+      licenseNumber: dto.licenseNumber,
+      affiliation: dto.affiliation,
+      yearsOfExperience: dto.yearsOfExperience,
+      clinicAddress: dto.clinicAddress,
+      clinicContactPerson: dto.clinicContactPerson,
+      clinicPhone: dto.clinicPhone,
+    };
+  }
+
   private async hashPassword(password: string): Promise<string> {
-    const saltRounds = 12;
+    const saltRounds = this.configService.get<number>('BCRYPT_SALT_ROUNDS', 12);
     return bcrypt.hash(password, saltRounds);
   }
 
@@ -478,7 +702,9 @@ export class AuthService {
   }
 
   private async verify2FACode(secret: string, code: string): Promise<boolean> {
-    // Will be implemented with otplib in 2FA module
-    return true;
+    return authenticator.verify({
+      token: code,
+      secret,
+    });
   }
 }

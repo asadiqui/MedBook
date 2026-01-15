@@ -8,9 +8,11 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
+import { EmailModule } from '../common/email.module';
 
 @Module({
   imports: [
+    EmailModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

@@ -7,7 +7,7 @@ import { useAuthStore } from '@/lib/auth';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { register, isLoading, error, clearError } = useAuthStore();
+  const { register, isLoading, error, success, clearError, clearSuccess } = useAuthStore();
 
   const [formData, setFormData] = useState<{
     firstName: string;
@@ -24,7 +24,8 @@ export default function RegisterPage() {
     clinicAddress: string;
     clinicContactPerson: string;
     clinicPhone: string;
-    bio: string;
+    licenseNumber: string;
+    licenseDocument: File | null;
   }>({
     firstName: '',
     lastName: '',
@@ -40,17 +41,27 @@ export default function RegisterPage() {
     clinicAddress: '',
     clinicContactPerson: '',
     clinicPhone: '',
-    bio: '',
+    licenseNumber: '',
+    licenseDocument: null,
   });
 
   const [passwordError, setPasswordError] = useState('');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     clearError();
+    clearSuccess();
     setPasswordError('');
     setFormData((prev) => ({
       ...prev,
       [e.target.name]: e.target.value,
+    }));
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setFormData((prev) => ({
+      ...prev,
+      licenseDocument: file,
     }));
   };
 
@@ -70,18 +81,20 @@ export default function RegisterPage() {
       role: formData.role,
       ...(formData.role === 'DOCTOR' && {
         specialty: formData.specialty,
+        licenseNumber: formData.licenseNumber,
         consultationFee: parseFloat(formData.consultationFee) || undefined,
         affiliation: formData.affiliation,
         yearsOfExperience: parseInt(formData.yearsOfExperience) || undefined,
         clinicAddress: formData.clinicAddress,
         clinicContactPerson: formData.clinicContactPerson,
         clinicPhone: formData.clinicPhone,
-        bio: formData.bio,
+        licenseDocument: formData.licenseDocument || undefined,
       }),
     });
 
     if (success) {
-      router.push('/profile');
+      // Success message is displayed in the form
+      // User can navigate to login when ready
     }
   };
 
@@ -105,10 +118,16 @@ export default function RegisterPage() {
             </Link>
           </p>
 
-          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <form className="mt-8 space-y-6" onSubmit={handleSubmit} encType="multipart/form-data">
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
                 {error}
+              </div>
+            )}
+
+            {success && (
+              <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
+                {success}
               </div>
             )}
 
@@ -204,6 +223,22 @@ export default function RegisterPage() {
                         onChange={handleChange}
                         className="appearance-none rounded-lg relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
                         placeholder="e.g., Cardiology, Pediatrics"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="licenseNumber" className="block text-sm font-medium text-gray-700 mb-2">
+                        License Number *
+                      </label>
+                      <input
+                        id="licenseNumber"
+                        name="licenseNumber"
+                        type="text"
+                        required={formData.role === 'DOCTOR'}
+                        value={formData.licenseNumber}
+                        onChange={handleChange}
+                        className="appearance-none rounded-lg relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                        placeholder="Medical License Number"
                       />
                     </div>
 
@@ -304,18 +339,26 @@ export default function RegisterPage() {
                   </div>
 
                   <div>
-                    <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-2">
-                      Bio
+                    <label htmlFor="licenseDocument" className="block text-sm font-medium text-gray-700 mb-2">
+                      License Document *
                     </label>
-                    <textarea
-                      id="bio"
-                      name="bio"
-                      rows={3}
-                      value={formData.bio}
-                      onChange={handleChange}
+                    <input
+                      id="licenseDocument"
+                      name="licenseDocument"
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      required={formData.role === 'DOCTOR'}
+                      onChange={handleFileChange}
                       className="appearance-none rounded-lg relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                      placeholder="Tell patients about your experience and approach to care..."
                     />
+                    <p className="mt-1 text-sm text-gray-500">
+                      Upload your medical license document (PDF, JPG, PNG - max 10MB)
+                    </p>
+                    {formData.licenseDocument && (
+                      <p className="mt-1 text-sm text-green-600">
+                        Selected: {formData.licenseDocument.name}
+                      </p>
+                    )}
                   </div>
                 </div>
               )}

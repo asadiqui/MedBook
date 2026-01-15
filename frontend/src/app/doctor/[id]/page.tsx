@@ -52,7 +52,7 @@ export default function DoctorProfilePage() {
   const fetchDoctorProfile = async () => {
     try {
       const [doctorResponse, availabilityResponse] = await Promise.all([
-        api.get(`/users/doctor/${doctorId}`),
+        api.get(`/users/doctors/${doctorId}`),
         api.get('/availability', { params: { doctorId } })
       ]);
       setDoctor(doctorResponse.data);
@@ -91,7 +91,7 @@ export default function DoctorProfilePage() {
           <div className="flex flex-col md:flex-row items-start md:items-center space-y-4 md:space-y-0 md:space-x-8">
             {doctor.avatar ? (
               <img
-                src={`${API_BASE_URL}${doctor.avatar}`}
+                src={doctor.avatar.startsWith('http') ? doctor.avatar : `${API_BASE_URL}${doctor.avatar}`}
                 alt="Doctor avatar"
                 className="w-32 h-32 rounded-full object-cover"
               />

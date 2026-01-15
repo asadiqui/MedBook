@@ -8,15 +8,42 @@ import {
   UseGuards,
   Req,
   Res,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
 import { Response } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
+import { v4 as uuidv4 } from 'uuid';
 import { AuthService } from './auth.service';
-import { RegisterDto, LoginDto, ChangePasswordDto, ForgotPasswordDto, ResetPasswordDto } from './dto';
+import { RegisterDto, LoginDto, ChangePasswordDto, ForgotPasswordDto, ResetPasswordDto, Enable2FADto, Verify2FADto, VerifyEmailDto } from './dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { ConfigService } from '@nestjs/config';
+
+const documentStorage = {
+  storage: diskStorage({
+    destination: './uploads/documents',
+    filename: (req, file, callback) => {
+      const uniqueName = `${uuidv4()}${extname(file.originalname)}`;
+      callback(null, uniqueName);
+    },
+  }),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB
+  },
+  fileFilter: (req: any, file: any, callback: any) => {
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+    if (!allowedTypes.includes(file.mimetype)) {
+      callback(new Error('Invalid file type. Allowed: pdf, jpeg, png'), false);
+      return;
+    }
+    callback(null, true);
+  },
+};
 
 @Controller('auth')
 export class AuthController {
@@ -27,7 +54,15 @@ export class AuthController {
 
   @Public()
   @Post('register')
-  async register(@Body() dto: RegisterDto) {
+  @UseInterceptors(FileInterceptor('licenseDocument', documentStorage))
+  async register(
+    @Body() dto: RegisterDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    // Add the uploaded file to the DTO if it exists
+    if (file) {
+      dto.licenseDocument = file;
+    }
     return this.authService.register(dto);
   }
 
@@ -103,5 +138,39 @@ export class AuthController {
     const redirectUrl = `${frontendUrl}/auth/callback?accessToken=${result.tokens.accessToken}&refreshToken=${result.tokens.refreshToken}`;
     
     return res.redirect(redirectUrl);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('2fa/enable')
+  async enable2FA(@CurrentUser('id') userId: string) {
+    return this.authService.enable2FA(userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('2fa/verify')
+  @HttpCode(HttpStatus.OK)
+  async verifyAndEnable2FA(@CurrentUser('id') userId: string, @Body() dto: Enable2FADto) {
+    return this.authService.verifyAndEnable2FA(userId, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('2fa/disable')
+  @HttpCode(HttpStatus.OK)
+  async disable2FA(@CurrentUser('id') userId: string, @Body() dto: Verify2FADto) {
+    return this.authService.disable2FA(userId, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('email/send-verification')
+  @HttpCode(HttpStatus.OK)
+  async sendEmailVerification(@CurrentUser('id') userId: string) {
+    return this.authService.sendEmailVerification(userId);
+  }
+
+  @Public()
+  @Post('email/verify')
+  @HttpCode(HttpStatus.OK)
+  async verifyEmail(@Body() dto: VerifyEmailDto) {
+    return this.authService.verifyEmail(dto);
   }
 }

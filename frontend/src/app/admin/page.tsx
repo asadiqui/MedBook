@@ -37,6 +37,10 @@ export default function AdminDashboard() {
   const [showUserModal, setShowUserModal] = useState(false);
 
   useEffect(() => {
+    if (isLoading) {
+      return; // Wait for authentication state to load
+    }
+
     if (!isAuthenticated) {
       router.push('/login');
       return;
@@ -49,7 +53,7 @@ export default function AdminDashboard() {
 
     fetchStats();
     fetchUsers();
-  }, [isAuthenticated, user, router]);
+  }, [isAuthenticated, user, isLoading, router]);
 
   const fetchStats = async () => {
     try {
@@ -79,6 +83,45 @@ export default function AdminDashboard() {
       setSelectedUser(null);
     } catch (error) {
       console.error('Failed to update user:', error);
+    }
+  };
+
+  const handleApproveDoctor = async (userId: string) => {
+    if (!confirm('Are you sure you want to approve this doctor?')) return;
+    
+    try {
+      await api.post(`/users/${userId}/approve-doctor`);
+      fetchUsers();
+    } catch (error) {
+      console.error('Failed to approve doctor:', error);
+      alert('Failed to approve doctor');
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
+    
+    try {
+      await api.delete(`/users/${userId}/admin`);
+      fetchUsers();
+    } catch (error) {
+      console.error('Failed to delete user:', error);
+      alert('Failed to delete user');
+    }
+  };
+
+  const handleViewDocument = async (userId: string) => {
+    try {
+      const response = await api.get(`/users/${userId}/document`);
+      const documentPath = response.data.documentPath;
+      if (documentPath) {
+        window.open(`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${documentPath}`, '_blank');
+      } else {
+        alert('No document found');
+      }
+    } catch (error) {
+      console.error('Failed to get document:', error);
+      alert('Failed to load document');
     }
   };
 
@@ -169,7 +212,7 @@ export default function AdminDashboard() {
                         {user.avatar ? (
                           <img
                             className="h-10 w-10 rounded-full object-cover"
-                            src={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${user.avatar}`}
+                            src={user.avatar.startsWith('http') ? user.avatar : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${user.avatar}`}
                             alt=""
                           />
                         ) : (
@@ -217,7 +260,7 @@ export default function AdminDashboard() {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                       <button
                         onClick={() => {
                           setSelectedUser(user);
@@ -226,6 +269,28 @@ export default function AdminDashboard() {
                         className="text-blue-600 hover:text-blue-900"
                       >
                         Edit
+                      </button>
+                      {user.role === 'DOCTOR' && !user.isVerified && (
+                        <button
+                          onClick={() => handleApproveDoctor(user.id)}
+                          className="text-green-600 hover:text-green-900"
+                        >
+                          Approve
+                        </button>
+                      )}
+                      {user.role === 'DOCTOR' && user.isVerified && (
+                        <button
+                          onClick={() => handleViewDocument(user.id)}
+                          className="text-purple-600 hover:text-purple-900"
+                        >
+                          View Doc
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDeleteUser(user.id)}
+                        className="text-red-600 hover:text-red-900"
+                      >
+                        Delete
                       </button>
                     </td>
                   </tr>

@@ -13,9 +13,21 @@ export default function ProfilePage() {
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const licenseInputRef = useRef<HTMLInputElement>(null);
 
-  const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [show2FASetup, setShow2FASetup] = useState(false);
+  const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [qrCodeUrl, setQrCodeUrl] = useState('');
+  const [secret, setSecret] = useState('');
+
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -169,6 +181,86 @@ export default function ProfilePage() {
     router.push('/login');
   };
 
+  const handleSendEmailVerification = async () => {
+    try {
+      await api.post('/auth/email/send-verification');
+      setMessage({ type: 'success', text: 'Verification email has been sent to your email address!' });
+    } catch (error) {
+      console.error('Error sending verification email:', error);
+      setMessage({ type: 'error', text: 'Failed to send verification email. Please try again.' });
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setMessage({ type: 'error', text: 'New passwords do not match.' });
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      setMessage({ type: 'error', text: 'New password must be at least 6 characters long.' });
+      return;
+    }
+
+    try {
+      await api.post('/auth/change-password', {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+      });
+      setMessage({ type: 'success', text: 'Password changed successfully!' });
+      setShowPasswordChange(false);
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.response?.data?.message || 'Failed to change password.' });
+    }
+  };
+
+  const handleEnable2FA = async () => {
+    try {
+      const response = await api.post('/auth/2fa/enable');
+      setQrCodeUrl(response.data.qrCodeUrl);
+      setSecret(response.data.secret);
+      setShow2FASetup(true);
+    } catch (error) {
+      console.error('Error enabling 2FA:', error);
+      alert('Failed to enable 2FA. Please try again.');
+    }
+  };
+
+  const handleVerify2FA = async () => {
+    try {
+      await api.post('/auth/2fa/verify', { code: twoFactorCode });
+      setShow2FASetup(false);
+      setTwoFactorCode('');
+      setQrCodeUrl('');
+      setSecret('');
+      // Refresh user data to update 2FA status
+      const userResponse = await api.get('/users/me');
+      setUser(userResponse.data);
+      alert('2FA enabled successfully!');
+    } catch (error) {
+      console.error('Error verifying 2FA:', error);
+      alert('Invalid code. Please try again.');
+    }
+  };
+
+  const handleDisable2FA = async () => {
+    if (!confirm('Are you sure you want to disable two-factor authentication? This will make your account less secure.')) {
+      return;
+    }
+    
+    try {
+      await api.post('/auth/2fa/disable');
+      // Refresh user data to update 2FA status
+      const userResponse = await api.get('/users/me');
+      setUser(userResponse.data);
+      alert('2FA disabled successfully!');
+    } catch (error) {
+      console.error('Error disabling 2FA:', error);
+      alert('Failed to disable 2FA. Please try again.');
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -208,7 +300,7 @@ export default function ProfilePage() {
             <div className="flex items-center space-x-4">
               {user.avatar ? (
                 <img
-                  src={`${API_BASE_URL}${user.avatar}`}
+                  src={user.avatar.startsWith('http') ? user.avatar : `${API_BASE_URL}${user.avatar}`}
                   alt="Avatar"
                   className="w-20 h-20 rounded-full object-cover"
                 />
@@ -507,6 +599,178 @@ export default function ProfilePage() {
                   {user.isTwoFactorEnabled ? 'Enabled' : 'Disabled'}
                 </span>
               </div>
+            </div>
+          </div>
+
+          {/* Security Settings */}
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">Security Settings</h2>
+            
+            {/* Email Verification */}
+            {!user.isEmailVerified && (
+              <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-medium text-yellow-800">Email Verification Required</h3>
+                    <p className="text-sm text-yellow-700 mt-1">
+                      Please verify your email address to secure your account.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleSendEmailVerification}
+                    className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700 text-sm"
+                  >
+                    Send Verification Email
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Password Change - Only for non-OAuth users */}
+            {!user.isOAuth && (
+              <div className="mb-6 bg-white p-6 rounded-lg border">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900">Change Password</h3>
+                    <p className="text-sm text-gray-600">
+                      Update your account password
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowPasswordChange(!showPasswordChange)}
+                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                  >
+                    {showPasswordChange ? 'Cancel' : 'Change Password'}
+                  </button>
+                </div>
+
+                {showPasswordChange && (
+                  <div className="border-t pt-4 space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+                      <input
+                        type="password"
+                        value={passwordData.currentPassword}
+                        onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter current password"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                      <input
+                        type="password"
+                        value={passwordData.newPassword}
+                        onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter new password"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+                      <input
+                        type="password"
+                        value={passwordData.confirmPassword}
+                        onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Confirm new password"
+                      />
+                    </div>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={handlePasswordChange}
+                        className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                      >
+                        Update Password
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowPasswordChange(false);
+                          setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                        }}
+                        className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Two-Factor Authentication */}
+            <div className="bg-white p-6 rounded-lg border">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900">Two-Factor Authentication</h3>
+                  <p className="text-sm text-gray-600">
+                    Add an extra layer of security to your account
+                  </p>
+                </div>
+                {!user.isTwoFactorEnabled ? (
+                  <button
+                    onClick={handleEnable2FA}
+                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                  >
+                    Enable 2FA
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleDisable2FA}
+                    className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+                  >
+                    Disable 2FA
+                  </button>
+                )}
+              </div>
+
+              {show2FASetup && (
+                <div className="border-t pt-4">
+                  <div className="mb-4">
+                    <h4 className="text-md font-medium text-gray-900 mb-2">Setup Instructions</h4>
+                    <ol className="list-decimal list-inside text-sm text-gray-600 space-y-1">
+                      <li>Install an authenticator app (Google Authenticator, Authy, etc.)</li>
+                      <li>Scan the QR code below with your app</li>
+                      <li>Enter the 6-digit code from your app</li>
+                    </ol>
+                  </div>
+                  
+                  {qrCodeUrl && (
+                    <div className="mb-4 flex justify-center">
+                      <img src={qrCodeUrl} alt="QR Code" className="border rounded" />
+                    </div>
+                  )}
+                  
+                  {secret && (
+                    <div className="mb-4">
+                      <p className="text-sm text-gray-600 mb-2">Or manually enter this code:</p>
+                      <code className="bg-gray-100 px-2 py-1 rounded text-sm">{secret}</code>
+                    </div>
+                  )}
+                  
+                  <div className="flex space-x-2">
+                    <input
+                      type="text"
+                      placeholder="Enter 6-digit code"
+                      value={twoFactorCode}
+                      onChange={(e) => setTwoFactorCode(e.target.value)}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                      onClick={handleVerify2FA}
+                      className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                    >
+                      Verify
+                    </button>
+                    <button
+                      onClick={() => setShow2FASetup(false)}
+                      className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

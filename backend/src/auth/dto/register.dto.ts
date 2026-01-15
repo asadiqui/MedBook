@@ -59,4 +59,9 @@ export class RegisterDto {
   @IsString()
   @IsOptional()
   clinicPhone?: string;
+
+  @IsNumber()
+  @IsOptional()
+  consultationFee?: number;
+  licenseDocument?: Express.Multer.File;
 }
