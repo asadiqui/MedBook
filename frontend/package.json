@@ -16,7 +16,8 @@
     "@hookform/resolvers": "^3.3.2",
     "zod": "^3.22.4",
     "axios": "^1.6.2",
-    "zustand": "^4.4.7"
+    "zustand": "^4.4.7",
+    "socket.io-client": "^4.7.0"
   },
   "devDependencies": {
     "@types/node": "^20.10.5",

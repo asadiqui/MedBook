@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { AvailabilityModule } from './availability/availability.module';
 import { BookingModule } from './booking/booking.module';
+import { ChatModule } from './chat/chat.module';
 import { EmailModule } from './common/email.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 
@@ -27,6 +28,7 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
     UsersModule,
     AvailabilityModule,
     BookingModule,
+    ChatModule,
   ],
   controllers: [],
   providers: [
