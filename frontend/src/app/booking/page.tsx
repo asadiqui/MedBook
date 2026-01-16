@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth';
 
@@ -19,9 +20,10 @@ interface Doctor {
 }
 
 export default function BookingPage() {
-  const { user } = useAuthStore();
+  const { user, hasHydrated, isLoading: authLoading } = useAuthStore();
   const searchParams = useSearchParams();
   const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [createdBookingId, setCreatedBookingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     doctorId: '',
     date: '',
@@ -31,7 +33,20 @@ export default function BookingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
 
+  const isAuthReady = hasHydrated && !authLoading;
+
+  const fetchDoctors = useCallback(async () => {
+    try {
+      const response = await api.get('/users/doctors');
+      setDoctors(response.data.data);
+    } catch (error) {
+      console.error('Failed to fetch doctors:', error);
+    }
+  }, []);
+
   useEffect(() => {
+    if (!isAuthReady) return;
+    if (!user || user.role !== 'PATIENT') return;
     fetchDoctors();
     
     // Pre-fill form from URL parameters
@@ -42,16 +57,7 @@ export default function BookingPage() {
     if (doctorId) setFormData(prev => ({ ...prev, doctorId }));
     if (date) setFormData(prev => ({ ...prev, date }));
     if (startTime) setFormData(prev => ({ ...prev, startTime }));
-  }, [searchParams]);
-
-  const fetchDoctors = async () => {
-    try {
-      const response = await api.get('/users/doctors');
-      setDoctors(response.data.data);
-    } catch (error) {
-      console.error('Failed to fetch doctors:', error);
-    }
-  };
+  }, [fetchDoctors, isAuthReady, searchParams, user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,9 +65,11 @@ export default function BookingPage() {
 
     setSubmitting(true);
     setMessage('');
+    setCreatedBookingId(null);
     try {
       const response = await api.post('/booking', formData);
       setMessage(`Booking request submitted successfully! Status: ${response.data.status}`);
+      setCreatedBookingId(response.data.id);
       setFormData({ doctorId: '', date: '', startTime: '', duration: 60 });
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Failed to create booking';
@@ -70,6 +78,14 @@ export default function BookingPage() {
       setSubmitting(false);
     }
   };
+
+  if (!isAuthReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   if (!user || user.role !== 'PATIENT') {
     return (
@@ -207,7 +223,17 @@ export default function BookingPage() {
 
             {message && (
               <div className={`p-4 rounded-md ${message.includes('successfully') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                {message}
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <span>{message}</span>
+                  {createdBookingId && (
+                    <Link
+                      href={`/chat?bookingId=${createdBookingId}`}
+                      className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm font-medium"
+                    >
+                      Open chat
+                    </Link>
+                  )}
+                </div>
               </div>
             )}
 

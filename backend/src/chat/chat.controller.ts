@@ -18,27 +18,30 @@ export class ChatController {
     @Body('bookingId') bookingId: string,
     @Body('receiverId') receiverId: string,
     @Body('content') content: string,
-    @CurrentUser() user: { userId: string },
+    @CurrentUser('id') userId: string,
   ) {
     return this.chatService.saveMessage(
       bookingId,
-      user.userId,
+      userId,
       receiverId,
       content,
     );
   }
 
   @Get('booking/:id')
-  async getHistory(@Param('id') bookingId: string) {
-    return this.chatService.getBookingMessages(bookingId);
+  async getHistory(
+    @Param('id') bookingId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.chatService.getBookingMessages(bookingId, userId);
   }
 
   @Get('conversation')
   async getConversation(
-    @Query('user1') user1: string,
     @Query('user2') user2: string,
+    @CurrentUser('id') userId: string,
   ) {
-    return this.chatService.getConversation(user1, user2);
+    return this.chatService.getConversation(userId, user2);
   }
 
   @Post('read/:messageId')
@@ -49,18 +52,18 @@ export class ChatController {
   @Post('read-all/:bookingId')
   async markAllRead(
     @Param('bookingId') bookingId: string,
-    @CurrentUser() user: { userId: string },
+    @CurrentUser('id') userId: string,
   ) {
-    return this.chatService.markAllAsRead(bookingId, user.userId);
+    return this.chatService.markAllAsRead(bookingId, userId);
   }
 
   @Get('unread-count')
-  async getUnreadCount(@CurrentUser() user: { userId: string }) {
-    return this.chatService.getUnreadCount(user.userId);
+  async getUnreadCount(@CurrentUser('id') userId: string) {
+    return this.chatService.getUnreadCount(userId);
   }
 
   @Get('my-chats')
-  async getUserChats(@CurrentUser() user: { userId: string }) {
-    return this.chatService.getUserChats(user.userId);
+  async getUserChats(@CurrentUser('id') userId: string) {
+    return this.chatService.getUserChats(userId);
   }
 }

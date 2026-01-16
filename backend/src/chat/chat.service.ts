@@ -2,12 +2,34 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+
+const CHAT_ALLOWED_BOOKING_STATUSES = ['PENDING', 'ACCEPTED'] as const;
 
 @Injectable()
 export class ChatService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private assertChatAllowed(bookingStatus: string) {
+    if (!CHAT_ALLOWED_BOOKING_STATUSES.includes(bookingStatus as any)) {
+      throw new BadRequestException('Chat is not allowed for this booking status');
+    }
+  }
+
+  async getBookingParticipants(bookingId: string) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      select: { id: true, doctorId: true, patientId: true, status: true },
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Booking not found');
+    }
+
+    return booking;
+  }
 
   async saveMessage(
     bookingId: string,
@@ -28,6 +50,8 @@ export class ChatService {
       throw new NotFoundException('Booking not found');
     }
 
+    this.assertChatAllowed(booking.status);
+
     // Verify sender and receiver exist
     const sender = await this.prisma.user.findUnique({
       where: { id: senderId },
@@ -42,7 +66,10 @@ export class ChatService {
 
     // Verify that both users are part of this booking
     const validParticipants = [booking.doctorId, booking.patientId];
-    if (!validParticipants.includes(senderId) || !validParticipants.includes(receiverId)) {
+    if (
+      !validParticipants.includes(senderId) ||
+      !validParticipants.includes(receiverId)
+    ) {
       throw new BadRequestException('Users must be part of this booking');
     }
 
@@ -79,7 +106,7 @@ export class ChatService {
     return message;
   }
 
-  async getBookingMessages(bookingId: string) {
+  async getBookingMessages(bookingId: string, requesterId: string) {
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
       include: {
@@ -107,6 +134,13 @@ export class ChatService {
     if (!booking) {
       throw new NotFoundException('Booking not found');
     }
+
+    const isParticipant = booking.doctorId === requesterId || booking.patientId === requesterId;
+    if (!isParticipant) {
+      throw new ForbiddenException('You are not allowed to view this chat');
+    }
+
+    this.assertChatAllowed(booking.status);
 
     const messages = await this.prisma.message.findMany({
       where: { bookingId },
@@ -139,12 +173,31 @@ export class ChatService {
     };
   }
 
-  async getConversation(userId1: string, userId2: string) {
-    const messages = await this.prisma.message.findMany({
+  async getConversation(currentUserId: string, otherUserId: string) {
+    // Only allow conversation lookup when users share at least one active booking.
+    const bookings = await this.prisma.booking.findMany({
       where: {
+        status: { in: CHAT_ALLOWED_BOOKING_STATUSES as any },
         OR: [
-          { senderId: userId1, receiverId: userId2 },
-          { senderId: userId2, receiverId: userId1 },
+          { doctorId: currentUserId, patientId: otherUserId },
+          { doctorId: otherUserId, patientId: currentUserId },
+        ],
+      },
+      select: { id: true },
+    });
+
+    if (bookings.length === 0) {
+      throw new ForbiddenException('No booking exists between these users');
+    }
+
+    const bookingIds = bookings.map((b) => b.id);
+
+    return this.prisma.message.findMany({
+      where: {
+        bookingId: { in: bookingIds },
+        OR: [
+          { senderId: currentUserId, receiverId: otherUserId },
+          { senderId: otherUserId, receiverId: currentUserId },
         ],
       },
       orderBy: { createdAt: 'asc' },
@@ -169,8 +222,6 @@ export class ChatService {
         },
       },
     });
-
-    return messages;
   }
 
   async markAsRead(messageId: string) {
@@ -209,6 +260,12 @@ export class ChatService {
   }
 
   async markAllAsRead(bookingId: string, userId: string) {
+    const booking = await this.getBookingParticipants(bookingId);
+    const isParticipant = booking.doctorId === userId || booking.patientId === userId;
+    if (!isParticipant) {
+      throw new ForbiddenException('You are not allowed to modify this chat');
+    }
+
     await this.prisma.message.updateMany({
       where: {
         bookingId,
@@ -240,6 +297,7 @@ export class ChatService {
           { doctorId: userId },
           { patientId: userId },
         ],
+        status: { in: CHAT_ALLOWED_BOOKING_STATUSES as any },
       },
       include: {
         doctor: {

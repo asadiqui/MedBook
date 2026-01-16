@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth';
 
@@ -13,7 +13,7 @@ interface Availability {
 }
 
 export default function AvailabilityPage() {
-  const { user } = useAuthStore();
+  const { user, hasHydrated, isLoading: authLoading } = useAuthStore();
   const [availabilities, setAvailabilities] = useState<Availability[]>([]);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
@@ -24,12 +24,11 @@ export default function AvailabilityPage() {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState(''); // Add this state
 
-  useEffect(() => {
-    fetchAvailabilities();
-  }, []);
+  const isAuthReady = hasHydrated && !authLoading;
 
-  const fetchAvailabilities = async () => {
+  const fetchAvailabilities = useCallback(async () => {
     try {
+      setLoading(true);
       const response = await api.get('/availability');
       setAvailabilities(response.data);
     } catch (error) {
@@ -37,7 +36,13 @@ export default function AvailabilityPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthReady) return;
+    if (!user || user.role !== 'DOCTOR') return;
+    fetchAvailabilities();
+  }, [fetchAvailabilities, isAuthReady, user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,6 +78,14 @@ export default function AvailabilityPage() {
       setMessage(errorMessage);
     }
   };
+
+  if (!isAuthReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   if (!user || user.role !== 'DOCTOR') {
     return (

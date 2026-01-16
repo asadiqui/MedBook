@@ -18,7 +18,6 @@ import { extname } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto, ChangePasswordDto, ForgotPasswordDto, ResetPasswordDto, Enable2FADto, Verify2FADto, VerifyEmailDto } from './dto';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -73,7 +72,6 @@ export class AuthController {
     return this.authService.login(dto);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   async logout(
@@ -90,13 +88,11 @@ export class AuthController {
     return this.authService.refreshTokens(refreshToken);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get('me')
   async getCurrentUser(@CurrentUser('id') userId: string) {
     return this.authService.getCurrentUser(userId);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Post('change-password')
   @HttpCode(HttpStatus.OK)
   async changePassword(
@@ -140,27 +136,23 @@ export class AuthController {
     return res.redirect(redirectUrl);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Post('2fa/enable')
   async enable2FA(@CurrentUser('id') userId: string) {
     return this.authService.enable2FA(userId);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Post('2fa/verify')
   @HttpCode(HttpStatus.OK)
   async verifyAndEnable2FA(@CurrentUser('id') userId: string, @Body() dto: Enable2FADto) {
     return this.authService.verifyAndEnable2FA(userId, dto);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Post('2fa/disable')
   @HttpCode(HttpStatus.OK)
   async disable2FA(@CurrentUser('id') userId: string, @Body() dto: Verify2FADto) {
     return this.authService.disable2FA(userId, dto);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Post('email/send-verification')
   @HttpCode(HttpStatus.OK)
   async sendEmailVerification(@CurrentUser('id') userId: string) {

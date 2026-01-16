@@ -3,7 +3,6 @@ import {
   Post,
   Delete,
   Param,
-  UseGuards,
   UseInterceptors,
   UploadedFile,
   ParseUUIDPipe,
@@ -14,7 +13,6 @@ import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { UploadService } from './upload.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Role } from '@prisma/client';
 
@@ -61,7 +59,6 @@ const documentStorage = {
 };
 
 @Controller('users')
-@UseGuards(JwtAuthGuard)
 export class UploadController {
   constructor(private readonly uploadService: UploadService) {}
 

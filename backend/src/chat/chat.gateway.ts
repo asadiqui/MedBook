@@ -44,13 +44,25 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('join_room')
-  handleJoinRoom(
+  async handleJoinRoom(
     @ConnectedSocket() client: Socket,
     @MessageBody() data: { bookingId: string; userId: string },
   ) {
+    const socketUserId = this.connectedUsers.get(client.id) || data.userId;
+
+    const booking = await this.chatService.getBookingParticipants(data.bookingId);
+    const isParticipant = booking.doctorId === socketUserId || booking.patientId === socketUserId;
+    if (!isParticipant) {
+      return { event: 'error', data: { message: 'Not allowed to join this room' } };
+    }
+
+    if (!['PENDING', 'ACCEPTED'].includes(booking.status as any)) {
+      return { event: 'error', data: { message: 'Chat is not allowed for this booking status' } };
+    }
+
     const room = `booking_${data.bookingId}`;
     client.join(room);
-    console.log(`👤 User ${data.userId} joined room: ${room}`);
+    console.log(`👤 User ${socketUserId} joined room: ${room}`);
 
     return { event: 'joined_room', data: { room } };
   }
@@ -73,16 +85,29 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody()
     data: {
       bookingId: string;
-      senderId: string;
-      receiverId: string;
+      senderId?: string;
+      receiverId?: string;
       content: string;
     },
   ) {
     try {
+      const senderId = this.connectedUsers.get(client.id) || data.senderId;
+      if (!senderId) {
+        return { event: 'error', data: { message: 'Sender not registered' } };
+      }
+
+      const booking = await this.chatService.getBookingParticipants(data.bookingId);
+      const isParticipant = booking.doctorId === senderId || booking.patientId === senderId;
+      if (!isParticipant) {
+        return { event: 'error', data: { message: 'Not allowed to send to this booking' } };
+      }
+
+      const receiverId = booking.doctorId === senderId ? booking.patientId : booking.doctorId;
+
       const savedMessage = await this.chatService.saveMessage(
         data.bookingId,
-        data.senderId,
-        data.receiverId,
+        senderId,
+        receiverId,
         data.content,
       );
 

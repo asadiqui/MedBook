@@ -4,6 +4,11 @@ import * as bcrypt from 'bcrypt';
 const prisma = new PrismaClient();
 
 async function main() {
+  if (process.env.SEED_DB !== 'true') {
+    console.log('ℹ️  Skipping seed (set SEED_DB=true to enable)');
+    return;
+  }
+
   // Check if admin already exists
   const existingAdmin = await prisma.user.findFirst({
     where: { role: Role.ADMIN },

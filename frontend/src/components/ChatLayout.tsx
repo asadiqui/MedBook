@@ -55,14 +55,47 @@ export const ChatLayout = ({ selectedBookingId, onSelectChat }: ChatLayoutProps)
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [chatError, setChatError] = useState<string>('');
   const [otherUser, setOtherUser] = useState<ChatInfo['otherUser'] | null>(null);
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  const resolveAvatarUrl = useCallback((avatar: string | null | undefined) => {
+    if (!avatar) return null;
+    if (avatar.startsWith('http')) return avatar;
+
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+    const baseUrl = apiUrl.replace(/\/api\/?$/, '');
+    const normalized = avatar.startsWith('/') ? avatar : `/${avatar}`;
+    return `${baseUrl}${normalized}`;
+  }, []);
+
   const handleNewMessage = useCallback((message: Message) => {
     setMessages((prev) => [...prev, message]);
-  }, []);
+
+    setChats((prev) => {
+      const updated = prev.map((chat) => {
+        if (chat.bookingId !== message.bookingId) return chat;
+
+        const shouldIncrementUnread =
+          message.receiverId === user?.id && message.bookingId !== selectedBookingId;
+
+        return {
+          ...chat,
+          lastMessage: message,
+          unreadCount: shouldIncrementUnread ? chat.unreadCount + 1 : chat.unreadCount,
+        };
+      });
+
+      // Move most-recent chats to top
+      return [...updated].sort((a, b) => {
+        const aTs = a.lastMessage ? new Date(a.lastMessage.createdAt).getTime() : 0;
+        const bTs = b.lastMessage ? new Date(b.lastMessage.createdAt).getTime() : 0;
+        return bTs - aTs;
+      });
+    });
+  }, [selectedBookingId, user?.id]);
 
   const handleTyping = useCallback((data: { userId: string; isTyping: boolean }) => {
     if (data.userId !== user?.id) {
@@ -106,6 +139,8 @@ export const ChatLayout = ({ selectedBookingId, onSelectChat }: ChatLayoutProps)
     const fetchMessages = async () => {
       if (!selectedBookingId) return;
 
+      setChatError('');
+
       try {
         const response = await api.get(`/chat/booking/${selectedBookingId}`);
         setMessages(response.data.messages);
@@ -117,8 +152,18 @@ export const ChatLayout = ({ selectedBookingId, onSelectChat }: ChatLayoutProps)
 
         // Mark all messages as read
         markAllAsRead();
+
+        // Reset unread badge in sidebar
+        setChats((prev) =>
+          prev.map((chat) =>
+            chat.bookingId === selectedBookingId ? { ...chat, unreadCount: 0 } : chat,
+          ),
+        );
       } catch (error) {
         console.error('Error fetching messages:', error);
+        setMessages([]);
+        setOtherUser(null);
+        setChatError('Unable to load this conversation.');
       }
     };
 
@@ -210,7 +255,7 @@ export const ChatLayout = ({ selectedBookingId, onSelectChat }: ChatLayoutProps)
                   <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
                     {chat.otherUser.avatar ? (
                       <img
-                        src={chat.otherUser.avatar}
+                        src={resolveAvatarUrl(chat.otherUser.avatar) || ''}
                         alt={chat.otherUser.firstName}
                         className="w-12 h-12 rounded-full object-cover"
                       />
@@ -263,7 +308,7 @@ export const ChatLayout = ({ selectedBookingId, onSelectChat }: ChatLayoutProps)
               <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
                 {otherUser.avatar ? (
                   <img
-                    src={otherUser.avatar}
+                    src={resolveAvatarUrl(otherUser.avatar) || ''}
                     alt={otherUser.firstName}
                     className="w-10 h-10 rounded-full object-cover"
                   />
@@ -287,6 +332,11 @@ export const ChatLayout = ({ selectedBookingId, onSelectChat }: ChatLayoutProps)
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {chatError && (
+                <div className="p-3 rounded-md bg-red-100 text-red-800 text-sm">
+                  {chatError}
+                </div>
+              )}
               {messages.map((message) => {
                 const isOwn = message.senderId === user?.id;
                 return (

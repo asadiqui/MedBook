@@ -687,8 +687,8 @@ export class AuthService {
 
     const refreshToken = uuidv4();
 
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
+    const refreshExpiry = this.configService.get<string>('JWT_REFRESH_EXPIRY', '7d');
+    const expiresAt = new Date(Date.now() + this.parseExpiryToMs(refreshExpiry));
 
     await this.prisma.refreshToken.create({
       data: {
@@ -699,6 +699,26 @@ export class AuthService {
     });
 
     return { accessToken, refreshToken };
+  }
+
+  private parseExpiryToMs(value: string): number {
+    // Supports values like: 30s, 15m, 12h, 7d. Falls back to 7d.
+    const match = /^\s*(\d+)\s*([smhd])\s*$/i.exec(value || '');
+    if (!match) {
+      return 7 * 24 * 60 * 60 * 1000;
+    }
+
+    const amount = Number(match[1]);
+    const unit = match[2].toLowerCase();
+
+    const multipliers: Record<string, number> = {
+      s: 1000,
+      m: 60 * 1000,
+      h: 60 * 60 * 1000,
+      d: 24 * 60 * 60 * 1000,
+    };
+
+    return amount * (multipliers[unit] ?? 7 * 24 * 60 * 60 * 1000);
   }
 
   private async verify2FACode(secret: string, code: string): Promise<boolean> {

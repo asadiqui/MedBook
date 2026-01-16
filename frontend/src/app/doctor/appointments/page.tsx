@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '@/lib/auth';
 import { api } from '@/lib/api';
+import Link from 'next/link';
 
 interface Booking {
   id: string;
@@ -21,17 +22,15 @@ interface Booking {
 }
 
 export default function DoctorAppointmentsPage() {
-  const { user } = useAuthStore();
+  const { user, hasHydrated, isLoading: authLoading } = useAuthStore();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchBookings();
-  }, []);
+  const isAuthReady = hasHydrated && !authLoading;
 
-  const fetchBookings = async () => {
+  const fetchBookings = useCallback(async () => {
     try {
       setLoading(true);
       const response = await api.get('/booking/doctor');
@@ -41,7 +40,13 @@ export default function DoctorAppointmentsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthReady) return;
+    if (!user || user.role !== 'DOCTOR') return;
+    fetchBookings();
+  }, [fetchBookings, isAuthReady, user]);
 
   const handleAccept = async (bookingId: string) => {
     try {
@@ -88,6 +93,14 @@ export default function DoctorAppointmentsPage() {
       default: return 'bg-gray-100 text-gray-800';
     }
   };
+
+  if (!isAuthReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   if (!user || user.role !== 'DOCTOR') {
     return (
@@ -146,6 +159,14 @@ export default function DoctorAppointmentsPage() {
                     </div>
                   </div>
                   <div className="flex space-x-2">
+                    {(booking.status === 'PENDING' || booking.status === 'ACCEPTED') && (
+                      <Link
+                        href={`/chat?bookingId=${booking.id}`}
+                        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm font-medium"
+                      >
+                        Chat
+                      </Link>
+                    )}
                     {booking.status === 'PENDING' && (
                       <>
                         <button
