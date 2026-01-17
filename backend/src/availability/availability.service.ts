@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAvailabilityDto } from './dto/create-availability.dto';
 import { overlapcheck, timeConversion } from '../common/utils/time';
@@ -7,7 +7,7 @@ import { overlapcheck, timeConversion } from '../common/utils/time';
 export class AvailabilityService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(dto: CreateAvailabilityDto) {
+  async create(dto: CreateAvailabilityDto, doctorId: string) {
     let first = timeConversion(dto.startTime);
     let second = timeConversion(dto.endTime);
     let CheckDate = new Date(dto.date);
@@ -37,7 +37,7 @@ export class AvailabilityService {
     // Prevent creating an availability that conflicts with existing availability
     const existingAvailabilities = await this.prisma.availability.findMany({
       where: {
-        doctorId: dto.doctorId,
+        doctorId,
         date: dto.date,
       },
     });
@@ -59,7 +59,7 @@ export class AvailabilityService {
 
     return this.prisma.availability.create({
       data: {
-        doctorId: dto.doctorId,
+        doctorId,
         date: dto.date,
         startTime: dto.startTime,
         endTime: dto.endTime,
@@ -67,10 +67,10 @@ export class AvailabilityService {
     });
   }
 
-  async findAll(doctorId?: string, date?: string) {
+  async findMine(doctorId: string, date?: string) {
     return this.prisma.availability.findMany({
       where: {
-        ...(doctorId && { doctorId }),
+        doctorId,
         ...(date && { date }),
       },
       orderBy: {
@@ -79,10 +79,28 @@ export class AvailabilityService {
     });
   }
 
-  async remove(id: string) {
-    return this.prisma.availability.delete({
-      where: { id },
+  async findAll(doctorId: string, date?: string) {
+    return this.prisma.availability.findMany({
+      where: {
+        doctorId,
+        ...(date && { date }),
+      },
+      orderBy: {
+        startTime: 'asc',
+      },
     });
+  }
+
+  async remove(id: string, doctorId: string) {
+    const deleted = await this.prisma.availability.deleteMany({
+      where: { id, doctorId },
+    });
+
+    if (deleted.count === 0) {
+      throw new NotFoundException('Availability not found');
+    }
+
+    return { success: true };
   }
 
   async getCalendar(

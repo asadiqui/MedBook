@@ -1,8 +1,11 @@
-import { IsString, Matches } from 'class-validator';
+import { IsOptional, IsString, Matches } from 'class-validator';
 
 export class CreateAvailabilityDto {
+  // Backward compatibility: frontend may still send doctorId,
+  // but the backend always uses the authenticated doctor's id.
+  @IsOptional()
   @IsString()
-  doctorId: string;
+  doctorId?: string;
 
   @IsString()
   date: string; // YYYY-MM-DD

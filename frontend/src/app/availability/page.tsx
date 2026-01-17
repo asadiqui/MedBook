@@ -29,7 +29,7 @@ export default function AvailabilityPage() {
   const fetchAvailabilities = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await api.get('/availability');
+      const response = await api.get('/availability/me');
       setAvailabilities(response.data);
     } catch (error) {
       console.error('Failed to fetch availabilities:', error);
@@ -54,7 +54,6 @@ export default function AvailabilityPage() {
     try {
       await api.post('/availability', {
         ...formData,
-        doctorId: user.id,
       });
       setFormData({ date: '', startTime: '', endTime: '' });
       setMessage('Availability added successfully!');
