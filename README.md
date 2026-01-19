@@ -89,6 +89,19 @@ medbook/
         └── hooks/
             └── useSpeech.ts      # lmodir (Voice-to-Text Logic)
 ```
+
+# Frontend AI Integration Plan
+AI Module | Integration Location & UI Behavior
+----|----
+Symptom Checker (LLM) | Landing Page -> Hero Section:<br>Modify the "Hero Section" buttons. Instead of just "Register," add a secondary CTA: "Check Symptoms Now". Clicking it opens a modal or navigates to a guest-friendly version of the checker. <br><br>Dashboard -> Main Grid (Left Column):<br>Add a "New Request" card at the top of the interaction list. "Create a pre-visit summary" that opens the symptom checker.
+Ask Clinic (RAG) | Landing Page & Global Layout:<br>Floating Action Button (bottom-right) on the Landing Page (Public) and Dashboard (Private). <br>Public Mode: Answers FAQs (Hours, Location). <br>Private Mode: Answers patient-specific queries ("When is my next appointment?").
+Doctor Recommender | Landing Page -> Features Section:<br>Enhance the "Search Specialist" card. Instead of a static search, make it a smart input: "Describe your problem..." which routes to a search results page powered by the recommender.<br><br>Patient Management Page -> Main Content:<br>When adding a new appointment/referral for a patient, show a "Recommended Specialists" sidebar based on the patient's existing condition tags.
+Sentiment Analysis | Dashboard -> Second Row (Stats Cards):<br>Add a 4th card or replace one: "Patient Satisfaction". It shows the aggregated AI score (e.g., "94% Positive") with a trend arrow.<br><br>Doctor Profile (Detail View):<br>Not explicitly in layout.md, but if you click a doctor, the "header" of their profile should show this Sentiment Badge.
+Content Moderation | Messages (Chat) Page -> Right Pane (Chat Interface):<br>Input Area: Real-time check. If a user types abusive content, the "Send" button gets disabled with a warning toast.<br>Message History: If a message is flagged by the system, it is hidden by default with a "View potentially sensitive content" blur.
+Image Recognition | Patient Management Page -> Header Area:<br>Clicking "Add New Patient" usually opens a form. Add a "Scan ID" button at the top of that form. This pre-fills the name, DOB, and address fields in the modal, saving manual entry time.
+Voice Search | Empty / Generic Page State -> Top Header Bar:<br>The "Global Search Input" in the top header is the perfect spot. Add a microphone icon inside the input field. This allows global voice navigation ("Go to appointments", "Find patient John Doe").
+
 # Short Term To-DO List
+- Database for the llm responses
 - Microservices architecture
 - concurrently@/package.json: install:all, dev, build
