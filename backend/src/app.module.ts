@@ -9,6 +9,7 @@ import { UsersModule } from './users/users.module';
 import { AvailabilityModule } from './availability/availability.module';
 import { BookingModule } from './booking/booking.module';
 import { ChatModule } from './chat/chat.module';
+import { LlmModule } from './ai/llm/llm.module';
 import { EmailModule } from './common/email.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 
@@ -16,8 +17,9 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
+      envFilePath: ['.env', '../.env'],
     }),
+    LlmModule,
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
