@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum, IsNumber, IsDateString, IsInt } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsNumber, IsDateString, IsInt, ValidateIf } from 'class-validator';
 import { Gender } from '@prisma/client';
 
 export class UpdateUserDto {
@@ -14,15 +14,16 @@ export class UpdateUserDto {
   @IsOptional()
   phone?: string;
 
+  @ValidateIf((o) => o.gender !== undefined && o.gender !== null && o.gender !== '')
   @IsEnum(Gender)
   @IsOptional()
   gender?: Gender;
 
+  @ValidateIf((o) => o.dateOfBirth !== undefined && o.dateOfBirth !== null && o.dateOfBirth !== '')
   @IsDateString()
   @IsOptional()
   dateOfBirth?: string;
 
-  // Doctor-specific fields
   @IsString()
   @IsOptional()
   specialty?: string;

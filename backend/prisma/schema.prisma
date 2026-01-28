@@ -73,6 +73,8 @@ model User {
   availabilities      Availability[] @relation("DoctorAvailability")
   bookingsAsDoctor    Booking[]      @relation("DoctorBookings")
   bookingsAsPatient   Booking[]      @relation("PatientBookings")
+  sentMessages        Message[]      @relation("SentMessages")
+  receivedMessages    Message[]      @relation("ReceivedMessages")
 
   @@map("users")
 }
@@ -126,6 +128,24 @@ model Booking {
   patient   User     @relation("PatientBookings", fields: [patientId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  messages  Message[]
 
   @@map("bookings")
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  content   String
+  isRead    Boolean  @default(false)
+  bookingId String
+  senderId  String
+  receiverId String
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  sender    User     @relation("SentMessages", fields: [senderId], references: [id])
+  receiver  User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@index([bookingId])
+  @@index([senderId, receiverId])
+  @@map("messages")
 }

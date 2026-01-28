@@ -15,6 +15,9 @@ RUN npx prisma generate
 # Copy rest of the application
 COPY . .
 
+# Create uploads directories
+RUN mkdir -p uploads/avatars uploads/documents
+
 EXPOSE 3001
 
 # Start the app (migration/seed handled by docker-compose)

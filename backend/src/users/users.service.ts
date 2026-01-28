@@ -7,12 +7,17 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateUserDto, AdminUpdateUserDto, QueryUsersDto } from './dto';
 import { Role } from '@prisma/client';
+import { EmailService } from '../common/email.service';
+import { AuthService } from '../auth/auth.service';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private emailService: EmailService,
+    private authService: AuthService,
+  ) {}
 
-  // GET ALL USERS (Admin only)
   async findAll(query: QueryUsersDto) {
     const { search, role, specialty, page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = query;
 
@@ -48,8 +53,10 @@ export class UsersService {
         role: true,
         isActive: true,
         isEmailVerified: true,
+        isVerified: true,
         specialty: true,
         licenseNumber: true,
+        bio: true,
         consultationFee: true,
         affiliation: true,
         yearsOfExperience: true,
@@ -76,7 +83,6 @@ export class UsersService {
     };
   }
 
-  // GET ALL DOCTORS (Public)
   async findAllDoctors(query: QueryUsersDto) {
     const { search, specialty, page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = query;
 
@@ -129,7 +135,6 @@ export class UsersService {
     };
   }
 
-  // GET USER BY ID
   async findOne(id: string, requestingUserId: string, requestingUserRole: Role) {
     const user = await this.prisma.user.findUnique({
       where: { id },
@@ -180,7 +185,6 @@ export class UsersService {
     return user;
   }
 
-  // GET DOCTOR PROFILE (Public)
   async findDoctorProfile(id: string) {
     const doctor = await this.prisma.user.findFirst({
       where: {
@@ -211,7 +215,6 @@ export class UsersService {
     return doctor;
   }
 
-  // UPDATE USER
   async update(id: string, userId: string, userRole: Role, dto: UpdateUserDto) {
     if (id !== userId && userRole !== Role.ADMIN) {
       throw new ForbiddenException('You can only update your own profile');
@@ -223,7 +226,6 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    // Only doctors can update doctor-specific fields
     if (user.role !== Role.DOCTOR) {
       delete dto.specialty;
       delete dto.licenseNumber;
@@ -271,7 +273,6 @@ export class UsersService {
     return updatedUser;
   }
 
-  // ADMIN UPDATE USER
   async adminUpdate(id: string, dto: AdminUpdateUserDto) {
     const user = await this.prisma.user.findUnique({ where: { id } });
 
@@ -279,20 +280,18 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    if (dto.email && dto.email !== user.email) {
-      const existingUser = await this.prisma.user.findUnique({
-        where: { email: dto.email.toLowerCase() },
-      });
-      if (existingUser) {
-        throw new ConflictException('Email already in use');
-      }
+    // Prevent deactivating admin accounts
+    if (user.role === Role.ADMIN && dto.isActive === false) {
+      throw new ForbiddenException('Cannot deactivate admin accounts');
     }
+
+    const wasInactive = !user.isActive;
+    const isNowActive = dto.isActive === true;
 
     const updatedUser = await this.prisma.user.update({
       where: { id },
       data: {
         ...dto,
-        email: dto.email?.toLowerCase(),
       },
       select: {
         id: true,
@@ -302,14 +301,23 @@ export class UsersService {
         role: true,
         isActive: true,
         isEmailVerified: true,
+        isVerified: true,
         updatedAt: true,
       },
     });
 
+    if (wasInactive && isNowActive && user.role === Role.DOCTOR) {
+      try {
+        const doctorName = `${user.firstName} ${user.lastName}`;
+        await this.emailService.sendDoctorApprovalEmail(user.email, doctorName);
+      } catch (error) {
+        console.error('Failed to send doctor approval email:', error);
+      }
+    }
+
     return updatedUser;
   }
 
-  // DELETE USER
   async remove(id: string, requestingUserId: string, requestingUserRole: Role) {
     if (id !== requestingUserId && requestingUserRole !== Role.ADMIN) {
       throw new ForbiddenException('You can only delete your own account');
@@ -321,26 +329,43 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
+    // Soft delete with anonymization for privacy
     await this.prisma.user.update({
       where: { id },
-      data: { isActive: false },
+      data: {
+        isActive: false,
+        // Anonymize personal information
+        email: `deleted_${id}_${Date.now()}@deleted.Sa7ti.com`,
+        firstName: 'Deleted',
+        lastName: 'User',
+        phone: null,
+        avatar: null,
+        bio: null,
+      },
     });
 
-    await this.prisma.refreshToken.deleteMany({
-      where: { userId: id },
-    });
+    // Delete sensitive auth data immediately
+    await this.prisma.$transaction([
+      this.prisma.refreshToken.deleteMany({
+        where: { userId: id },
+      }),
+      this.prisma.passwordReset.deleteMany({
+        where: { userId: id },
+      }),
+    ]);
 
-    return { message: 'User deleted successfully' };
+    return { message: 'Account deactivated successfully. Personal information has been anonymized.' };
   }
 
-  // GET USER STATS (Admin)
   async getStats() {
-    const [totalUsers, totalDoctors, totalPatients, totalAdmins, activeUsers, newUsersThisMonth] = await Promise.all([
+    const [totalUsers, totalDoctors, totalPatients, totalAdmins, activeUsers, verifiedDoctors, pendingDoctors, newUsersThisMonth] = await Promise.all([
       this.prisma.user.count(),
       this.prisma.user.count({ where: { role: Role.DOCTOR } }),
       this.prisma.user.count({ where: { role: Role.PATIENT } }),
       this.prisma.user.count({ where: { role: Role.ADMIN } }),
       this.prisma.user.count({ where: { isActive: true } }),
+      this.prisma.user.count({ where: { role: Role.DOCTOR, isVerified: true } }),
+      this.prisma.user.count({ where: { role: Role.DOCTOR, isVerified: false } }),
       this.prisma.user.count({
         where: {
           createdAt: {
@@ -354,10 +379,127 @@ export class UsersService {
       totalUsers,
       totalDoctors,
       totalPatients,
+      verifiedDoctors,
+      pendingDoctors,
       totalAdmins,
       activeUsers,
       inactiveUsers: totalUsers - activeUsers,
-      newUsersThisMonth,
+    };
+  }
+
+  async approveDoctor(id: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.role !== Role.DOCTOR) {
+      throw new ForbiddenException('User is not a doctor');
+    }
+
+    if (user.isVerified) {
+      throw new ConflictException('Doctor is already verified');
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id },
+      data: { isVerified: true, isActive: true },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        isVerified: true,
+        specialty: true,
+        licenseNumber: true,
+      },
+    });
+
+    try {
+      await this.authService.sendDoctorApprovalEmail(updatedUser.id);
+    } catch (error) {
+      console.error('Failed to send approval emails:', error);
+    }
+
+    return updatedUser;
+  }
+
+  async adminDeleteUser(id: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Check for dependencies before permanent deletion
+    const bookingsCount = await this.prisma.booking.count({
+      where: {
+        OR: [
+          { patientId: id },
+          { doctorId: id },
+        ],
+      },
+    });
+
+    if (bookingsCount > 0) {
+      throw new ConflictException(
+        `Cannot permanently delete user with ${bookingsCount} booking(s). Use account deactivation instead to preserve data integrity.`,
+      );
+    }
+
+    // Permanent deletion (only if no bookings exist)
+    await this.prisma.$transaction([
+      this.prisma.refreshToken.deleteMany({
+        where: { userId: id },
+      }),
+      this.prisma.passwordReset.deleteMany({
+        where: { userId: id },
+      }),
+      this.prisma.availability.deleteMany({
+        where: { doctorId: id },
+      }),
+      this.prisma.user.delete({
+        where: { id },
+      }),
+    ]);
+
+    return { message: 'User permanently deleted from database' };
+  }
+
+  async getDoctorDocument(id: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        role: true,
+        licenseDocument: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.role !== Role.DOCTOR) {
+      throw new ForbiddenException('User is not a doctor');
+    }
+
+    return {
+      doctor: {
+        id: user.id,
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+      },
+      documentPath: user.licenseDocument,
     };
   }
 }

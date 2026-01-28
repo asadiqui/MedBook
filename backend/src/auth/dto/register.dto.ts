@@ -1,5 +1,20 @@
-import { IsEmail, IsNotEmpty, IsString, MinLength, IsEnum, IsOptional, IsDateString, IsNumber } from 'class-validator';
-import { Role } from '@prisma/client';
+import { IsEmail, IsNotEmpty, IsString, MinLength, IsEnum, IsOptional, IsDateString, IsNumber, Validate, ValidationArguments, ValidatorConstraint, ValidatorConstraintInterface } from 'class-validator';
+
+@ValidatorConstraint({ name: 'IsNotFutureDate', async: false })
+export class IsNotFutureDate implements ValidatorConstraintInterface {
+  validate(dateString: string, args: ValidationArguments) {
+    if (!dateString) return true; // Let @IsOptional handle empty values
+    const date = new Date(dateString);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return date <= today;
+  }
+
+  defaultMessage(args: ValidationArguments) {
+    return 'Date of birth cannot be in the future';
+  }
+}
+import { Role, Gender } from '@prisma/client';
 
 export class RegisterDto {
   @IsEmail({}, { message: 'Please provide a valid email address' })
@@ -28,10 +43,14 @@ export class RegisterDto {
   phone?: string;
 
   @IsDateString()
+  @Validate(IsNotFutureDate)
   @IsOptional()
   dateOfBirth?: string;
 
-  // Doctor-specific fields
+  @IsEnum(Gender, { message: 'Gender must be MALE, FEMALE, or OTHER' })
+  @IsOptional()
+  gender?: Gender;
+
   @IsString()
   @IsOptional()
   specialty?: string;
@@ -59,4 +78,9 @@ export class RegisterDto {
   @IsString()
   @IsOptional()
   clinicPhone?: string;
+
+  @IsNumber()
+  @IsOptional()
+  consultationFee?: number;
+  licenseDocument?: Express.Multer.File;
 }

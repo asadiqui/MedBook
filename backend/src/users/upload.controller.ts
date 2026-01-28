@@ -1,9 +1,7 @@
 import {
   Controller,
   Post,
-  Delete,
   Param,
-  UseGuards,
   UseInterceptors,
   UploadedFile,
   ParseUUIDPipe,
@@ -14,7 +12,6 @@ import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { UploadService } from './upload.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Role } from '@prisma/client';
 
@@ -27,7 +24,7 @@ const avatarStorage = {
     },
   }),
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB
+    fileSize: 5 * 1024 * 1024,
   },
   fileFilter: (req: any, file: any, callback: any) => {
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -48,7 +45,7 @@ const documentStorage = {
     },
   }),
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB
+    fileSize: 10 * 1024 * 1024,
   },
   fileFilter: (req: any, file: any, callback: any) => {
     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
@@ -61,11 +58,9 @@ const documentStorage = {
 };
 
 @Controller('users')
-@UseGuards(JwtAuthGuard)
 export class UploadController {
   constructor(private readonly uploadService: UploadService) {}
 
-  // POST /api/users/:id/avatar
   @Post(':id/avatar')
   @UseInterceptors(FileInterceptor('avatar', avatarStorage))
   async uploadAvatar(
@@ -80,17 +75,6 @@ export class UploadController {
     return this.uploadService.uploadAvatar(id, file, userId, userRole);
   }
 
-  // DELETE /api/users/:id/avatar
-  @Delete(':id/avatar')
-  async deleteAvatar(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser('id') userId: string,
-    @CurrentUser('role') userRole: Role,
-  ) {
-    return this.uploadService.deleteAvatar(id, userId, userRole);
-  }
-
-  // POST /api/users/:id/license-document
   @Post(':id/license-document')
   @UseInterceptors(FileInterceptor('document', documentStorage))
   async uploadLicenseDocument(
@@ -103,15 +87,5 @@ export class UploadController {
       throw new BadRequestException('Document file is required');
     }
     return this.uploadService.uploadLicenseDocument(id, file, userId, userRole);
-  }
-
-  // DELETE /api/users/:id/license-document
-  @Delete(':id/license-document')
-  async deleteLicenseDocument(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser('id') userId: string,
-    @CurrentUser('role') userRole: Role,
-  ) {
-    return this.uploadService.deleteLicenseDocument(id, userId, userRole);
   }
 }

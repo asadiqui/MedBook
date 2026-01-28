@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Post,
   Patch,
   Delete,
   Param,
@@ -11,7 +12,6 @@ import {
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UpdateUserDto, AdminUpdateUserDto, QueryUsersDto } from './dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -19,39 +19,34 @@ import { Public } from '../auth/decorators/public.decorator';
 import { Role } from '@prisma/client';
 
 @Controller('users')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(RolesGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  // GET /api/users - Admin only
   @Get()
   @Roles(Role.ADMIN)
   async findAll(@Query() query: QueryUsersDto) {
     return this.usersService.findAll(query);
   }
 
-  // GET /api/users/doctors - Public
   @Public()
   @Get('doctors')
   async findAllDoctors(@Query() query: QueryUsersDto) {
     return this.usersService.findAllDoctors(query);
   }
 
-  // GET /api/users/stats - Admin only
   @Get('stats')
   @Roles(Role.ADMIN)
   async getStats() {
     return this.usersService.getStats();
   }
 
-  // GET /api/users/doctors/:id - Public
   @Public()
   @Get('doctors/:id')
   async findDoctorProfile(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.findDoctorProfile(id);
   }
 
-  // GET /api/users/:id
   @Get(':id')
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
@@ -61,7 +56,6 @@ export class UsersController {
     return this.usersService.findOne(id, userId, userRole);
   }
 
-  // PATCH /api/users/:id
   @Patch(':id')
   async update(
     @Param('id', ParseUUIDPipe) id: string,
@@ -72,7 +66,6 @@ export class UsersController {
     return this.usersService.update(id, userId, userRole, dto);
   }
 
-  // PATCH /api/users/:id/admin - Admin only
   @Patch(':id/admin')
   @Roles(Role.ADMIN)
   async adminUpdate(
@@ -82,7 +75,6 @@ export class UsersController {
     return this.usersService.adminUpdate(id, dto);
   }
 
-  // DELETE /api/users/:id
   @Delete(':id')
   async remove(
     @Param('id', ParseUUIDPipe) id: string,
@@ -90,5 +82,23 @@ export class UsersController {
     @CurrentUser('role') userRole: Role,
   ) {
     return this.usersService.remove(id, userId, userRole);
+  }
+
+  @Post(':id/approve-doctor')
+  @Roles(Role.ADMIN)
+  async approveDoctor(@Param('id', ParseUUIDPipe) id: string) {
+    return this.usersService.approveDoctor(id);
+  }
+
+  @Delete(':id/admin')
+  @Roles(Role.ADMIN)
+  async adminDeleteUser(@Param('id', ParseUUIDPipe) id: string) {
+    return this.usersService.adminDeleteUser(id);
+  }
+
+  @Get(':id/document')
+  @Roles(Role.ADMIN)
+  async getDoctorDocument(@Param('id', ParseUUIDPipe) id: string) {
+    return this.usersService.getDoctorDocument(id);
   }
 }

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAvailabilityDto } from './dto/create-availability.dto';
 import { overlapcheck, timeConversion } from '../common/utils/time';
@@ -7,9 +7,23 @@ import { overlapcheck, timeConversion } from '../common/utils/time';
 export class AvailabilityService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(dto: CreateAvailabilityDto) {
+  async create(dto: CreateAvailabilityDto, doctorId: string) {
     let first = timeConversion(dto.startTime);
     let second = timeConversion(dto.endTime);
+    let CheckDate = new Date(dto.date);
+    const today = new Date();
+
+    // Prevent creating availability for past dates
+    if (CheckDate < new Date(today.toDateString())) {
+      throw new BadRequestException('Cannot create availability for past dates');
+    }
+
+    const maxfuture = new Date();
+    maxfuture.setDate(maxfuture.getDate() + 30);
+
+    if (CheckDate > maxfuture) {
+      throw new BadRequestException('Date is too far in the future');
+    }
 
     if (first >= second) {
       throw new BadRequestException('Start time must be before end time');
@@ -23,7 +37,7 @@ export class AvailabilityService {
     // Prevent creating an availability that conflicts with existing availability
     const existingAvailabilities = await this.prisma.availability.findMany({
       where: {
-        doctorId: dto.doctorId,
+        doctorId,
         date: dto.date,
       },
     });
@@ -45,7 +59,7 @@ export class AvailabilityService {
 
     return this.prisma.availability.create({
       data: {
-        doctorId: dto.doctorId,
+        doctorId,
         date: dto.date,
         startTime: dto.startTime,
         endTime: dto.endTime,
@@ -53,10 +67,10 @@ export class AvailabilityService {
     });
   }
 
-  async findAll(doctorId?: string, date?: string) {
+  async findMine(doctorId: string, date?: string) {
     return this.prisma.availability.findMany({
       where: {
-        ...(doctorId && { doctorId }),
+        doctorId,
         ...(date && { date }),
       },
       orderBy: {
@@ -65,9 +79,73 @@ export class AvailabilityService {
     });
   }
 
-  async remove(id: string) {
-    return this.prisma.availability.delete({
-      where: { id },
+  async findAll(doctorId: string, date?: string) {
+    return this.prisma.availability.findMany({
+      where: {
+        doctorId,
+        ...(date && { date }),
+      },
+      orderBy: {
+        startTime: 'asc',
+      },
     });
+  }
+
+  async remove(id: string, doctorId: string) {
+    const deleted = await this.prisma.availability.deleteMany({
+      where: { id, doctorId },
+    });
+
+    if (deleted.count === 0) {
+      throw new NotFoundException('Availability not found');
+    }
+
+    return { success: true };
+  }
+
+  async getCalendar(
+    doctorId: string,
+    from: string,
+    to: string,
+  ) {
+
+    if (!doctorId || !from || !to) {
+      throw new BadRequestException('doctorId, from and to are required');
+    }
+
+    if (from > to) {
+      throw new BadRequestException('"from" date must be before "to" date');
+    }
+
+
+    const availabilities = await this.prisma.availability.findMany({
+      where: {
+        doctorId,
+        date: {
+          gte: from,
+          lte: to,
+        },
+      },
+      orderBy: [
+        { date: 'asc' },
+        { startTime: 'asc' },
+      ],
+    });
+    
+    const calendar: Record<string, any[]> = {};
+
+    for (const slot of availabilities) {
+      if (!calendar[slot.date]) {
+        calendar[slot.date] = [];
+      }
+
+      calendar[slot.date].push({
+        id: slot.id,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+      });
+    }
+
+    return calendar;
   }
 }

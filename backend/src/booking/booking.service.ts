@@ -11,7 +11,15 @@ export class BookingService {
   async createBooking(dto: CreateBookingDto, patientId: string) {
     // Implementation for creating a booking
 
+    let CheckDate = new Date(dto.date);
+    const today = new Date();
 
+    // Prevent creating availability for past dates
+    if (CheckDate < new Date(today.toDateString())) {
+      throw new BadRequestException('Cannot create availability for past dates');
+    }
+
+    
     const user = await this.prisma.user.findUnique({
       where: { id: patientId },
     });
@@ -236,6 +244,48 @@ export class BookingService {
         },
       },
       orderBy: { date: 'desc' },
+    });
+  }
+
+  async getDoctorSchedule(
+    doctorId: string,
+    user: { id: string; role: string },
+    date?: string,
+  ) {
+
+    if (user.role !== 'DOCTOR') {
+      throw new ForbiddenException('Only doctors can view schedules');
+    }
+
+
+    if (doctorId !== user.id) {
+      throw new ForbiddenException('You can only view your own schedule');
+    }
+
+    const where: any = {
+      doctorId,
+    };
+
+    if (date) {
+      where.date = date; // YYYY-MM-DD
+    }
+
+
+    return this.prisma.booking.findMany({
+      where,
+      include: {
+        patient: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: [
+        { startTime: 'asc' },
+      ],
     });
   }
 }

@@ -4,6 +4,11 @@ import * as bcrypt from 'bcrypt';
 const prisma = new PrismaClient();
 
 async function main() {
+  if (process.env.SEED_DB !== 'true') {
+    console.log('ℹ️  Skipping seed (set SEED_DB=true to enable)');
+    return;
+  }
+
   // Check if admin already exists
   const existingAdmin = await prisma.user.findFirst({
     where: { role: Role.ADMIN },
@@ -11,14 +16,14 @@ async function main() {
 
   if (!existingAdmin) {
     // Create admin account
-    const hashedPassword = await bcrypt.hash('Admin123!@#', 12);
+    const hashedPassword = await bcrypt.hash('Lmodir2023', 12);
 
     const admin = await prisma.user.create({
       data: {
-        email: 'admin@medbook.com',
+        email: 'admin@sa7ti.com',
         password: hashedPassword,
         firstName: 'Admin',
-        lastName: 'MedBook',
+        lastName: 'Sa7ti',
         role: Role.ADMIN,
         isActive: true,
         isEmailVerified: true,
@@ -40,11 +45,11 @@ async function main() {
 
   if (!existingDoctor) {
     // Create doctor account
-    const doctorHashedPassword = await bcrypt.hash('Doctor123!@#', 12);
+    const doctorHashedPassword = await bcrypt.hash('tbib2017', 12);
 
     const doctor = await prisma.user.create({
       data: {
-        email: 'doctor@medbook.com',
+        email: 'doctor@sa7ti.com',
         password: doctorHashedPassword,
         firstName: 'Dr. Sarah',
         lastName: 'Johnson',
@@ -66,7 +71,7 @@ async function main() {
 
     console.log('✅ Doctor account created successfully!');
     console.log('   Email:', doctor.email);
-    console.log('   Password: Doctor123!@#');
+    console.log('   Password: mouad2025');
     console.log('');
   } else {
     console.log('✅ Doctor account already exists:', existingDoctor.email);
@@ -83,13 +88,13 @@ async function main() {
 
     const patient = await prisma.user.create({
       data: {
-        email: 'patient@medbook.com',
+        email: 'patient@sa7ti.com',
         password: patientHashedPassword,
         firstName: 'John',
         lastName: 'Doe',
         role: Role.PATIENT,
         phone: '+1234567892',
-        dateOfBirth: '1990-01-01',
+        dateOfBirth: "1990-01-01T00:00:00.000Z",
         isActive: true,
         isEmailVerified: true,
       },

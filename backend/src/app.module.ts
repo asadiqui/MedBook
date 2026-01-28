@@ -8,34 +8,32 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { AvailabilityModule } from './availability/availability.module';
 import { BookingModule } from './booking/booking.module';
+import { ChatModule } from './chat/chat.module';
+import { LlmModule } from './ai/llm/llm.module';
+import { EmailModule } from './common/email.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 
 @Module({
   imports: [
-    // Load environment variables globally
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
+      envFilePath: ['.env', '../.env'],
     }),
-    // Serve static files (avatars, uploads)
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
     }),
-    // Database
     PrismaModule,
-    // Features
+    EmailModule,
     AuthModule,
     UsersModule,
     AvailabilityModule,
     BookingModule,
-    // Other modules will be added by teammates:
-    // ChatModule (Douae)
-    // LlmModule (lmodir)
+    ChatModule,
+    LlmModule,
   ],
   controllers: [],
   providers: [
-    // Apply JWT guard globally (use @Public() decorator for public routes)
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,

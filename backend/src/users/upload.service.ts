@@ -2,7 +2,6 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
-  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Role } from '@prisma/client';
@@ -50,35 +49,6 @@ export class UploadService {
     };
   }
 
-  async deleteAvatar(
-    userId: string,
-    requestingUserId: string,
-    requestingUserRole: Role,
-  ) {
-    if (userId !== requestingUserId && requestingUserRole !== Role.ADMIN) {
-      throw new ForbiddenException('You can only delete your own avatar');
-    }
-
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    if (!user.avatar) {
-      throw new BadRequestException('No avatar to delete');
-    }
-
-    await this.deleteFile(user.avatar);
-
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { avatar: null },
-    });
-
-    return { message: 'Avatar deleted successfully' };
-  }
-
   async uploadLicenseDocument(
     userId: string,
     file: Express.Multer.File,
@@ -118,35 +88,6 @@ export class UploadService {
       message: 'License document uploaded successfully',
       licenseDocument: updatedUser.licenseDocument,
     };
-  }
-
-  async deleteLicenseDocument(
-    userId: string,
-    requestingUserId: string,
-    requestingUserRole: Role,
-  ) {
-    if (userId !== requestingUserId && requestingUserRole !== Role.ADMIN) {
-      throw new ForbiddenException('You can only delete your own documents');
-    }
-
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    if (!user.licenseDocument) {
-      throw new BadRequestException('No license document to delete');
-    }
-
-    await this.deleteFile(user.licenseDocument);
-
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { licenseDocument: null },
-    });
-
-    return { message: 'License document deleted successfully' };
   }
 
   private async deleteFile(filePath: string): Promise<void> {

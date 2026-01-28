@@ -11,3 +11,4 @@ export function overlapcheck(time: string, time2: string, time3: string, time4: 
 
   return start1 < end2 && start2 < end1;
 }
+
