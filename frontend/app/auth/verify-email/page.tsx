@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { CheckCircle2, XCircle, Mail, Loader2 } from "lucide-react";
+import { Logo } from "@/components/ui/Logo";
 
 export default function VerifyEmailPage() {
   const searchParams = useSearchParams();
@@ -93,14 +94,8 @@ export default function VerifyEmailPage() {
 
         <div className="w-full max-w-md relative z-10">
           {/* Logo */}
-          <div className="flex items-center gap-3 mb-8">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <svg className="h-8 w-8 text-white" viewBox="0 0 24 24" fill="currentColor">
-                <rect x="4" y="4" width="16" height="16" rx="1" />
-                <path d="M12 8V16M8 12H16" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
-              </svg>
-            </div>
-            <span className="text-2xl font-bold text-gray-900">Sa7ti</span>
+          <div className="mb-8">
+            <Logo size="lg" />
           </div>
 
           <div className="text-center">

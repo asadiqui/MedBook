@@ -1,11 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Eye, EyeOff, Mail, Phone, Upload, FileText } from "lucide-react";
 import toast from "react-hot-toast";
+import { Logo } from "@/components/ui/Logo";
 
 export default function DoctorRegisterPage() {
+  useEffect(() => {
+    // Check if user is already logged in
+    const accessToken = localStorage.getItem("accessToken");
+    if (accessToken) {
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/me`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+        .then(res => res.json())
+        .then(user => {
+          if (user.role === "ADMIN") {
+            window.location.href = "/admin/dashboard";
+          } else if (user.role === "DOCTOR") {
+            window.location.href = "/profile/doctor";
+          } else {
+            window.location.href = "/profile/patient";
+          }
+        })
+        .catch(() => {
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("refreshToken");
+        });
+    }
+  }, []);
+
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     firstName: "",
@@ -69,34 +94,56 @@ export default function DoctorRegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validate age (18+)
+    if (formData.dateOfBirth) {
+      const birthDate = new Date(formData.dateOfBirth);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      if (age < 18) {
+        toast.error("You must be at least 18 years old to register");
+        return;
+      }
+    }
+    
     if (!formData.agreedToTerms) {
       toast.error("Please agree to the Terms of Service and Privacy Policy");
       return;
     }
 
     try {
+      // Use FormData to support file upload
+      const submitData = new FormData();
+      submitData.append("email", formData.email);
+      submitData.append("password", formData.password);
+      submitData.append("firstName", formData.firstName);
+      submitData.append("lastName", formData.lastName);
+      submitData.append("role", "DOCTOR");
+      
+      if (formData.phoneNumber) submitData.append("phone", formData.phoneNumber);
+      if (formData.dateOfBirth) submitData.append("dateOfBirth", formData.dateOfBirth);
+      if (formData.gender) submitData.append("gender", formData.gender);
+      if (formData.specialty) submitData.append("specialty", formData.specialty);
+      if (formData.licenseNumber) submitData.append("licenseNumber", formData.licenseNumber);
+      if (formData.consultationFee) submitData.append("consultationFee", formData.consultationFee);
+      if (formData.affiliation) submitData.append("affiliation", formData.affiliation);
+      if (formData.yearsOfExperience) submitData.append("yearsOfExperience", formData.yearsOfExperience);
+      if (formData.clinicAddress) submitData.append("clinicAddress", formData.clinicAddress);
+      
+      // Append the license document file if uploaded
+      if (uploadedFile) {
+        submitData.append("licenseDocument", uploadedFile);
+      }
+
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/register`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email: formData.email,
-            password: formData.password,
-            firstName: formData.firstName,
-            lastName: formData.lastName,
-            phone: formData.phoneNumber,
-            dateOfBirth: formData.dateOfBirth,
-            gender: formData.gender,
-            specialty: formData.specialty,
-            licenseNumber: formData.licenseNumber,
-            consultationFee: parseFloat(formData.consultationFee) || 0,
-            affiliation: formData.affiliation,
-            yearsOfExperience: parseInt(formData.yearsOfExperience) || 0,
-            role: "DOCTOR",
-          }),
+          // Don't set Content-Type header - browser will set it with boundary for FormData
+          body: submitData,
         }
       );
 
@@ -195,15 +242,7 @@ export default function DoctorRegisterPage() {
         {/* Top Bar - Absolute Positioning */}
         <div className="absolute top-8 left-8 right-8 flex items-center justify-between z-10">
           {/* Logo */}
-          <div className="flex items-center gap-3">
-            <div className="bg-white p-2.5 rounded-lg shadow-sm">
-              <svg className="h-7 w-7 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
-                <rect x="4" y="4" width="16" height="16" rx="1" />
-                <path d="M12 8V16M8 12H16" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
-              </svg>
-            </div>
-            <span className="text-2xl font-bold text-gray-900">Sa7ti</span>
-          </div>
+          <Logo size="md" />
           
           {/* Already a member */}
           <div className="text-sm">
@@ -375,8 +414,7 @@ export default function DoctorRegisterPage() {
                       id="dateOfBirth"
                       value={formData.dateOfBirth}
                       onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-                      max={new Date().toISOString().split('T')[0]}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                      max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}                      title="You must be at least 18 years old to register"                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                       required
                     />
                   </div>

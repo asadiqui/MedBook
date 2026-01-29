@@ -1,9 +1,37 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { User, Stethoscope, CheckCircle2 } from "lucide-react";
+import { Logo } from "@/components/ui/Logo";
 
 export default function RegisterPage() {
+  useEffect(() => {
+    // Check if user is already logged in
+    const accessToken = localStorage.getItem("accessToken");
+    if (accessToken) {
+      // Verify token and redirect to appropriate dashboard
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/me`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+        .then(res => res.json())
+        .then(user => {
+          if (user.role === "ADMIN") {
+            window.location.href = "/admin/dashboard";
+          } else if (user.role === "DOCTOR") {
+            window.location.href = "/profile/doctor";
+          } else {
+            window.location.href = "/profile/patient";
+          }
+        })
+        .catch(() => {
+          // Token invalid, stay on register page
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("refreshToken");
+        });
+    }
+  }, []);
+
   return (
     <div className="min-h-screen flex">
       {/* Left Side - Hero Section */}
@@ -67,15 +95,7 @@ export default function RegisterPage() {
         {/* Top Bar */}
         <div className="absolute top-8 left-8 right-8 flex items-center justify-between z-10">
           {/* Logo */}
-          <div className="flex items-center gap-3">
-            <div className="bg-white p-2.5 rounded-lg shadow-sm">
-              <svg className="h-7 w-7 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
-                <rect x="4" y="4" width="16" height="16" rx="1" />
-                <path d="M12 8V16M8 12H16" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
-              </svg>
-            </div>
-            <span className="text-2xl font-bold text-gray-900">Sa7ti</span>
-          </div>
+          <Logo size="md" />
           
           {/* Already have account */}
           <div className="text-sm">

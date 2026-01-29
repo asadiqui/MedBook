@@ -9,15 +9,28 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { extname, join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { existsSync, mkdirSync } from 'fs';
 import { UploadService } from './upload.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Role } from '@prisma/client';
 
+// Ensure upload directories exist - use process.cwd() for Docker compatibility
+const uploadsDir = join(process.cwd(), 'uploads');
+const avatarsDir = join(uploadsDir, 'avatars');
+const documentsDir = join(uploadsDir, 'documents');
+
+if (!existsSync(avatarsDir)) {
+  mkdirSync(avatarsDir, { recursive: true });
+}
+if (!existsSync(documentsDir)) {
+  mkdirSync(documentsDir, { recursive: true });
+}
+
 const avatarStorage = {
   storage: diskStorage({
-    destination: './uploads/avatars',
+    destination: avatarsDir,
     filename: (req, file, callback) => {
       const uniqueName = `${uuidv4()}${extname(file.originalname)}`;
       callback(null, uniqueName);
@@ -38,7 +51,7 @@ const avatarStorage = {
 
 const documentStorage = {
   storage: diskStorage({
-    destination: './uploads/documents',
+    destination: documentsDir,
     filename: (req, file, callback) => {
       const uniqueName = `${uuidv4()}${extname(file.originalname)}`;
       callback(null, uniqueName);

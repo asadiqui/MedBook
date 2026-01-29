@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { Logo } from "@/components/ui/Logo";
 
 export default function AuthCallbackPage() {
   const searchParams = useSearchParams();
@@ -41,12 +42,7 @@ export default function AuthCallbackPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="text-center">
         <div className="flex items-center justify-center mb-4">
-          <div className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
-            <svg className="h-10 w-10 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
-              <rect x="4" y="4" width="16" height="16" rx="1" />
-              <path d="M12 8V16M8 12H16" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
-            </svg>
-          </div>
+          <Logo size="lg" showText={false} />
         </div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Completing Sign In...</h2>
         <div className="flex items-center justify-center gap-2 text-gray-600">

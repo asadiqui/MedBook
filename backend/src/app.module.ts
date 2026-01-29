@@ -22,6 +22,9 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
+      serveStaticOptions: {
+        index: false,
+      },
     }),
     PrismaModule,
     EmailModule,

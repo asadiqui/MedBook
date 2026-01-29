@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Shield, CheckCircle2, Copy, Check } from "lucide-react";
+import { Logo } from "@/components/ui/Logo";
 
 export default function Setup2FAPage() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -112,14 +113,8 @@ export default function Setup2FAPage() {
 
         <div className="w-full max-w-md relative z-10">
           {/* Logo */}
-          <div className="flex items-center gap-3 mb-8">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <svg className="h-8 w-8 text-white" viewBox="0 0 24 24" fill="currentColor">
-                <rect x="4" y="4" width="16" height="16" rx="1" />
-                <path d="M12 8V16M8 12H16" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
-              </svg>
-            </div>
-            <span className="text-2xl font-bold text-gray-900">Sa7ti</span>
+          <div className="mb-8">
+            <Logo size="md" />
           </div>
 
           {/* Progress Steps */}

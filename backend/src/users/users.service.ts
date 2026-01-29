@@ -359,15 +359,17 @@ export class UsersService {
 
   async getStats() {
     const [totalUsers, totalDoctors, totalPatients, totalAdmins, activeUsers, verifiedDoctors, pendingDoctors, newUsersThisMonth] = await Promise.all([
-      this.prisma.user.count(),
+      // Exclude admins from total users count
+      this.prisma.user.count({ where: { role: { not: Role.ADMIN } } }),
       this.prisma.user.count({ where: { role: Role.DOCTOR } }),
       this.prisma.user.count({ where: { role: Role.PATIENT } }),
       this.prisma.user.count({ where: { role: Role.ADMIN } }),
-      this.prisma.user.count({ where: { isActive: true } }),
+      this.prisma.user.count({ where: { isActive: true, role: { not: Role.ADMIN } } }),
       this.prisma.user.count({ where: { role: Role.DOCTOR, isVerified: true } }),
       this.prisma.user.count({ where: { role: Role.DOCTOR, isVerified: false } }),
       this.prisma.user.count({
         where: {
+          role: { not: Role.ADMIN },
           createdAt: {
             gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
           },
@@ -499,7 +501,7 @@ export class UsersService {
         name: `${user.firstName} ${user.lastName}`,
         email: user.email,
       },
-      documentPath: user.licenseDocument,
+      documentUrl: user.licenseDocument,
     };
   }
 }

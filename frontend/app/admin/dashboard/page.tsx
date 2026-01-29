@@ -8,6 +8,7 @@ import {
   Search, Filter, Download, Mail, Phone, X
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { Logo } from "@/components/ui/Logo";
 
 export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
@@ -51,6 +52,14 @@ export default function AdminDashboardPage() {
         }
       );
 
+      if (statsResponse.status === 401 || statsResponse.status === 403) {
+        toast.error("Session expired. Please log in again.");
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+        window.location.href = "/auth/login";
+        return;
+      }
+
       if (statsResponse.ok) {
         const statsData = await statsResponse.json();
         setStats(statsData);
@@ -65,6 +74,14 @@ export default function AdminDashboardPage() {
           },
         }
       );
+
+      if (usersResponse.status === 401 || usersResponse.status === 403) {
+        toast.error("Session expired. Please log in again.");
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+        window.location.href = "/auth/login";
+        return;
+      }
 
       if (usersResponse.ok) {
         const usersData = await usersResponse.json();
@@ -304,9 +321,7 @@ export default function AdminDashboardPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-3 rounded-xl shadow-lg shadow-blue-500/30">
-                <span className="text-2xl font-bold text-white">+</span>
-              </div>
+              <Logo variant="admin" size="lg" showText={false} />
               <div>
                 <h1 className="text-2xl font-bold text-white">Admin Control Center</h1>
                 <p className="text-sm text-gray-400">Sa7ti Platform Management</p>
@@ -486,6 +501,7 @@ export default function AdminDashboardPage() {
                               src={user.avatar.startsWith('http') ? user.avatar : `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'}${user.avatar}`}
                               alt={`${user.firstName} ${user.lastName}`}
                               className="h-12 w-12 rounded-full object-cover ring-2 ring-gray-700"
+                              referrerPolicy="no-referrer"
                             />
                           ) : (
                             <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center ring-2 ring-gray-700">
@@ -565,23 +581,24 @@ export default function AdminDashboardPage() {
                             <Eye className="h-4 w-4" />
                           </button>
                           
+                          {user.role === "DOCTOR" && (
+                            <button
+                              onClick={() => handleViewDocument(user.id)}
+                              className="p-2 text-purple-400 hover:text-purple-300 hover:bg-purple-500/20 rounded-lg transition"
+                              title="View License Document"
+                            >
+                              <FileText className="h-4 w-4" />
+                            </button>
+                          )}
+                          
                           {user.role === "DOCTOR" && !user.isVerified && (
-                            <>
-                              <button
-                                onClick={() => handleViewDocument(user.id)}
-                                className="p-2 text-purple-400 hover:text-purple-300 hover:bg-purple-500/20 rounded-lg transition"
-                                title="View License Document"
-                              >
-                                <FileText className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={() => handleVerifyDoctor(user.id)}
-                                className="p-2 text-green-400 hover:text-green-300 hover:bg-green-500/20 rounded-lg transition"
-                                title="Approve Doctor"
-                              >
-                                <CheckCircle className="h-4 w-4" />
-                              </button>
-                            </>
+                            <button
+                              onClick={() => handleVerifyDoctor(user.id)}
+                              className="p-2 text-green-400 hover:text-green-300 hover:bg-green-500/20 rounded-lg transition"
+                              title="Approve Doctor"
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                            </button>
                           )}
                           
                           {user.isActive ? (
@@ -642,6 +659,7 @@ export default function AdminDashboardPage() {
                     src={selectedUser.avatar.startsWith('http') ? selectedUser.avatar : `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'}${selectedUser.avatar}`}
                     alt={`${selectedUser.firstName} ${selectedUser.lastName}`}
                     className="h-20 w-20 rounded-full object-cover ring-4 ring-gray-700"
+                    referrerPolicy="no-referrer"
                   />
                 ) : (
                   <div className="h-20 w-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center ring-4 ring-gray-700">

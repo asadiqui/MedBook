@@ -32,7 +32,7 @@ async function main() {
 
     console.log('✅ Admin account created successfully!');
     console.log('   Email:', admin.email);
-    console.log('   Password: Admin123!@#');
+    console.log('   Password: Lmodir2023');
     console.log('');
   } else {
     console.log('✅ Admin account already exists:', existingAdmin.email);
@@ -71,7 +71,7 @@ async function main() {
 
     console.log('✅ Doctor account created successfully!');
     console.log('   Email:', doctor.email);
-    console.log('   Password: mouad2025');
+    console.log('   Password: tbib2017');
     console.log('');
   } else {
     console.log('✅ Doctor account already exists:', existingDoctor.email);

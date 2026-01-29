@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Eye, EyeOff, Mail, Lock, Shield } from "lucide-react";
 import { useSearchParams } from "next/navigation";
+import { Logo } from "@/components/ui/Logo";
 
 export default function LoginPage() {
   const searchParams = useSearchParams();
@@ -18,6 +19,27 @@ export default function LoginPage() {
   const [showTwoFactor, setShowTwoFactor] = useState(false);
 
   useEffect(() => {
+    // Redirect if already logged in
+    const accessToken = localStorage.getItem("accessToken");
+    if (accessToken) {
+      try {
+        const payload = JSON.parse(atob(accessToken.split(".")[1]));
+        const role = payload.role;
+        if (role === "ADMIN") {
+          window.location.href = "/admin/dashboard";
+        } else if (role === "DOCTOR") {
+          window.location.href = "/profile/doctor";
+        } else {
+          window.location.href = "/profile/patient";
+        }
+        return;
+      } catch (e) {
+        // Invalid token, clear and continue
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+      }
+    }
+
     const errorParam = searchParams.get("error");
     if (errorParam) {
       setError(decodeURIComponent(errorParam));
@@ -135,15 +157,7 @@ export default function LoginPage() {
         {/* Top Bar - Absolute Positioning */}
         <div className="absolute top-8 left-8 right-8 flex items-center justify-between z-10">
           {/* Logo */}
-          <div className="flex items-center gap-3">
-            <div className="bg-white p-2.5 rounded-lg shadow-sm">
-              <svg className="h-7 w-7 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
-                <rect x="4" y="4" width="16" height="16" rx="1" />
-                <path d="M12 8V16M8 12H16" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
-              </svg>
-            </div>
-            <span className="text-2xl font-bold text-gray-900">Sa7ti</span>
-          </div>
+          <Logo size="md" />
           
           {/* Register Link */}
           <div className="text-sm">

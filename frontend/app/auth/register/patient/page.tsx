@@ -1,11 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Eye, EyeOff, Mail, Phone, Calendar } from "lucide-react";
 import toast from "react-hot-toast";
+import { Logo } from "@/components/ui/Logo";
 
 export default function PatientRegisterPage() {
+  useEffect(() => {
+    // Check if user is already logged in
+    const accessToken = localStorage.getItem("accessToken");
+    if (accessToken) {
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/me`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+        .then(res => res.json())
+        .then(user => {
+          if (user.role === "ADMIN") {
+            window.location.href = "/admin/dashboard";
+          } else if (user.role === "DOCTOR") {
+            window.location.href = "/profile/doctor";
+          } else {
+            window.location.href = "/profile/patient";
+          }
+        })
+        .catch(() => {
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("refreshToken");
+        });
+    }
+  }, []);
+
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     firstName: "",
@@ -52,6 +77,21 @@ export default function PatientRegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate age (18+)
+    if (formData.dateOfBirth) {
+      const birthDate = new Date(formData.dateOfBirth);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      if (age < 18) {
+        toast.error("You must be at least 18 years old to register");
+        return;
+      }
+    }
     
     if (!formData.agreedToTerms) {
       toast.error("Please agree to the Terms of Service and Privacy Policy");
@@ -141,15 +181,7 @@ export default function PatientRegisterPage() {
         {/* Top Bar - Absolute Positioning */}
         <div className="absolute top-8 left-8 right-8 flex items-center justify-between z-10">
           {/* Logo */}
-          <div className="flex items-center gap-3">
-            <div className="bg-white p-2.5 rounded-lg shadow-sm">
-              <svg className="h-7 w-7 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
-                <rect x="4" y="4" width="16" height="16" rx="1" />
-                <path d="M12 8V16M8 12H16" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
-              </svg>
-            </div>
-            <span className="text-2xl font-bold text-gray-900">Sa7ti</span>
-          </div>
+          <Logo size="md" />
           
           {/* Already a member */}
           <div className="text-sm">
@@ -274,7 +306,8 @@ export default function PatientRegisterPage() {
                     id="dateOfBirth"
                     value={formData.dateOfBirth}
                     onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-                    max={new Date().toISOString().split('T')[0]}
+                    max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
+                    title="You must be at least 18 years old to register"
                     className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                     required
                   />

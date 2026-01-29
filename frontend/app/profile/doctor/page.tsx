@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { 
   User, Mail, Phone, Camera, Lock, Shield, 
@@ -8,11 +8,13 @@ import {
   Briefcase, FileText, DollarSign, MapPin, Award, Clock
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { Logo } from "@/components/ui/Logo";
 
 export default function DoctorProfilePage() {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isOAuthUser, setIsOAuthUser] = useState(false);
+  const hasShownErrorToast = useRef(false);
   const [show2FAModal, setShow2FAModal] = useState(false);
   const [qrCode, setQrCode] = useState("");
   const [twoFactorSecret, setTwoFactorSecret] = useState("");
@@ -21,6 +23,12 @@ export default function DoctorProfilePage() {
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [showDisable2FAModal, setShowDisable2FAModal] = useState(false);
   const [disable2FACode, setDisable2FACode] = useState("");
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
   
   const [userData, setUserData] = useState({
     firstName: "",
@@ -31,6 +39,9 @@ export default function DoctorProfilePage() {
     dateOfBirth: "",
     bio: "",
     avatar: null as string | null,
+    isEmailVerified: false,
+    createdAt: "",
+    lastLoginAt: "",
   });
 
   const [doctorData, setDoctorData] = useState({
@@ -75,13 +86,16 @@ export default function DoctorProfilePage() {
       );
 
       if (response.status === 401) {
-        const errorData = await response.json().catch(() => ({ message: 'Unauthorized' }));
-        toast.error(errorData.message || 'Your session has expired. Please log in again.');
-        setTimeout(() => {
-          localStorage.removeItem("accessToken");
-          localStorage.removeItem("refreshToken");
-          window.location.href = "/auth/login";
-        }, 2000);
+        if (!hasShownErrorToast.current) {
+          hasShownErrorToast.current = true;
+          const errorData = await response.json().catch(() => ({ message: 'Unauthorized' }));
+          toast.error(errorData.message || 'Your session has expired. Please log in again.');
+          setTimeout(() => {
+            localStorage.removeItem("accessToken");
+            localStorage.removeItem("refreshToken");
+            window.location.href = "/auth/login";
+          }, 2000);
+        }
         return;
       }
 
@@ -96,6 +110,9 @@ export default function DoctorProfilePage() {
           dateOfBirth: data.dateOfBirth ? data.dateOfBirth.split('T')[0] : "",
           bio: data.bio || "",
           avatar: data.avatar || null,
+          isEmailVerified: data.isEmailVerified || false,
+          createdAt: data.createdAt || "",
+          lastLoginAt: data.lastLoginAt || "",
         };
         const doctor = {
           specialty: data.specialty || "",
@@ -386,6 +403,53 @@ export default function DoctorProfilePage() {
     }
   };
 
+  const handleChangePassword = async () => {
+    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+      toast.error("Please fill in all password fields");
+      return;
+    }
+
+    if (passwordData.newPassword.length < 8) {
+      toast.error("New password must be at least 8 characters");
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast.error("New passwords do not match");
+      return;
+    }
+
+    try {
+      const accessToken = localStorage.getItem("accessToken");
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/change-password`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            currentPassword: passwordData.currentPassword,
+            newPassword: passwordData.newPassword,
+          }),
+        }
+      );
+
+      if (response.ok) {
+        setShowChangePasswordModal(false);
+        setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+        toast.success("Password changed successfully");
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        toast.error(errorData.message || "Failed to change password");
+      }
+    } catch (error) {
+      console.error("Failed to change password:", error);
+      toast.error("Failed to change password");
+    }
+  };
+
   const handleDeleteAccount = async () => {
     if (deleteConfirmation.toLowerCase() !== "delete") {
       toast.error('Please type "DELETE" to confirm');
@@ -439,15 +503,7 @@ export default function DoctorProfilePage() {
       <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
         {/* Logo */}
         <div className="py-7 px-6 border-b border-gray-200">
-          <div className="flex items-center gap-3">
-            <div className="bg-white p-2.5 rounded-lg shadow-sm border border-gray-200">
-              <svg className="h-7 w-7 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
-                <rect x="4" y="4" width="16" height="16" rx="1" />
-                <path d="M12 8V16M8 12H16" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
-              </svg>
-            </div>
-            <span className="text-2xl font-bold text-gray-900">Sa7ti</span>
-          </div>
+          <Logo size="md" />
         </div>
 
         {/* Navigation */}
@@ -532,6 +588,7 @@ export default function DoctorProfilePage() {
                     src={getAvatarUrl(userData.avatar)}
                     alt="Profile"
                     className="w-10 h-10 rounded-full object-cover"
+                    referrerPolicy="no-referrer"
                   />
                 ) : (
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
@@ -602,6 +659,7 @@ export default function DoctorProfilePage() {
                       src={getAvatarUrl(userData.avatar)}
                       alt="Profile"
                       className="w-20 h-20 rounded-full object-cover"
+                      referrerPolicy="no-referrer"
                     />
                   ) : (
                     <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
@@ -811,7 +869,7 @@ export default function DoctorProfilePage() {
                       <label className="block text-xs font-medium text-gray-500 mb-1">LICENSE DOCUMENT</label>
                       <div className="flex items-center gap-2">
                         <FileText className="h-4 w-4 text-blue-600" />
-                        <a href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${doctorData.licenseDocument}`} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">
+                        <a href={`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'}${doctorData.licenseDocument}`} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">
                           View Document
                         </a>
                       </div>
@@ -838,6 +896,62 @@ export default function DoctorProfilePage() {
             </div>
           </div>
 
+          {/* Account Status */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">Account Status</h2>
+              <p className="text-sm text-gray-600">Your account verification and activity information.</p>
+            </div>
+
+            <div className="p-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                {/* Email Status */}
+                <div className="text-center p-4 bg-gray-50 rounded-lg">
+                  <div className={`inline-flex items-center justify-center w-10 h-10 rounded-full mb-2 ${userData.isEmailVerified ? 'bg-green-100' : 'bg-yellow-100'}`}>
+                    <Mail className={`h-5 w-5 ${userData.isEmailVerified ? 'text-green-600' : 'text-yellow-600'}`} />
+                  </div>
+                  <p className="text-xs text-gray-500 mb-1">Email Status</p>
+                  <p className={`text-sm font-semibold ${userData.isEmailVerified ? 'text-green-600' : 'text-yellow-600'}`}>
+                    {userData.isEmailVerified ? 'Verified' : 'Not Verified'}
+                  </p>
+                </div>
+
+                {/* Approval Status */}
+                <div className="text-center p-4 bg-gray-50 rounded-lg">
+                  <div className={`inline-flex items-center justify-center w-10 h-10 rounded-full mb-2 ${doctorData.isVerified ? 'bg-green-100' : 'bg-yellow-100'}`}>
+                    <Award className={`h-5 w-5 ${doctorData.isVerified ? 'text-green-600' : 'text-yellow-600'}`} />
+                  </div>
+                  <p className="text-xs text-gray-500 mb-1">Approval Status</p>
+                  <p className={`text-sm font-semibold ${doctorData.isVerified ? 'text-green-600' : 'text-yellow-600'}`}>
+                    {doctorData.isVerified ? 'Approved' : 'Pending'}
+                  </p>
+                </div>
+
+                {/* Last Login */}
+                <div className="text-center p-4 bg-gray-50 rounded-lg">
+                  <div className="inline-flex items-center justify-center w-10 h-10 rounded-full mb-2 bg-blue-100">
+                    <Clock className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <p className="text-xs text-gray-500 mb-1">Last Login</p>
+                  <p className="text-sm font-semibold text-gray-900">
+                    {userData.lastLoginAt ? new Date(userData.lastLoginAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
+                  </p>
+                </div>
+
+                {/* Member Since */}
+                <div className="text-center p-4 bg-gray-50 rounded-lg">
+                  <div className="inline-flex items-center justify-center w-10 h-10 rounded-full mb-2 bg-purple-100">
+                    <Calendar className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <p className="text-xs text-gray-500 mb-1">Member Since</p>
+                  <p className="text-sm font-semibold text-gray-900">
+                    {userData.createdAt ? new Date(userData.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Security */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
             <div className="px-6 py-4 border-b border-gray-200">
@@ -857,12 +971,12 @@ export default function DoctorProfilePage() {
                       <p className="text-xs text-gray-600">Last changed {securityData.lastPasswordChange}</p>
                     </div>
                   </div>
-                  <Link
-                    href="/auth/reset-password"
+                  <button
+                    onClick={() => setShowChangePasswordModal(true)}
                     className="text-sm font-medium text-blue-600 hover:text-blue-700"
                   >
                     Change Password
-                  </Link>
+                  </button>
                 </div>
               )}
 
@@ -907,19 +1021,6 @@ export default function DoctorProfilePage() {
             </div>
 
             <div className="p-6 space-y-4">
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition">
-                <div className="flex items-center gap-4">
-                  <Bell className="h-5 w-5 text-gray-700" />
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-900">Notification Preferences</h3>
-                    <p className="text-xs text-gray-600">Choose what you want to be notified about.</p>
-                  </div>
-                </div>
-                <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </div>
-
               <div className="flex items-center justify-between p-4 bg-red-50 rounded-lg border border-red-200">
                 <div className="flex items-center gap-4">
                   <Trash2 className="h-5 w-5 text-red-600" />
@@ -1002,6 +1103,80 @@ export default function DoctorProfilePage() {
                 </div>
               </>
             ) : null}
+          </div>
+        </div>
+      )}
+
+      {/* Change Password Modal */}
+      {showChangePasswordModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-900">Change Password</h3>
+              <button
+                onClick={() => {
+                  setShowChangePasswordModal(false);
+                  setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+                <input
+                  type="password"
+                  value={passwordData.currentPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                  placeholder="Enter current password"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                <input
+                  type="password"
+                  value={passwordData.newPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                  placeholder="Enter new password (min 8 characters)"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+                <input
+                  type="password"
+                  value={passwordData.confirmPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                  placeholder="Confirm new password"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowChangePasswordModal(false);
+                  setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+                }}
+                className="flex-1 border border-gray-300 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleChangePassword}
+                disabled={!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
+                className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Change Password
+              </button>
+            </div>
           </div>
         </div>
       )}

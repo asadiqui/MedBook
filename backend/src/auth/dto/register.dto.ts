@@ -14,6 +14,25 @@ export class IsNotFutureDate implements ValidatorConstraintInterface {
     return 'Date of birth cannot be in the future';
   }
 }
+
+@ValidatorConstraint({ name: 'IsAtLeast18', async: false })
+export class IsAtLeast18 implements ValidatorConstraintInterface {
+  validate(dateString: string, args: ValidationArguments) {
+    if (!dateString) return true; // Let @IsOptional handle empty values
+    const birthDate = new Date(dateString);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age >= 18;
+  }
+
+  defaultMessage(args: ValidationArguments) {
+    return 'You must be at least 18 years old to register';
+  }
+}
 import { Role, Gender } from '@prisma/client';
 
 export class RegisterDto {
@@ -44,6 +63,7 @@ export class RegisterDto {
 
   @IsDateString()
   @Validate(IsNotFutureDate)
+  @Validate(IsAtLeast18)
   @IsOptional()
   dateOfBirth?: string;
 

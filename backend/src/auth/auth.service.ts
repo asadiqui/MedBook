@@ -146,6 +146,13 @@ export class AuthService {
     }
 
     if (dto.role === Role.DOCTOR) {
+      // Send email verification for doctors too
+      try {
+        await this.sendEmailVerification(user.id, true);
+      } catch (error) {
+        console.error('Failed to send doctor verification email:', error);
+      }
+      // Also send notification about pending approval
       try {
         await this.sendDoctorRegistrationEmail(user.id);
       } catch (error) {
@@ -669,6 +676,7 @@ export class AuthService {
       clinicAddress: dto.clinicAddress,
       clinicContactPerson: dto.clinicContactPerson,
       clinicPhone: dto.clinicPhone,
+      consultationFee: dto.consultationFee,
     };
   }
 

@@ -14,8 +14,9 @@ import {
 import { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { extname, join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { existsSync, mkdirSync } from 'fs';
 import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto, ChangePasswordDto, ForgotPasswordDto, ResetPasswordDto, Enable2FADto, Verify2FADto, VerifyEmailDto } from './dto';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
@@ -23,9 +24,15 @@ import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { ConfigService } from '@nestjs/config';
 
+// Ensure upload directory exists - use process.cwd() for Docker compatibility
+const documentsDir = join(process.cwd(), 'uploads', 'documents');
+if (!existsSync(documentsDir)) {
+  mkdirSync(documentsDir, { recursive: true });
+}
+
 const documentStorage = {
   storage: diskStorage({
-    destination: './uploads/documents',
+    destination: documentsDir,
     filename: (req, file, callback) => {
       const uniqueName = `${uuidv4()}${extname(file.originalname)}`;
       callback(null, uniqueName);

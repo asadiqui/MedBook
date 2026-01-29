@@ -92,6 +92,7 @@ export class UploadService {
 
   private async deleteFile(filePath: string): Promise<void> {
     try {
+      // Use process.cwd() for Docker compatibility
       const fullPath = path.join(process.cwd(), filePath);
       if (fs.existsSync(fullPath)) {
         fs.unlinkSync(fullPath);
