@@ -14,8 +14,9 @@ import {
 import { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { extname, join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { existsSync, mkdirSync } from 'fs';
 import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto, ChangePasswordDto, ForgotPasswordDto, ResetPasswordDto, Enable2FADto, Verify2FADto, VerifyEmailDto } from './dto';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
@@ -23,16 +24,22 @@ import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { ConfigService } from '@nestjs/config';
 
+// Ensure upload directory exists - use process.cwd() for Docker compatibility
+const documentsDir = join(process.cwd(), 'uploads', 'documents');
+if (!existsSync(documentsDir)) {
+  mkdirSync(documentsDir, { recursive: true });
+}
+
 const documentStorage = {
   storage: diskStorage({
-    destination: './uploads/documents',
+    destination: documentsDir,
     filename: (req, file, callback) => {
       const uniqueName = `${uuidv4()}${extname(file.originalname)}`;
       callback(null, uniqueName);
     },
   }),
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB
+    fileSize: 10 * 1024 * 1024,
   },
   fileFilter: (req: any, file: any, callback: any) => {
     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
@@ -58,7 +65,6 @@ export class AuthController {
     @Body() dto: RegisterDto,
     @UploadedFile() file?: Express.Multer.File,
   ) {
-    // Add the uploaded file to the DTO if it exists
     if (file) {
       dto.licenseDocument = file;
     }
@@ -120,20 +126,25 @@ export class AuthController {
   @Get('google')
   @UseGuards(GoogleAuthGuard)
   async googleAuth() {
-    // Guard redirects to Google
+    // Passport GoogleAuthGuard handles the redirect
   }
 
   @Public()
   @Get('google/callback')
   @UseGuards(GoogleAuthGuard)
   async googleAuthCallback(@Req() req: any, @Res() res: Response) {
-    const result = await this.authService.googleLogin(req.user);
-    
-    // Redirect to frontend with tokens
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
-    const redirectUrl = `${frontendUrl}/auth/callback?accessToken=${result.tokens.accessToken}&refreshToken=${result.tokens.refreshToken}`;
-    
-    return res.redirect(redirectUrl);
+    try {
+      const result = await this.authService.googleLogin(req.user);
+      
+      const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
+      const redirectUrl = `${frontendUrl}/auth/callback?accessToken=${result.tokens.accessToken}&refreshToken=${result.tokens.refreshToken}`;
+      
+      return res.redirect(redirectUrl);
+    } catch (error) {
+      const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
+      const errorMessage = encodeURIComponent(error.message || 'Authentication failed');
+      return res.redirect(`${frontendUrl}/login?error=${errorMessage}`);
+    }
   }
 
   @Post('2fa/enable')

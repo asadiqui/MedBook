@@ -1,7 +1,6 @@
 import {
   Controller,
   Post,
-  Delete,
   Param,
   UseInterceptors,
   UploadedFile,
@@ -10,22 +9,35 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { extname, join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { existsSync, mkdirSync } from 'fs';
 import { UploadService } from './upload.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Role } from '@prisma/client';
 
+// Ensure upload directories exist - use process.cwd() for Docker compatibility
+const uploadsDir = join(process.cwd(), 'uploads');
+const avatarsDir = join(uploadsDir, 'avatars');
+const documentsDir = join(uploadsDir, 'documents');
+
+if (!existsSync(avatarsDir)) {
+  mkdirSync(avatarsDir, { recursive: true });
+}
+if (!existsSync(documentsDir)) {
+  mkdirSync(documentsDir, { recursive: true });
+}
+
 const avatarStorage = {
   storage: diskStorage({
-    destination: './uploads/avatars',
+    destination: avatarsDir,
     filename: (req, file, callback) => {
       const uniqueName = `${uuidv4()}${extname(file.originalname)}`;
       callback(null, uniqueName);
     },
   }),
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB
+    fileSize: 5 * 1024 * 1024,
   },
   fileFilter: (req: any, file: any, callback: any) => {
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -39,14 +51,14 @@ const avatarStorage = {
 
 const documentStorage = {
   storage: diskStorage({
-    destination: './uploads/documents',
+    destination: documentsDir,
     filename: (req, file, callback) => {
       const uniqueName = `${uuidv4()}${extname(file.originalname)}`;
       callback(null, uniqueName);
     },
   }),
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB
+    fileSize: 10 * 1024 * 1024,
   },
   fileFilter: (req: any, file: any, callback: any) => {
     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
@@ -62,7 +74,6 @@ const documentStorage = {
 export class UploadController {
   constructor(private readonly uploadService: UploadService) {}
 
-  // POST /api/users/:id/avatar
   @Post(':id/avatar')
   @UseInterceptors(FileInterceptor('avatar', avatarStorage))
   async uploadAvatar(
@@ -77,17 +88,6 @@ export class UploadController {
     return this.uploadService.uploadAvatar(id, file, userId, userRole);
   }
 
-  // DELETE /api/users/:id/avatar
-  @Delete(':id/avatar')
-  async deleteAvatar(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser('id') userId: string,
-    @CurrentUser('role') userRole: Role,
-  ) {
-    return this.uploadService.deleteAvatar(id, userId, userRole);
-  }
-
-  // POST /api/users/:id/license-document
   @Post(':id/license-document')
   @UseInterceptors(FileInterceptor('document', documentStorage))
   async uploadLicenseDocument(
@@ -100,15 +100,5 @@ export class UploadController {
       throw new BadRequestException('Document file is required');
     }
     return this.uploadService.uploadLicenseDocument(id, file, userId, userRole);
-  }
-
-  // DELETE /api/users/:id/license-document
-  @Delete(':id/license-document')
-  async deleteLicenseDocument(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser('id') userId: string,
-    @CurrentUser('role') userRole: Role,
-  ) {
-    return this.uploadService.deleteLicenseDocument(id, userId, userRole);
   }
 }

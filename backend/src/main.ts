@@ -13,15 +13,14 @@ async function bootstrap() {
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
-  
-  // Global validation pipe - validates all incoming DTOs
+
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true, // Strip unknown properties
-      forbidNonWhitelisted: true, // Throw error for unknown properties
-      transform: true, // Transform payloads to DTO instances
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
       transformOptions: {
-        enableImplicitConversion: true, // Auto-convert types
+        enableImplicitConversion: true,
       },
     }),
   );

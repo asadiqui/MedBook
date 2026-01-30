@@ -16,14 +16,14 @@ async function main() {
 
   if (!existingAdmin) {
     // Create admin account
-    const hashedPassword = await bcrypt.hash('Admin123!@#', 12);
+    const hashedPassword = await bcrypt.hash('Lmodir2023', 12);
 
     const admin = await prisma.user.create({
       data: {
-        email: 'admin@medbook.com',
+        email: 'admin@sa7ti.com',
         password: hashedPassword,
         firstName: 'Admin',
-        lastName: 'MedBook',
+        lastName: 'Sa7ti',
         role: Role.ADMIN,
         isActive: true,
         isEmailVerified: true,
@@ -32,7 +32,7 @@ async function main() {
 
     console.log('✅ Admin account created successfully!');
     console.log('   Email:', admin.email);
-    console.log('   Password: Admin123!@#');
+    console.log('   Password: Lmodir2023');
     console.log('');
   } else {
     console.log('✅ Admin account already exists:', existingAdmin.email);
@@ -45,11 +45,11 @@ async function main() {
 
   if (!existingDoctor) {
     // Create doctor account
-    const doctorHashedPassword = await bcrypt.hash('Doctor123!@#', 12);
+    const doctorHashedPassword = await bcrypt.hash('tbib2017', 12);
 
     const doctor = await prisma.user.create({
       data: {
-        email: 'doctor@medbook.com',
+        email: 'doctor@sa7ti.com',
         password: doctorHashedPassword,
         firstName: 'Dr. Sarah',
         lastName: 'Johnson',
@@ -71,7 +71,7 @@ async function main() {
 
     console.log('✅ Doctor account created successfully!');
     console.log('   Email:', doctor.email);
-    console.log('   Password: Doctor123!@#');
+    console.log('   Password: tbib2017');
     console.log('');
   } else {
     console.log('✅ Doctor account already exists:', existingDoctor.email);
@@ -88,7 +88,7 @@ async function main() {
 
     const patient = await prisma.user.create({
       data: {
-        email: 'patient@medbook.com',
+        email: 'patient@sa7ti.com',
         password: patientHashedPassword,
         firstName: 'John',
         lastName: 'Doe',

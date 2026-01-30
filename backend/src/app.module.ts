@@ -19,10 +19,12 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
       isGlobal: true,
       envFilePath: ['.env', '../.env'],
     }),
-    LlmModule,
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
+      serveStaticOptions: {
+        index: false,
+      },
     }),
     PrismaModule,
     EmailModule,
@@ -31,10 +33,10 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
     AvailabilityModule,
     BookingModule,
     ChatModule,
+    LlmModule,
   ],
   controllers: [],
   providers: [
-    // Apply JWT guard globally (use @Public() decorator for public routes)
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
