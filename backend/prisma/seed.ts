@@ -71,7 +71,6 @@ async function main() {
   } else {
     console.log('✅ Doctor account already exists:', existingDoctor.email);
   }
-
   // Check if patient already exists
   const existingPatient = await prisma.user.findFirst({
     where: { role: Role.PATIENT },
@@ -103,49 +102,13 @@ async function main() {
     console.log('✅ Patient account already exists:', existingPatient.email);
   }
 
-  // Create some availability for the doctor
-  const doctorForAvailability = await prisma.user.findFirst({
-    where: { role: Role.DOCTOR },
-  });
-
-  if (doctorForAvailability) {
-    // Check if availability already exists
-    const existingAvailability = await prisma.availability.findFirst({
-      where: { doctorId: doctorForAvailability.id },
-    });
-
-    if (!existingAvailability) {
-      // Create availability for next 7 days
-      const availabilities = [];
-      const today = new Date();
-
-      for (let i = 1; i <= 7; i++) {
-        const date = new Date(today);
-        date.setDate(today.getDate() + i);
-
-        // Skip weekends for this example
-        if (date.getDay() !== 0 && date.getDay() !== 6) {
-          availabilities.push({
-            doctorId: doctorForAvailability.id,
-            date: date.toISOString().split('T')[0], // YYYY-MM-DD format
-            startTime: '09:00',
-            endTime: '17:00',
-          });
-        }
-      }
-
-      for (const availability of availabilities) {
-        await prisma.availability.create({
-          data: availability,
-        });
-      }
-
-      console.log(`✅ Created ${availabilities.length} availability slots for the doctor`);
-      console.log('');
-    } else {
-      console.log('✅ Doctor availability already exists');
-    }
-  }
+  console.log('');
+  console.log('📋 Test Accounts:');
+  console.log('   Doctor: doctor@medbook.com / Doctor123!@#');
+  console.log('   Patient: patient@medbook.com / Patient123!@#');
+  console.log('   Admin: admin@medbook.com / Admin123!@#');
+  console.log('');
+  console.log('ℹ️  No availability created - you can create it manually through the doctor dashboard');
 }
 
 main()

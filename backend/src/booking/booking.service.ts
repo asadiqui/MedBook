@@ -2,6 +2,7 @@ import { BadRequestException, Injectable , ForbiddenException, NotFoundException
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { timeConversion } from '../common/utils/time';
+import { BookingStatus } from '@prisma/client';
 
 @Injectable()
 export class BookingService {
@@ -14,9 +15,9 @@ export class BookingService {
     let CheckDate = new Date(dto.date);
     const today = new Date();
 
-    // Prevent creating availability for past dates
+    // Prevent creating bookings for past dates
     if (CheckDate < new Date(today.toDateString())) {
-      throw new BadRequestException('Cannot create availability for past dates');
+      throw new BadRequestException('Cannot create booking for past dates');
     }
 
     
@@ -28,20 +29,35 @@ export class BookingService {
       throw new ForbiddenException('Only patients can create bookings');
     }
     // get data from dto
-    const { duration, startTime } = dto;
-    let endTime = timeConversion(startTime) + duration;
+    const { duration, startTime, reason } = dto;
 
-    // Convert endTime back to "HH:MM" format
-    const endHours = Math.floor(endTime / 60);
-    const endMinutes = endTime % 60;
-    const endTimeStr = `${endHours.toString().padStart(2, '0')}:${endMinutes
-      .toString()
-      .padStart(2, '0')}`;
-    // now endTimeStr is in "HH:MM" format ex : "10:30"
+    let endTimeStr: string;
+    let durationMinutes: number;
 
-    // valid duration 60 or 120
-    if (duration !== 60 && duration !== 120) {
-      throw new BadRequestException('Duration must be 60 or 120 minutes');
+    if (dto.endTime) {
+      endTimeStr = dto.endTime;
+      durationMinutes = timeConversion(endTimeStr) - timeConversion(startTime);
+    } else {
+      if (typeof duration !== 'number') {
+        throw new BadRequestException('Either endTime or duration is required');
+      }
+
+      // legacy rule: duration is 60 or 120
+      if (duration !== 60 && duration !== 120) {
+        throw new BadRequestException('Duration must be 60 or 120 minutes');
+      }
+
+      durationMinutes = duration;
+      const endTime = timeConversion(startTime) + durationMinutes;
+      const endHours = Math.floor(endTime / 60);
+      const endMinutes = endTime % 60;
+      endTimeStr = `${endHours.toString().padStart(2, '0')}:${endMinutes
+        .toString()
+        .padStart(2, '0')}`;
+    }
+
+    if (durationMinutes <= 0) {
+      throw new BadRequestException('Invalid time range');
     }
 
     // check availability exists & booking fits inside it
@@ -109,7 +125,8 @@ export class BookingService {
         date: dto.date,
         startTime: startTime,
         endTime: endTimeStr,
-        duration: duration,
+        duration: durationMinutes,
+        reason: reason?.trim() || null,
         status: 'PENDING',
       },
     });
@@ -221,7 +238,19 @@ export class BookingService {
     });
   }
 
-  async getDoctorBookings(doctorId: string) {
+  async getMyBookings(user: { id: string; role: string }) {
+    if (user.role === 'PATIENT') {
+      return this.getPatientBookings(user.id);
+    }
+
+    if (user.role === 'DOCTOR') {
+      return this.getDoctorBookings(user.id);
+    }
+
+    throw new ForbiddenException('Only patients or doctors can view bookings');
+  }
+
+  async getDoctorBookings(doctorId: string, status?: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: doctorId },
     });
@@ -230,8 +259,21 @@ export class BookingService {
       throw new ForbiddenException('Only doctors can view their bookings');
     }
 
+    let parsedStatus: BookingStatus | undefined;
+    if (status) {
+      const upper = String(status).toUpperCase();
+      const allowed: BookingStatus[] = ['PENDING', 'ACCEPTED', 'REJECTED', 'CANCELLED'];
+      if (!allowed.includes(upper as BookingStatus)) {
+        throw new BadRequestException('Invalid status filter');
+      }
+      parsedStatus = upper as BookingStatus;
+    }
+
     return this.prisma.booking.findMany({
-      where: { doctorId },
+      where: {
+        doctorId,
+        ...(parsedStatus ? { status: parsedStatus } : {}),
+      },
       include: {
         patient: {
           select: {
@@ -243,7 +285,7 @@ export class BookingService {
           },
         },
       },
-      orderBy: { date: 'desc' },
+      orderBy: [{ date: 'desc' }, { startTime: 'asc' }],
     });
   }
 

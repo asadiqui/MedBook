@@ -46,17 +46,17 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-      - /app/.next
     env_file:
       - .env.example
     depends_on:
       - backend
     networks:
       - app-network
-
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: sh -c "npm run dev"
+    
 volumes:
   postgres_data:
 

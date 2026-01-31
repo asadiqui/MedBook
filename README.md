@@ -25,12 +25,12 @@ docker compose up --build
 
 Backend runs on:
 
-http://localhost:3000
+http://localhost:3001
 
 
 Swagger API docs:
 
-http://localhost:3000/api/docs
+http://localhost:3001/api/docs
 
 🔐 Authentication
 

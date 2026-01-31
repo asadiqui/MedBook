@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { AvailabilityModule } from './availability/availability.module';
 import { BookingModule } from './booking/booking.module';
+import { DoctorsModule } from './doctors/doctors.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 
 @Module({
@@ -27,6 +28,7 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
     // Features
     AuthModule,
     UsersModule,
+    DoctorsModule,
     AvailabilityModule,
     BookingModule,
     // Other modules will be added by teammates:

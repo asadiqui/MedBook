@@ -119,6 +119,7 @@ model Booking {
   startTime String
   endTime   String
   duration  Int
+  reason    String?
   status    BookingStatus
   doctorId  String
   patientId String

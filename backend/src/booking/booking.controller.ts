@@ -12,8 +12,20 @@ export class BookingController {
 
   @UseGuards(JwtAuthGuard)
   @Post()
-  create(@Body() dto: CreateBookingDto, @CurrentUser('id') userId: string) {
-    return this.bookingService.createBooking(dto, userId);
+  create(
+    @Body() dto: CreateBookingDto,
+    @CurrentUser() user: { id: string; role: string },
+  ) {
+    // Accept patientId in payload (contract) but default to authenticated user.
+    const patientId = dto.patientId || user.id;
+    return this.bookingService.createBooking(dto, patientId);
+  }
+
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  getMyBookings(@CurrentUser() user: { id: string; role: string }) {
+    return this.bookingService.getMyBookings(user);
   }
 
 
@@ -25,8 +37,11 @@ export class BookingController {
 
   @UseGuards(JwtAuthGuard)
   @Get('doctor')
-  getDoctorBookings(@CurrentUser('id') userId: string) {
-    return this.bookingService.getDoctorBookings(userId);
+  getDoctorBookings(
+    @CurrentUser('id') userId: string,
+    @Query('status') status?: string,
+  ) {
+    return this.bookingService.getDoctorBookings(userId, status);
   }
 
   @UseGuards(JwtAuthGuard)
