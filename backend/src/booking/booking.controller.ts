@@ -2,6 +2,7 @@ import { Controller, Post, Patch, Param, Body, Get, Query } from '@nestjs/common
 import { BookingService } from './booking.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Public } from '../auth/decorators/public.decorator';
 
 @Controller('booking')
 export class BookingController {
@@ -32,6 +33,15 @@ export class BookingController {
     @CurrentUser() user,
   ) {
     return this.bookingService.getDoctorSchedule(doctorId, user, date);
+  }
+
+  @Public()
+  @Get('doctor/:id/booked-slots')
+  getPublicBookedSlots(
+    @Param('id') doctorId: string,
+    @Query('date') date: string | undefined,
+  ) {
+    return this.bookingService.getPublicBookedSlots(doctorId, date);
   }
 
 

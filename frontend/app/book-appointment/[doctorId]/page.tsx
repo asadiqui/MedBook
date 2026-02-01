@@ -6,7 +6,7 @@ import { DashboardLayout } from "@/components/shared/DashboardLayout";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { getDoctorProfile } from "@/lib/api/doctorDirectory";
 import { getAvailabilityCalendar } from "@/lib/api/availability";
-import { createBooking, getPatientBookings, Booking } from "@/lib/api/booking";
+import { createBooking, getPatientBookings, getPublicBookedSlots, Booking, PublicBookedSlot } from "@/lib/api/booking";
 import { resolveAvatarUrl } from "@/lib/utils/avatar";
 import { getInitialsFromName } from "@/lib/utils/formatting";
 
@@ -69,10 +69,28 @@ function formatTime(timeString: string): string {
 
 type ToastState = { open: false } | { open: true; type: "success" | "error"; message: string };
 
+function CheckCircleIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}>
+      <circle cx="12" cy="12" r="10" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  );
+}
+
+function AlertCircleIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 8v4m0 4h.01" />
+    </svg>
+  );
+}
+
 function Toast({ state, onClose }: { state: ToastState; onClose: () => void }) {
   useEffect(() => {
     if (!state.open) return;
-    const timer = setTimeout(onClose, 3000);
+    const timer = setTimeout(onClose, 4000);
     return () => clearTimeout(timer);
   }, [state, onClose]);
 
@@ -82,13 +100,27 @@ function Toast({ state, onClose }: { state: ToastState; onClose: () => void }) {
     <div className="fixed right-6 top-6 z-50 animate-in slide-in-from-top-2 duration-200">
       <div
         className={
-          "rounded-xl px-4 py-3 text-sm font-semibold shadow-lg ring-1 " +
+          "flex items-center gap-3 rounded-xl px-4 py-3.5 text-sm font-medium shadow-xl ring-1 min-w-[320px] " +
           (state.type === "success"
-            ? "bg-emerald-50 text-emerald-800 ring-emerald-200"
-            : "bg-red-50 text-red-800 ring-red-200")
+            ? "bg-emerald-50 text-emerald-900 ring-emerald-200"
+            : "bg-red-50 text-red-900 ring-red-200")
         }
       >
-        {state.message}
+        {state.type === "success" ? (
+          <CheckCircleIcon className="h-5 w-5 flex-shrink-0 text-emerald-600" />
+        ) : (
+          <AlertCircleIcon className="h-5 w-5 flex-shrink-0 text-red-600" />
+        )}
+        <span className="flex-1">{state.message}</span>
+        <button
+          onClick={onClose}
+          className="ml-2 flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
+          aria-label="Close"
+        >
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        </button>
       </div>
     </div>
   );
@@ -106,11 +138,11 @@ export default function BookAppointmentPage() {
   const [doctor, setDoctor] = useState<DoctorInfo | null>(null);
   const [availabilitySlots, setAvailabilitySlots] = useState<AvailabilitySlot[]>([]);
   const [myBookings, setMyBookings] = useState<Booking[]>([]);
+  const [bookedSlots, setBookedSlots] = useState<PublicBookedSlot[]>([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<{ hour: number; startTime: string; endTime: string; date: string } | null>(null);
   const [duration, setDuration] = useState<60 | 120>(60);
-  const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState<ToastState>({ open: false });
@@ -153,6 +185,14 @@ export default function BookAppointmentPage() {
 
       setAvailabilitySlots(slots);
 
+      // Fetch all booked slots (public endpoint)
+      try {
+        const bookedSlotsData = await getPublicBookedSlots(doctorId);
+        setBookedSlots(bookedSlotsData || []);
+      } catch {
+        setBookedSlots([]);
+      }
+
       if (user) {
         try {
           const bookings = await getPatientBookings();
@@ -162,10 +202,16 @@ export default function BookAppointmentPage() {
         }
       }
     } catch (error: any) {
+      const errorMessage = 
+        error?.response?.data?.message || 
+        error?.response?.data?.error ||
+        error?.message || 
+        "Failed to load availability. Please try again.";
+      
       setToast({
         open: true,
         type: "error",
-        message: error?.message || "Failed to load availability",
+        message: errorMessage,
       });
     } finally {
       setLoading(false);
@@ -216,7 +262,7 @@ export default function BookAppointmentPage() {
       hour: number;
       startTime: string;
       endTime: string;
-      status: "unavailable" | "available" | "my-pending" | "my-accepted";
+      status: "unavailable" | "available" | "reserved" | "my-pending" | "my-accepted";
       booking?: Booking;
     };
 
@@ -225,12 +271,17 @@ export default function BookAppointmentPage() {
     const dateBookings = myBookings.filter(
       (b) => b.date === selectedDate && b.doctorId === doctorId && b.status !== "CANCELLED" && b.status !== "REJECTED"
     );
+    const dateBookedSlots = bookedSlots.filter(
+      (b) => b.date === selectedDate
+    );
 
-    for (let hour = 8; hour <= 19; hour++) {
+    const slotDuration = duration === 120 ? 2 : 1; // 2 hours for 120min, 1 hour for 60min
+    
+    for (let hour = 8; hour < 20; hour += slotDuration) {
       const startTime = minutesToTime(hour * 60);
-      const endTime = minutesToTime((hour + 1) * 60);
+      const endTime = minutesToTime((hour + slotDuration) * 60);
       const startMinutes = hour * 60;
-      const endMinutes = (hour + 1) * 60;
+      const endMinutes = (hour + slotDuration) * 60;
 
       const isAvailable = dateAvailability.some((avail) => {
         const availStart = timeToMinutes(avail.startTime);
@@ -244,6 +295,15 @@ export default function BookAppointmentPage() {
         return startMinutes >= bookStart && endMinutes <= bookEnd;
       });
 
+      // Check if this slot is booked by someone else
+      const myBookingIds = new Set(dateBookings.map(b => b.id));
+      const otherBooking = dateBookedSlots.find((b) => {
+        const bookStart = timeToMinutes(b.startTime);
+        const bookEnd = timeToMinutes(b.endTime);
+        // Slot overlaps with a booked time and it's not my booking
+        return !myBookingIds.has(b.id) && startMinutes >= bookStart && endMinutes <= bookEnd;
+      });
+
       if (!isAvailable) {
         slots.push({ hour, startTime, endTime, status: "unavailable" });
       } else if (myBooking) {
@@ -254,13 +314,20 @@ export default function BookAppointmentPage() {
           status: myBooking.status === "ACCEPTED" ? "my-accepted" : "my-pending",
           booking: myBooking,
         });
+      } else if (otherBooking) {
+        slots.push({
+          hour,
+          startTime,
+          endTime,
+          status: "reserved",
+        });
       } else {
         slots.push({ hour, startTime, endTime, status: "available" });
       }
     }
 
     return slots;
-  }, [selectedDate, availabilitySlots, myBookings, doctorId]);
+  }, [selectedDate, availabilitySlots, myBookings, bookedSlots, doctorId, duration, user]);
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr + "T00:00:00");
@@ -284,7 +351,7 @@ export default function BookAppointmentPage() {
 
   const handleBook = async () => {
     if (!doctorId || !selectedDate || !selectedSlot) {
-      setToast({ open: true, type: "error", message: "Select a time slot first." });
+      setToast({ open: true, type: "error", message: "Please select a time slot first." });
       return;
     }
 
@@ -295,16 +362,23 @@ export default function BookAppointmentPage() {
         date: selectedDate,
         startTime: selectedSlot.startTime,
         duration,
-        reason: reason.trim() || undefined,
       });
 
-      setToast({ open: true, type: "success", message: "Booking request sent." });
+      setToast({ open: true, type: "success", message: "Booking request sent successfully!" });
       const bookings = await getPatientBookings();
       setMyBookings(bookings);
+      const bookedSlotsData = await getPublicBookedSlots(doctorId);
+      setBookedSlots(bookedSlotsData || []);
       setSelectedSlot(null);
-      setReason("");
     } catch (error: any) {
-      setToast({ open: true, type: "error", message: error?.message || "Booking failed." });
+      // Extract the error message from the API response
+      const errorMessage = 
+        error?.response?.data?.message || 
+        error?.response?.data?.error ||
+        error?.message || 
+        "Unable to create booking. Please try again.";
+      
+      setToast({ open: true, type: "error", message: errorMessage });
     } finally {
       setSubmitting(false);
     }
@@ -325,7 +399,7 @@ export default function BookAppointmentPage() {
     <DashboardLayout title="Book Appointment">
       <Toast state={toast} onClose={() => setToast({ open: false })} />
 
-      <div className="min-h-screen bg-gradient-to-b from-blue-50/30 to-white p-6">
+      <div className="bg-gradient-to-b from-blue-50/30 to-white p-6">
         <button
           type="button"
           onClick={() => router.back()}
@@ -336,14 +410,14 @@ export default function BookAppointmentPage() {
         </button>
 
         {loading ? (
-          <div className="flex min-h-[60vh] items-center justify-center">
+          <div className="flex items-center justify-center py-20">
             <div className="text-center">
               <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600 mx-auto" />
               <p className="text-sm text-gray-600">Loading availability...</p>
             </div>
           </div>
         ) : !doctor ? (
-          <div className="flex min-h-[60vh] items-center justify-center">
+          <div className="flex items-center justify-center py-20">
             <div className="rounded-xl bg-red-50 p-6 ring-1 ring-red-100">
               <p className="text-sm font-medium text-red-700">Doctor not found</p>
             </div>
@@ -448,7 +522,7 @@ export default function BookAppointmentPage() {
                       Available Times - {formatDate(selectedDate)}
                     </h2>
 
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+                    <div className={`grid gap-2 ${duration === 120 ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6'}`}>
                       {hourlySchedule.map((slot) => {
                         const colors = {
                           unavailable: {
@@ -459,11 +533,18 @@ export default function BookAppointmentPage() {
                             label: "Not Available",
                           },
                           available: {
-                            border: "border-emerald-200",
-                            bg: "bg-emerald-50",
-                            text: "text-emerald-900",
-                            icon: "text-emerald-600",
+                            border: "border-blue-300",
+                            bg: "bg-blue-100",
+                            text: "text-blue-900",
+                            icon: "text-blue-600",
                             label: "Available",
+                          },
+                          reserved: {
+                            border: "border-red-300",
+                            bg: "bg-red-100",
+                            text: "text-red-900",
+                            icon: "text-red-600",
+                            label: "Reserved",
                           },
                           "my-pending": {
                             border: "border-amber-200",
@@ -493,7 +574,7 @@ export default function BookAppointmentPage() {
                             disabled={!isClickable}
                             className={`rounded-lg border p-3 transition ${style.border} ${style.bg} ${
                               isSelected ? "ring-2 ring-blue-500 scale-105" : ""
-                            } ${isClickable ? "cursor-pointer hover:scale-105" : "cursor-not-allowed"}`}
+                            } ${isClickable ? "cursor-pointer hover:scale-105 hover:shadow-md" : "cursor-not-allowed opacity-70"}`}
                           >
                             <div className="flex flex-col items-center gap-2">
                               <div className={`flex h-8 w-8 items-center justify-center rounded-full ${style.icon}`}>
@@ -523,8 +604,12 @@ export default function BookAppointmentPage() {
                         <span className="text-gray-600">Not Available</span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <div className="h-3 w-3 rounded-full bg-emerald-500" />
+                        <div className="h-3 w-3 rounded-full bg-blue-500" />
                         <span className="text-gray-600">Available</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="h-3 w-3 rounded-full bg-red-500" />
+                        <span className="text-gray-600">Reserved</span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <div className="h-3 w-3 rounded-full bg-amber-500" />
@@ -566,21 +651,6 @@ export default function BookAppointmentPage() {
                           <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Duration</p>
                           <p className="mt-1 text-sm font-medium text-gray-900">{duration} minutes</p>
                         </div>
-                      </div>
-
-                      <div className="mb-4">
-                        <label className="mb-2 block text-sm font-semibold text-gray-700">
-                          Reason for Visit <span className="text-gray-400">(Optional)</span>
-                        </label>
-                        <textarea
-                          value={reason}
-                          onChange={(e) => setReason(e.target.value)}
-                          rows={4}
-                          maxLength={500}
-                          placeholder="Brief description of your symptoms or request..."
-                          className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 transition focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                        />
-                        <p className="mt-1 text-xs text-gray-500">{reason.length}/500 characters</p>
                       </div>
 
                       <button

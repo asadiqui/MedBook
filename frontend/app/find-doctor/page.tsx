@@ -86,7 +86,7 @@ export default function FindDoctorPage() {
 
   return (
     <DashboardLayout title="Find Doctor">
-      <div className="min-h-screen bg-gradient-to-b from-blue-50/30 to-white p-6">
+      <div className="bg-gradient-to-b from-blue-50/30 to-white p-6">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Find a Specialist</h1>
           <p className="mt-2 text-base text-gray-600">

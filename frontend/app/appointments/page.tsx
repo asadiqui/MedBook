@@ -12,10 +12,48 @@ import { getInitials } from "@/lib/utils/formatting";
 import {
   acceptBooking,
   Booking,
+  cancelBooking,
   getDoctorBookings,
   rejectBooking,
 } from "@/lib/api/booking";
 
+// Custom hook for managing cleared appointments with localStorage
+function useClearedAppointments() {
+  const [clearedIds, setClearedIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const stored = localStorage.getItem('clearedAppointments');
+      if (stored) {
+        setClearedIds(new Set(JSON.parse(stored)));
+      }
+    } catch {
+      // Ignore localStorage errors
+    }
+  }, []);
+
+  const clearAppointment = useCallback((id: string) => {
+    setClearedIds((prev) => {
+      const updated = new Set(prev);
+      updated.add(id);
+      try {
+        localStorage.setItem('clearedAppointments', JSON.stringify(Array.from(updated)));
+      } catch {
+        // Ignore localStorage errors
+      }
+      return updated;
+    });
+  }, []);
+
+  const filterCleared = useCallback((bookings: Booking[]) => {
+    return bookings.filter(b => !clearedIds.has(b.id));
+  }, [clearedIds]);
+
+  return { clearAppointment, filterCleared };
+}
+
+// Utility functions
 function cityFromAddress(addr?: string | null): string | null {
   const raw = String(addr || "").trim();
   if (!raw) return null;
@@ -45,12 +83,24 @@ function statusLabel(status: string): string {
   return s;
 }
 
+function canClearAppointment(status: string): boolean {
+  return status === "REJECTED" || status === "CANCELLED";
+}
+
+function getErrorMessage(err: any, defaultMsg: string): string {
+  return err?.response?.data?.message || 
+         err?.response?.data?.error ||
+         err?.message || 
+         defaultMsg;
+}
+
 type UiTab = "ALL" | "PENDING" | "APPROVED" | "COMPLETED" | "CANCELLED";
 
 export default function AppointmentsPage() {
   const { user, isBootstrapping, requireAuth } = useAuth();
   const isPatient = user?.role === "PATIENT";
   const isDoctor = user?.role === "DOCTOR";
+  const { clearAppointment, filterCleared } = useClearedAppointments();
 
   useEffect(() => {
     if (isBootstrapping) return;
@@ -82,7 +132,7 @@ export default function AppointmentsPage() {
       const data = await getDoctorBookings();
       setDoctorItems(Array.isArray(data) ? data : []);
     } catch (err: any) {
-      setDoctorError(err?.message || "Failed to load appointments");
+      setDoctorError(getErrorMessage(err, "Failed to load appointments"));
       setDoctorItems([]);
     } finally {
       setDoctorLoading(false);
@@ -94,11 +144,15 @@ export default function AppointmentsPage() {
     fetchDoctorBookings();
   }, [fetchDoctorBookings, isDoctor, isBootstrapping]);
 
+  // Apply cleared filter to bookings
+  const filteredPatientItems = useMemo(() => filterCleared(bookings), [bookings, filterCleared]);
+  const filteredDoctorItems = useMemo(() => filterCleared(doctorItems), [doctorItems, filterCleared]);
+
   const rowsAll = useMemo(() => {
-    return doctorItems
+    return filteredDoctorItems
       .slice()
       .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime));
-  }, [doctorItems]);
+  }, [filteredDoctorItems]);
 
   const rows = useMemo(() => {
     const normalized = (s: string) => String(s || "").toUpperCase();
@@ -118,7 +172,7 @@ export default function AppointmentsPage() {
       const updated = await acceptBooking(id);
       setDoctorItems((prev) => prev.map((b) => (b.id === id ? updated : b)));
     } catch (err: any) {
-      setActionError(err?.message || "Failed to approve appointment");
+      setActionError(getErrorMessage(err, "Failed to approve appointment. Please try again."));
     } finally {
       setActingId(null);
     }
@@ -131,7 +185,7 @@ export default function AppointmentsPage() {
       const updated = await rejectBooking(id);
       setDoctorItems((prev) => prev.map((b) => (b.id === id ? updated : b)));
     } catch (err: any) {
-      setActionError(err?.message || "Failed to reject appointment");
+      setActionError(getErrorMessage(err, "Failed to reject appointment. Please try again."));
     } finally {
       setActingId(null);
     }
@@ -183,11 +237,11 @@ export default function AppointmentsPage() {
                 </div>
               )}
 
-              {bookings.length === 0 ? (
+              {filteredPatientItems.length === 0 ? (
                 <p className="text-sm text-gray-600">No bookings yet.</p>
               ) : (
                 <div className="space-y-3">
-                  {bookings.map((b) => {
+                  {filteredPatientItems.map((b) => {
                     const doctorName = b.doctor
                       ? `Dr. ${b.doctor.firstName} ${b.doctor.lastName}`
                       : `Doctor ${b.doctorId}`;
@@ -259,33 +313,43 @@ export default function AppointmentsPage() {
                                 {b.status}
                               </span>
 
-                              <button
-                                type="button"
-                                disabled={!canCancel || isCancelling}
-                                onClick={async () => {
-                                  const ok = window.confirm(
-                                    "Are you sure you want to cancel this booking?",
-                                  );
-                                  if (!ok) return;
+                              {canClearAppointment(b.status) ? (
+                                <button
+                                  type="button"
+                                  onClick={() => clearAppointment(b.id)}
+                                  className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-50"
+                                >
+                                  Clear
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  disabled={!canCancel || isCancelling}
+                                  onClick={async () => {
+                                    const ok = window.confirm(
+                                      "Are you sure you want to cancel this booking?",
+                                    );
+                                    if (!ok) return;
 
-                                  try {
-                                    await cancelBooking(b.id);
-                                    await refetch();
-                                  } catch {
-                                    // cancelError is handled by hook
-                                  }
-                                }}
-                                className={`rounded-xl border px-3 py-2 text-xs font-semibold transition
-                                  ${
-                                    !canCancel
-                                      ? "cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400"
-                                      : isCancelling
-                                        ? "cursor-not-allowed border-red-200 bg-red-100 text-red-700"
-                                        : "border-red-200 bg-white text-red-700 hover:bg-red-50"
-                                  }`}
-                              >
-                                {isCancelling ? "Cancelling..." : "Cancel"}
-                              </button>
+                                    try {
+                                      await cancelBooking(b.id);
+                                      await refetch();
+                                    } catch {
+                                      // cancelError is handled by hook
+                                    }
+                                  }}
+                                  className={`rounded-xl border px-3 py-2 text-xs font-semibold transition
+                                    ${
+                                      !canCancel
+                                        ? "cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400"
+                                        : isCancelling
+                                          ? "cursor-not-allowed border-red-200 bg-red-100 text-red-700"
+                                          : "border-red-200 bg-white text-red-700 hover:bg-red-50"
+                                    }`}
+                                >
+                                  {isCancelling ? "Cancelling..." : "Cancel"}
+                                </button>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -415,30 +479,58 @@ export default function AppointmentsPage() {
                         </span>
                       </div>
                       <div className="col-span-2 flex justify-end gap-2">
-                        <button
-                          type="button"
-                          disabled={!isPending || actingId === b.id}
-                          onClick={() => onApprove(b.id)}
-                          className={`rounded-lg px-3 py-2 text-xs font-semibold ${
-                            !isPending
-                              ? "cursor-not-allowed bg-gray-100 text-gray-400"
-                              : "bg-green-600 text-white hover:bg-green-700"
-                          }`}
-                        >
-                          {actingId === b.id ? "Saving..." : "Approve"}
-                        </button>
-                        <button
-                          type="button"
-                          disabled={!isPending || actingId === b.id}
-                          onClick={() => onReject(b.id)}
-                          className={`rounded-lg px-3 py-2 text-xs font-semibold ${
-                            !isPending
-                              ? "cursor-not-allowed bg-gray-100 text-gray-400"
-                              : "bg-red-600 text-white hover:bg-red-700"
-                          }`}
-                        >
-                          {actingId === b.id ? "Saving..." : "Reject"}
-                        </button>
+                        {canClearAppointment(b.status) ? (
+                          <button
+                            type="button"
+                            onClick={() => clearAppointment(b.id)}
+                            className="rounded-lg bg-gray-600 px-3 py-2 text-xs font-semibold text-white hover:bg-gray-700"
+                          >
+                            Clear
+                          </button>
+                        ) : isPending ? (
+                          <>
+                            <button
+                              type="button"
+                              disabled={actingId === b.id}
+                              onClick={() => onApprove(b.id)}
+                              className="rounded-lg bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700"
+                            >
+                              {actingId === b.id ? "Saving..." : "Approve"}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={actingId === b.id}
+                              onClick={() => onReject(b.id)}
+                              className="rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700"
+                            >
+                              {actingId === b.id ? "Saving..." : "Reject"}
+                            </button>
+                          </>
+                        ) : b.status === "ACCEPTED" ? (
+                          <button
+                            type="button"
+                            disabled={actingId === b.id}
+                            onClick={async () => {
+                              const ok = window.confirm(
+                                "Are you sure you want to cancel this approved appointment?"
+                              );
+                              if (!ok) return;
+                              setActingId(b.id);
+                              setActionError(null);
+                              try {
+                                await cancelBooking(b.id);
+                                await fetchDoctorBookings();
+                              } catch (err: any) {
+                                setActionError(getErrorMessage(err, "Failed to cancel appointment."));
+                              } finally {
+                                setActingId(null);
+                              }
+                            }}
+                            className="rounded-lg bg-orange-600 px-3 py-2 text-xs font-semibold text-white hover:bg-orange-700"
+                          >
+                            {actingId === b.id ? "Cancelling..." : "Cancel"}
+                          </button>
+                        ) : null}
                       </div>
                     </div>
                   );

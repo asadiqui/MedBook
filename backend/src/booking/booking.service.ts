@@ -27,6 +27,23 @@ export class BookingService {
     if (!user || user.role !== 'PATIENT') {
       throw new ForbiddenException('Only patients can create bookings');
     }
+
+    // Check if patient already has a booking with this doctor on the same date
+    const existingPatientBooking = await this.prisma.booking.findFirst({
+      where: {
+        patientId: patientId,
+        doctorId: dto.doctorId,
+        date: dto.date,
+        status: {
+          not: 'CANCELLED',
+        },
+      },
+    });
+
+    if (existingPatientBooking) {
+      throw new BadRequestException('You already have a booking with this doctor on this date');
+    }
+
     // get data from dto
     const { duration, startTime } = dto;
     let endTime = timeConversion(startTime) + duration;
@@ -287,5 +304,37 @@ export class BookingService {
         { startTime: 'asc' },
       ],
     });
+  }
+
+  async getPublicBookedSlots(doctorId: string, date?: string) {
+    // Public endpoint to get booked time slots for a doctor (without patient info)
+    const where: any = {
+      doctorId,
+      status: {
+        notIn: ['CANCELLED', 'REJECTED'],
+      },
+    };
+
+    if (date) {
+      where.date = date; // YYYY-MM-DD
+    }
+
+    const bookings = await this.prisma.booking.findMany({
+      where,
+      select: {
+        id: true,
+        date: true,
+        startTime: true,
+        endTime: true,
+        duration: true,
+        status: true,
+      },
+      orderBy: [
+        { date: 'asc' },
+        { startTime: 'asc' },
+      ],
+    });
+
+    return bookings;
   }
 }

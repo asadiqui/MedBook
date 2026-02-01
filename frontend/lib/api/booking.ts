@@ -22,6 +22,15 @@ export interface BookingUserSummary {
   email?: string | null;
 }
 
+export interface PublicBookedSlot {
+  id: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  duration: number;
+  status: BookingStatus;
+}
+
 export interface Booking {
   id: string;
   date: string;
@@ -58,6 +67,13 @@ export async function getDoctorSchedule(doctorId: string, date?: string) {
     params: date ? { date } : undefined,
   });
   return response.data as Booking[];
+}
+
+export async function getPublicBookedSlots(doctorId: string, date?: string) {
+  const response = await api.get(`/booking/doctor/${doctorId}/booked-slots`, {
+    params: date ? { date } : undefined,
+  });
+  return response.data as PublicBookedSlot[];
 }
 
 export async function cancelBooking(id: string) {
