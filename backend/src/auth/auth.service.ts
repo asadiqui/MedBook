@@ -637,8 +637,9 @@ export class AuthService {
     }
 
     // Update avatar and last login on every Google login
+    // Always update avatar from Google to ensure fresh URLs (Google avatar URLs can expire)
     const updateData: any = { lastLoginAt: new Date() };
-    if (googleUser.avatar && user.avatar !== googleUser.avatar) {
+    if (googleUser.avatar) {
       updateData.avatar = googleUser.avatar;
     }
 
