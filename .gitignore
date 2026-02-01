@@ -5,6 +5,12 @@ node_modules/
 .pnp
 .pnp.js
 
+# Lock files (generated in Docker containers)
+package-lock.json
+**/package-lock.json
+yarn.lock
+**/yarn.lock
+
 # Production / Build
 build/
 dist/
