@@ -23,35 +23,30 @@ import { Role } from '@prisma/client';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  // GET /api/users - Admin only
   @Get()
   @Roles(Role.ADMIN)
   async findAll(@Query() query: QueryUsersDto) {
     return this.usersService.findAll(query);
   }
 
-  // GET /api/users/doctors - Public
   @Public()
   @Get('doctors')
   async findAllDoctors(@Query() query: QueryUsersDto) {
     return this.usersService.findAllDoctors(query);
   }
 
-  // GET /api/users/stats - Admin only
   @Get('stats')
   @Roles(Role.ADMIN)
   async getStats() {
     return this.usersService.getStats();
   }
 
-  // GET /api/users/doctors/:id - Public
   @Public()
   @Get('doctors/:id')
   async findDoctorProfile(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.findDoctorProfile(id);
   }
 
-  // GET /api/users/:id
   @Get(':id')
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
@@ -61,7 +56,6 @@ export class UsersController {
     return this.usersService.findOne(id, userId, userRole);
   }
 
-  // PATCH /api/users/:id
   @Patch(':id')
   async update(
     @Param('id', ParseUUIDPipe) id: string,
@@ -72,7 +66,6 @@ export class UsersController {
     return this.usersService.update(id, userId, userRole, dto);
   }
 
-  // PATCH /api/users/:id/admin - Admin only
   @Patch(':id/admin')
   @Roles(Role.ADMIN)
   async adminUpdate(
@@ -82,7 +75,6 @@ export class UsersController {
     return this.usersService.adminUpdate(id, dto);
   }
 
-  // DELETE /api/users/:id
   @Delete(':id')
   async remove(
     @Param('id', ParseUUIDPipe) id: string,
@@ -92,21 +84,18 @@ export class UsersController {
     return this.usersService.remove(id, userId, userRole);
   }
 
-  // POST /api/users/:id/approve-doctor - Admin only
   @Post(':id/approve-doctor')
   @Roles(Role.ADMIN)
   async approveDoctor(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.approveDoctor(id);
   }
 
-  // DELETE /api/users/:id/admin - Admin only
   @Delete(':id/admin')
   @Roles(Role.ADMIN)
   async adminDeleteUser(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.adminDeleteUser(id);
   }
 
-  // GET /api/users/:id/document - Admin only
   @Get(':id/document')
   @Roles(Role.ADMIN)
   async getDoctorDocument(@Param('id', ParseUUIDPipe) id: string) {

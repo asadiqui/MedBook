@@ -3,22 +3,24 @@ import {
   NotFoundException,
   ForbiddenException,
   ConflictException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateUserDto, AdminUpdateUserDto, QueryUsersDto } from './dto';
-import { Role } from '@prisma/client';
+import { Role, BookingStatus } from '@prisma/client';
 import { EmailService } from '../common/email.service';
 import { AuthService } from '../auth/auth.service';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     private prisma: PrismaService,
     private emailService: EmailService,
     private authService: AuthService,
   ) {}
 
-  // GET ALL USERS (Admin only)
   async findAll(query: QueryUsersDto) {
     const { search, role, specialty, page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = query;
 
@@ -57,6 +59,7 @@ export class UsersService {
         isVerified: true,
         specialty: true,
         licenseNumber: true,
+        bio: true,
         consultationFee: true,
         affiliation: true,
         yearsOfExperience: true,
@@ -83,7 +86,6 @@ export class UsersService {
     };
   }
 
-  // GET ALL DOCTORS (Public)
   async findAllDoctors(query: QueryUsersDto) {
     const { search, specialty, page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = query;
 
@@ -136,7 +138,6 @@ export class UsersService {
     };
   }
 
-  // GET USER BY ID
   async findOne(id: string, requestingUserId: string, requestingUserRole: Role) {
     const user = await this.prisma.user.findUnique({
       where: { id },
@@ -187,7 +188,6 @@ export class UsersService {
     return user;
   }
 
-  // GET DOCTOR PROFILE (Public)
   async findDoctorProfile(id: string) {
     const doctor = await this.prisma.user.findFirst({
       where: {
@@ -218,7 +218,6 @@ export class UsersService {
     return doctor;
   }
 
-  // UPDATE USER
   async update(id: string, userId: string, userRole: Role, dto: UpdateUserDto) {
     if (id !== userId && userRole !== Role.ADMIN) {
       throw new ForbiddenException('You can only update your own profile');
@@ -230,7 +229,6 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    // Only doctors can update doctor-specific fields
     if (user.role !== Role.DOCTOR) {
       delete dto.specialty;
       delete dto.licenseNumber;
@@ -278,7 +276,6 @@ export class UsersService {
     return updatedUser;
   }
 
-  // ADMIN UPDATE USER
   async adminUpdate(id: string, dto: AdminUpdateUserDto) {
     const user = await this.prisma.user.findUnique({ where: { id } });
 
@@ -286,13 +283,9 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    if (dto.email && dto.email !== user.email) {
-      const existingUser = await this.prisma.user.findUnique({
-        where: { email: dto.email.toLowerCase() },
-      });
-      if (existingUser) {
-        throw new ConflictException('Email already in use');
-      }
+    // Prevent deactivating admin accounts
+    if (user.role === Role.ADMIN && dto.isActive === false) {
+      throw new ForbiddenException('Cannot deactivate admin accounts');
     }
 
     const wasInactive = !user.isActive;
@@ -302,7 +295,6 @@ export class UsersService {
       where: { id },
       data: {
         ...dto,
-        email: dto.email?.toLowerCase(),
       },
       select: {
         id: true,
@@ -317,20 +309,21 @@ export class UsersService {
       },
     });
 
-    // Send approval email to doctor if they were inactive and are now active
     if (wasInactive && isNowActive && user.role === Role.DOCTOR) {
       try {
         const doctorName = `${user.firstName} ${user.lastName}`;
         await this.emailService.sendDoctorApprovalEmail(user.email, doctorName);
       } catch (error) {
-        console.error('Failed to send doctor approval email:', error);
+        this.logger.error(
+          'Failed to send doctor approval email',
+          error instanceof Error ? error.stack : `${error}`,
+        );
       }
     }
 
     return updatedUser;
   }
 
-  // DELETE USER
   async remove(id: string, requestingUserId: string, requestingUserRole: Role) {
     if (id !== requestingUserId && requestingUserRole !== Role.ADMIN) {
       throw new ForbiddenException('You can only delete your own account');
@@ -342,28 +335,47 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
+    // Soft delete with anonymization for privacy
     await this.prisma.user.update({
       where: { id },
-      data: { isActive: false },
+      data: {
+        isActive: false,
+        // Anonymize personal information
+        email: `deleted_${id}_${Date.now()}@deleted.MedBook.com`,
+        firstName: 'Deleted',
+        lastName: 'User',
+        phone: null,
+        avatar: null,
+        bio: null,
+      },
     });
 
-    await this.prisma.refreshToken.deleteMany({
-      where: { userId: id },
-    });
+    // Delete sensitive auth data immediately
+    await this.prisma.$transaction([
+      this.prisma.refreshToken.deleteMany({
+        where: { userId: id },
+      }),
+      this.prisma.passwordReset.deleteMany({
+        where: { userId: id },
+      }),
+    ]);
 
-    return { message: 'User deleted successfully' };
+    return { message: 'Account deactivated successfully. Personal information has been anonymized.' };
   }
 
-  // GET USER STATS (Admin)
   async getStats() {
-    const [totalUsers, totalDoctors, totalPatients, totalAdmins, activeUsers, newUsersThisMonth] = await Promise.all([
-      this.prisma.user.count(),
+    const [totalUsers, totalDoctors, totalPatients, totalAdmins, activeUsers, verifiedDoctors, pendingDoctors, newUsersThisMonth] = await Promise.all([
+      // Exclude admins from total users count
+      this.prisma.user.count({ where: { role: { not: Role.ADMIN } } }),
       this.prisma.user.count({ where: { role: Role.DOCTOR } }),
       this.prisma.user.count({ where: { role: Role.PATIENT } }),
       this.prisma.user.count({ where: { role: Role.ADMIN } }),
-      this.prisma.user.count({ where: { isActive: true } }),
+      this.prisma.user.count({ where: { isActive: true, role: { not: Role.ADMIN } } }),
+      this.prisma.user.count({ where: { role: Role.DOCTOR, isVerified: true } }),
+      this.prisma.user.count({ where: { role: Role.DOCTOR, isVerified: false } }),
       this.prisma.user.count({
         where: {
+          role: { not: Role.ADMIN },
           createdAt: {
             gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
           },
@@ -375,14 +387,14 @@ export class UsersService {
       totalUsers,
       totalDoctors,
       totalPatients,
+      verifiedDoctors,
+      pendingDoctors,
       totalAdmins,
       activeUsers,
       inactiveUsers: totalUsers - activeUsers,
-      newUsersThisMonth,
     };
   }
 
-  // APPROVE DOCTOR (Admin only)
   async approveDoctor(id: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },
@@ -415,67 +427,73 @@ export class UsersService {
       },
     });
 
-    // Send verification email and approval email to the doctor
     try {
-      await this.authService.sendEmailVerification(updatedUser.id, true);
       await this.authService.sendDoctorApprovalEmail(updatedUser.id);
     } catch (error) {
-      console.error('Failed to send approval emails:', error);
-      // Don't fail the approval if emails fail
+      this.logger.error(
+        'Failed to send approval emails',
+        error instanceof Error ? error.stack : `${error}`,
+      );
     }
 
     return updatedUser;
   }
 
-  // DELETE USER (Admin only)
   async adminDeleteUser(id: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },
-      include: {
-        refreshTokens: true,
-        passwordResets: true,
-        availabilities: true,
-        bookingsAsDoctor: true,
-        bookingsAsPatient: true,
-      },
     });
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    // Delete all related data in transaction
+    // Check for dependencies before permanent deletion
+    const bookingsCount = await this.prisma.booking.count({
+      where: {
+        OR: [
+          { patientId: id },
+          { doctorId: id },
+        ],
+        status: {
+          notIn: [BookingStatus.CANCELLED, BookingStatus.REJECTED],
+        },
+      },
+    });
+
+    if (bookingsCount > 0) {
+      throw new ConflictException(
+        `Cannot permanently delete user with ${bookingsCount} booking(s). Use account deactivation instead to preserve data integrity.`,
+      );
+    }
+
+    // Permanent deletion (only if no active bookings exist)
     await this.prisma.$transaction([
-      // Delete refresh tokens
+      this.prisma.booking.deleteMany({
+        where: {
+          OR: [
+            { patientId: id },
+            { doctorId: id },
+          ],
+        },
+      }),
       this.prisma.refreshToken.deleteMany({
         where: { userId: id },
       }),
-      // Delete password resets
       this.prisma.passwordReset.deleteMany({
         where: { userId: id },
       }),
-      // Delete availabilities
       this.prisma.availability.deleteMany({
         where: { doctorId: id },
       }),
-      // Delete bookings as doctor
-      this.prisma.booking.deleteMany({
-        where: { doctorId: id },
-      }),
-      // Delete bookings as patient
-      this.prisma.booking.deleteMany({
-        where: { patientId: id },
-      }),
-      // Finally delete the user
       this.prisma.user.delete({
         where: { id },
       }),
     ]);
 
-    return { message: 'User deleted successfully' };
+    return { message: 'User permanently deleted from database' };
   }
 
-  // GET DOCTOR DOCUMENT (Admin only)
   async getDoctorDocument(id: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },
@@ -503,7 +521,7 @@ export class UsersService {
         name: `${user.firstName} ${user.lastName}`,
         email: user.email,
       },
-      documentPath: user.licenseDocument,
+      documentUrl: user.licenseDocument,
     };
   }
 }

@@ -41,6 +41,10 @@ pnpm-debug.log*
 *.db
 postgres_data/
 
+# Uploads
+uploads/
+**/uploads/
+
 # TypeScript
 *.tsbuildinfo
 

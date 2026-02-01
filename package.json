@@ -1,15 +1,11 @@
 {
-  "name": "medbook",
+  "name": "MedBook",
+  "private": true,
   "version": "1.0.0",
-  "description": "AI Doctor Appointment Booking Platform",
-  "main": "index.js",
   "scripts": {
-    "dev": "concurrently \"cd backend && npm run start:dev\" \"cd frontend && npm run dev\""
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "devDependencies": {
-    "concurrently": "^8.2.2"
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down",
+    "docker:logs:backend": "docker compose logs -f backend",
+    "docker:logs:db": "docker compose logs -f postgres"
   }
 }

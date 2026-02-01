@@ -1,0 +1,34 @@
+// config/seedUsers.ts
+// Centralized seed user credentials for security and maintainability
+
+export const seedUsers = {
+  admin: {
+    email: process.env.SEED_ADMIN_EMAIL || 'admin@MedBook.com',
+    password: process.env.SEED_ADMIN_PASSWORD || '',
+    firstName: 'Admin',
+    lastName: 'MedBook',
+  },
+  doctor: {
+    email: process.env.SEED_DOCTOR_EMAIL || 'doctor@MedBook.com',
+    password: process.env.SEED_DOCTOR_PASSWORD || '',
+    firstName: 'Dr. Sarah',
+    lastName: 'Johnson',
+    phone: '+1234567890',
+    specialty: 'Cardiology',
+    bio: 'Experienced cardiologist with over 15 years of practice. Specializes in heart disease prevention and treatment.',
+    consultationFee: 150,
+    affiliation: 'City General Hospital',
+    yearsOfExperience: 15,
+    clinicAddress: '123 Medical Center Dr, Suite 456',
+    clinicContactPerson: 'Jane Smith',
+    clinicPhone: '+1234567891',
+  },
+  patient: {
+    email: process.env.SEED_PATIENT_EMAIL || 'patient@MedBook.com',
+    password: process.env.SEED_PATIENT_PASSWORD || '',
+    firstName: 'John',
+    lastName: 'Doe',
+    phone: '+1234567892',
+    dateOfBirth: '1990-01-01T00:00:00.000Z',
+  },
+};

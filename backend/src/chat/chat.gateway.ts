@@ -7,6 +7,7 @@ import {
   OnGatewayConnection,
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
+import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { ChatService } from './chat.service';
 
@@ -19,17 +20,18 @@ import { ChatService } from './chat.service';
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
+  private readonly logger = new Logger(ChatGateway.name);
 
   private connectedUsers: Map<string, string> = new Map(); // socketId -> userId
 
   constructor(private readonly chatService: ChatService) {}
 
   handleConnection(client: Socket) {
-    console.log(`🟢 Client connected: ${client.id}`);
+    this.logger.log(`Client connected: ${client.id}`);
   }
 
   handleDisconnect(client: Socket) {
-    console.log(`🔴 Client disconnected: ${client.id}`);
+    this.logger.log(`Client disconnected: ${client.id}`);
     this.connectedUsers.delete(client.id);
   }
 
@@ -39,7 +41,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() data: { userId: string },
   ) {
     this.connectedUsers.set(client.id, data.userId);
-    console.log(`👤 User ${data.userId} registered with socket ${client.id}`);
+    this.logger.log(`User ${data.userId} registered with socket ${client.id}`);
     return { event: 'registered', data: { success: true } };
   }
 
@@ -62,7 +64,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     const room = `booking_${data.bookingId}`;
     client.join(room);
-    console.log(`👤 User ${socketUserId} joined room: ${room}`);
+    this.logger.log(`User ${socketUserId} joined room: ${room}`);
 
     return { event: 'joined_room', data: { room } };
   }
@@ -74,7 +76,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const room = `booking_${data.bookingId}`;
     client.leave(room);
-    console.log(`👤 Client ${client.id} left room: ${room}`);
+    this.logger.log(`Client ${client.id} left room: ${room}`);
 
     return { event: 'left_room', data: { room } };
   }
@@ -114,11 +116,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const room = `booking_${data.bookingId}`;
       this.server.to(room).emit('new_message', savedMessage);
 
-      console.log(`📨 Message sent to room ${room}:`, savedMessage.content);
+      this.logger.log(`Message sent to room ${room}: ${savedMessage.content}`);
 
       return { event: 'message_sent', data: savedMessage };
     } catch (error) {
-      console.error('Error sending message:', error);
+      this.logger.error(
+        'Error sending message',
+        error instanceof Error ? error.stack : `${error}`,
+      );
       return { event: 'error', data: { message: error.message } };
     }
   }
@@ -145,14 +150,22 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() data: { messageId: string; bookingId: string },
   ) {
     try {
-      const updatedMessage = await this.chatService.markAsRead(data.messageId);
+      const userId = this.connectedUsers.get(client.id);
+      if (!userId) {
+        return { event: 'error', data: { message: 'User not registered' } };
+      }
+
+      const updatedMessage = await this.chatService.markAsRead(data.messageId, userId);
 
       const room = `booking_${data.bookingId}`;
       this.server.to(room).emit('message_read', updatedMessage);
 
       return { event: 'marked_read', data: updatedMessage };
     } catch (error) {
-      console.error('Error marking message as read:', error);
+      this.logger.error(
+        'Error marking message as read',
+        error instanceof Error ? error.stack : `${error}`,
+      );
       return { event: 'error', data: { message: error.message } };
     }
   }
@@ -173,7 +186,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       return { event: 'all_marked_read', data: { success: true } };
     } catch (error) {
-      console.error('Error marking all messages as read:', error);
+      this.logger.error(
+        'Error marking all messages as read',
+        error instanceof Error ? error.stack : `${error}`,
+      );
       return { event: 'error', data: { message: error.message } };
     }
   }

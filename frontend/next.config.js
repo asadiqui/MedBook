@@ -1,17 +1,27 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Enable strict mode for React
   reactStrictMode: true,
-  
-  // Configure allowed image domains (for avatars)
+  output: 'standalone',
   images: {
-    domains: ['localhost', 'lh3.googleusercontent.com'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.googleusercontent.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '3001',
+        pathname: '/uploads/**',
+      },
+    ],
   },
-  
-  // Environment variables exposed to the browser
-  env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api',
-  },
-};
+}
 
-module.exports = nextConfig;
+module.exports = nextConfig

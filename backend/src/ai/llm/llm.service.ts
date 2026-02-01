@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
@@ -6,11 +6,12 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 export class LlmService {
   private genAI: GoogleGenerativeAI;
   private model: any;
+  private readonly logger = new Logger(LlmService.name);
 
   constructor(private configService: ConfigService) {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
     if (!apiKey) {
-      console.warn('GEMINI_API_KEY is not set in environment variables');
+      this.logger.warn('GEMINI_API_KEY is not set in environment variables');
     }
     this.genAI = new GoogleGenerativeAI(apiKey || '');
     this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
@@ -29,7 +30,10 @@ export class LlmService {
       const response = await result.response;
       return response.text();
     } catch (error) {
-      console.error('Error generating content:', error);
+      this.logger.error(
+        'Error generating content',
+        error instanceof Error ? error.stack : `${error}`,
+      );
       throw new Error('Failed to process symptoms');
     }
   }

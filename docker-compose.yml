@@ -1,6 +1,7 @@
 services:
   postgres:
     image: postgres:15-alpine
+    container_name: MedBook-db
     restart: unless-stopped
     env_file:
       - .env
@@ -20,6 +21,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    container_name: MedBook-back
     restart: unless-stopped
     ports:
       - "3001:3001"
@@ -27,7 +29,7 @@ services:
       - ./backend:/app
       - /app/node_modules
       - /app/node_modules/.prisma
-      - uploads:/app/uploads
+      - ./backend/uploads:/app/uploads
     env_file:
       - .env
     depends_on:
@@ -41,13 +43,12 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    container_name: MedBook-front
     restart: unless-stopped
     ports:
       - "3000:3000"
     volumes:
       - ./frontend:/app
-      - /app/node_modules
-      - /app/.next
     env_file:
       - .env
     depends_on:
@@ -57,7 +58,6 @@ services:
 
 volumes:
   postgres_data:
-  uploads:
 
 networks:
   app-network:

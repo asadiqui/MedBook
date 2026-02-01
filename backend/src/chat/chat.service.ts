@@ -224,13 +224,19 @@ export class ChatService {
     });
   }
 
-  async markAsRead(messageId: string) {
+  async markAsRead(messageId: string, userId: string) {
     const message = await this.prisma.message.findUnique({
       where: { id: messageId },
     });
 
     if (!message) {
       throw new NotFoundException('Message not found');
+    }
+
+    const booking = await this.getBookingParticipants(message.bookingId);
+    const isParticipant = booking.doctorId === userId || booking.patientId === userId;
+    if (!isParticipant || message.receiverId !== userId) {
+      throw new ForbiddenException('You are not allowed to modify this message');
     }
 
     return this.prisma.message.update({

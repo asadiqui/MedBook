@@ -1,16 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class EmailService {
   private transporter: nodemailer.Transporter;
+  private readonly logger = new Logger(EmailService.name);
 
   constructor(private configService: ConfigService) {
     this.transporter = nodemailer.createTransport({
       host: this.configService.get<string>('SMTP_HOST', 'smtp.gmail.com'),
       port: this.configService.get<number>('SMTP_PORT', 587),
-      secure: false, // true for 465, false for other ports
+      secure: false,
       auth: {
         user: this.configService.get<string>('SMTP_USER'),
         pass: this.configService.get<string>('SMTP_PASS'),
@@ -29,14 +30,13 @@ export class EmailService {
 
       await this.transporter.sendMail(mailOptions);
     } catch (error) {
-      console.error('Email sending failed:', error);
-      // In production, you might want to use a proper logging service
-      // For now, we'll just log the error but not throw to avoid breaking the flow
+      this.logger.warn('Email sending failed', error as Error);
     }
   }
 
   async sendVerificationEmail(email: string, token: string, isDoctorApproval: boolean = false): Promise<void> {
-    const verificationUrl = `${this.configService.get<string>('FRONTEND_URL')}/auth/verify-email?token=${token}`;
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
+    const verificationUrl = `${frontendUrl}/auth/verify-email?token=${token}`;
 
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -59,7 +59,8 @@ export class EmailService {
   }
 
   async sendPasswordResetEmail(email: string, token: string): Promise<void> {
-    const resetUrl = `${this.configService.get<string>('FRONTEND_URL')}/reset-password?token=${token}`;
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
+    const resetUrl = `${frontendUrl}/auth/reset-password?token=${token}`;
 
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -111,7 +112,7 @@ export class EmailService {
           <li>Manage your profile and documents</li>
         </ul>
         <div style="text-align: center; margin: 30px 0;">
-          <a href="${this.configService.get<string>('FRONTEND_URL')}/login"
+          <a href="${this.configService.get<string>('FRONTEND_URL')}/auth/login"
              style="background-color: #10B981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
             Login to Your Account
           </a>

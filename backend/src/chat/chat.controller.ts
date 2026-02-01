@@ -45,8 +45,11 @@ export class ChatController {
   }
 
   @Post('read/:messageId')
-  async markRead(@Param('messageId') messageId: string) {
-    return this.chatService.markAsRead(messageId);
+  async markRead(
+    @Param('messageId') messageId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.chatService.markAsRead(messageId, userId);
   }
 
   @Post('read-all/:bookingId')
