@@ -17,7 +17,6 @@ import {
   rejectBooking,
 } from "@/lib/api/booking";
 
-// Custom hook for managing cleared appointments with localStorage
 function useClearedAppointments() {
   const [clearedIds, setClearedIds] = useState<Set<string>>(new Set());
 
@@ -29,7 +28,7 @@ function useClearedAppointments() {
         setClearedIds(new Set(JSON.parse(stored)));
       }
     } catch {
-      // Ignore localStorage errors
+
     }
   }, []);
 
@@ -40,7 +39,7 @@ function useClearedAppointments() {
       try {
         localStorage.setItem('clearedAppointments', JSON.stringify(Array.from(updated)));
       } catch {
-        // Ignore localStorage errors
+
       }
       return updated;
     });
@@ -53,7 +52,6 @@ function useClearedAppointments() {
   return { clearAppointment, filterCleared };
 }
 
-// Utility functions
 function cityFromAddress(addr?: string | null): string | null {
   const raw = String(addr || "").trim();
   if (!raw) return null;
@@ -144,7 +142,6 @@ export default function AppointmentsPage() {
     fetchDoctorBookings();
   }, [fetchDoctorBookings, isDoctor, isBootstrapping]);
 
-  // Apply cleared filter to bookings
   const filteredPatientItems = useMemo(() => filterCleared(bookings), [bookings, filterCleared]);
   const filteredDoctorItems = useMemo(() => filterCleared(doctorItems), [doctorItems, filterCleared]);
 
@@ -259,7 +256,7 @@ export default function AppointmentsPage() {
                           <div className="flex min-w-0 items-start gap-4">
                             <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-blue-50 text-sm font-bold text-blue-700">
                               {avatarUrl ? (
-                                // eslint-disable-next-line @next/next/no-img-element
+
                                 <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
                               ) : (
                                 getInitials(b.doctor?.firstName, b.doctor?.lastName, "DR")
@@ -335,7 +332,7 @@ export default function AppointmentsPage() {
                                       await cancelBooking(b.id);
                                       await refetch();
                                     } catch {
-                                      // cancelError is handled by hook
+
                                     }
                                   }}
                                   className={`rounded-xl border px-3 py-2 text-xs font-semibold transition

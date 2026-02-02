@@ -25,7 +25,6 @@ export default function AvailabilityForm({
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
 
-  // Get today's date in YYYY-MM-DD format for min attribute
   const today = new Date().toISOString().split('T')[0];
 
   const handleSubmit = (e: FormEvent) => {
@@ -37,7 +36,7 @@ export default function AvailabilityForm({
 
     onSubmit({ date, startTime, endTime });
     
-    // Reset form
+
     setDate("");
     setStartTime("");
     setEndTime("");
@@ -80,7 +79,7 @@ export default function AvailabilityForm({
       )}
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-        {/* Date Input */}
+        {}
         <div className="space-y-2">
           <label htmlFor="date" className="flex items-center gap-2 text-sm font-semibold text-gray-700">
             <svg className="h-4 w-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -100,7 +99,7 @@ export default function AvailabilityForm({
           />
         </div>
 
-        {/* Start Time Input */}
+        {}
         <div className="space-y-2">
           <label htmlFor="startTime" className="flex items-center gap-2 text-sm font-semibold text-gray-700">
             <svg className="h-4 w-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -125,7 +124,7 @@ export default function AvailabilityForm({
           </select>
         </div>
 
-        {/* End Time Input */}
+        {}
         <div className="space-y-2">
           <label htmlFor="endTime" className="flex items-center gap-2 text-sm font-semibold text-gray-700">
             <svg className="h-4 w-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -151,7 +150,7 @@ export default function AvailabilityForm({
         </div>
       </div>
 
-      {/* Action Buttons */}
+      {}
       <div className="flex gap-3 pt-2">
         {onCancel && (
           <button

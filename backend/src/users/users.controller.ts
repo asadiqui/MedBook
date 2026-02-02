@@ -9,6 +9,8 @@ import {
   Query,
   UseGuards,
   ParseUUIDPipe,
+  Res,
+  NotFoundException,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UpdateUserDto, AdminUpdateUserDto, QueryUsersDto } from './dto';
@@ -17,6 +19,9 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { Role } from '@prisma/client';
+import { Response } from 'express';
+import { join } from 'path';
+import { existsSync } from 'fs';
 
 @Controller('users')
 @UseGuards(RolesGuard)
@@ -99,6 +104,24 @@ export class UsersController {
   @Get(':id/document')
   @Roles(Role.ADMIN)
   async getDoctorDocument(@Param('id', ParseUUIDPipe) id: string) {
-    return this.usersService.getDoctorDocument(id);
+    const document = await this.usersService.getDoctorDocument(id);
+    return {
+      ...document,
+      downloadUrl: `/api/users/${id}/document/download`,
+    };
+  }
+
+  @Get(':id/document/download')
+  @Roles(Role.ADMIN)
+  async downloadDoctorDocument(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res() res: Response,
+  ) {
+    const { documentPath } = await this.usersService.getDoctorDocumentFilePath(id);
+    const fullPath = join(process.cwd(), documentPath);
+    if (!existsSync(fullPath)) {
+      throw new NotFoundException('Document file not found');
+    }
+    return res.sendFile(fullPath);
   }
 }

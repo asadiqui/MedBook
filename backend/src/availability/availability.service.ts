@@ -13,7 +13,6 @@ export class AvailabilityService {
     let CheckDate = new Date(dto.date);
     const today = new Date();
 
-    // Prevent creating availability for past dates
     if (CheckDate < new Date(today.toDateString())) {
       throw new BadRequestException('Cannot create availability for past dates');
     }
@@ -29,12 +28,10 @@ export class AvailabilityService {
       throw new BadRequestException('Start time must be before end time');
     }
 
-    // time starting from 08:00 to 20:00
     if (first < timeConversion('08:00') || second > timeConversion('20:00')) {
       throw new BadRequestException('Availability must be between 08:00 and 20:00');
     }
 
-    // Prevent creating an availability that conflicts with existing availability
     const existingAvailabilities = await this.prisma.availability.findMany({
       where: {
         doctorId,

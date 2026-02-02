@@ -1,7 +1,10 @@
-import { BadRequestException, Injectable , ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { timeConversion } from '../common/utils/time';
+import { BookingStatus, Role } from '@prisma/client';
+
+const ALLOWED_DURATIONS = new Set([60, 120]);
 
 @Injectable()
 export class BookingService {
@@ -9,12 +12,9 @@ export class BookingService {
   constructor(private readonly prisma: PrismaService) {}
  
   async createBooking(dto: CreateBookingDto, patientId: string) {
-    // Implementation for creating a booking
-
     let CheckDate = new Date(dto.date);
     const today = new Date();
 
-    // Prevent creating availability for past dates
     if (CheckDate < new Date(today.toDateString())) {
       throw new BadRequestException('Cannot create availability for past dates');
     }
@@ -24,18 +24,26 @@ export class BookingService {
       where: { id: patientId },
     });
 
-    if (!user || user.role !== 'PATIENT') {
+    if (!user || user.role !== Role.PATIENT) {
       throw new ForbiddenException('Only patients can create bookings');
     }
 
-    // Check if patient already has a booking with this doctor on the same date
+    const doctor = await this.prisma.user.findUnique({
+      where: { id: dto.doctorId },
+      select: { id: true, role: true, isActive: true, isVerified: true },
+    });
+
+    if (!doctor || doctor.role !== Role.DOCTOR || !doctor.isActive || !doctor.isVerified) {
+      throw new BadRequestException('Selected doctor is not available for booking');
+    }
+
     const existingPatientBooking = await this.prisma.booking.findFirst({
       where: {
         patientId: patientId,
         doctorId: dto.doctorId,
         date: dto.date,
         status: {
-          not: 'CANCELLED',
+          not: BookingStatus.CANCELLED,
         },
       },
     });
@@ -44,24 +52,18 @@ export class BookingService {
       throw new BadRequestException('You already have a booking with this doctor on this date');
     }
 
-    // get data from dto
     const { duration, startTime } = dto;
     let endTime = timeConversion(startTime) + duration;
 
-    // Convert endTime back to "HH:MM" format
     const endHours = Math.floor(endTime / 60);
     const endMinutes = endTime % 60;
     const endTimeStr = `${endHours.toString().padStart(2, '0')}:${endMinutes
       .toString()
       .padStart(2, '0')}`;
-    // now endTimeStr is in "HH:MM" format ex : "10:30"
 
-    // valid duration 60 or 120
-    if (duration !== 60 && duration !== 120) {
+    if (!ALLOWED_DURATIONS.has(duration)) {
       throw new BadRequestException('Duration must be 60 or 120 minutes');
     }
-
-    // check availability exists & booking fits inside it
 
     const existingAvailabilities = await this.prisma.availability.findMany({
       where: {
@@ -69,8 +71,6 @@ export class BookingService {
         date: dto.date,
       },
     });
-
-    // check if any availability fits the booking
 
     if (existingAvailabilities.length === 0) {
       throw new BadRequestException('No availability found for this doctor on the selected date');
@@ -93,14 +93,12 @@ export class BookingService {
       throw new BadRequestException('Booking time does not fit within doctor availability');
     }
 
-    // check for overlapping bookings
-
     const existingBookings = await this.prisma.booking.findMany({
       where: {
         doctorId: dto.doctorId,
         date: dto.date,
         status: {
-          not: 'CANCELLED',
+          not: BookingStatus.CANCELLED,
         },
       },
     });
@@ -118,7 +116,6 @@ export class BookingService {
       }
     }
 
-    // If all checks pass, create the booking
     return this.prisma.booking.create({
       data: {
         doctorId: dto.doctorId,
@@ -127,7 +124,7 @@ export class BookingService {
         startTime: startTime,
         endTime: endTimeStr,
         duration: duration,
-        status: 'PENDING',
+        status: BookingStatus.PENDING,
       },
     });
   }
@@ -141,7 +138,7 @@ export class BookingService {
       throw new NotFoundException('Booking not found');
     }
 
-    if (user.role !== 'DOCTOR') {
+    if (user.role !== Role.DOCTOR) {
       throw new ForbiddenException('Only doctors can accept bookings');
     }
 
@@ -149,13 +146,13 @@ export class BookingService {
       throw new ForbiddenException('You are not authorized to accept this booking');
     }
 
-    if (booking.status !== 'PENDING') {
+    if (booking.status !== BookingStatus.PENDING) {
       throw new BadRequestException('Booking is not in a pending state');
     }
 
     return this.prisma.booking.update({
       where: { id: bookingId },
-      data: { status: 'ACCEPTED' },
+      data: { status: BookingStatus.ACCEPTED },
     });
   }
 
@@ -168,7 +165,7 @@ export class BookingService {
       throw new NotFoundException('Booking not found');
     }
 
-    if (user.role !== 'DOCTOR') {
+    if (user.role !== Role.DOCTOR) {
       throw new ForbiddenException('Only doctors can reject bookings');
     }
 
@@ -176,13 +173,13 @@ export class BookingService {
       throw new ForbiddenException('You are not authorized to reject this booking');
     }
 
-    if (booking.status !== 'PENDING') {
+    if (booking.status !== BookingStatus.PENDING) {
       throw new BadRequestException('Booking is not in a pending state');
     }
 
     return this.prisma.booking.update({
       where: { id: bookingId },
-      data: { status: 'REJECTED' },
+      data: { status: BookingStatus.REJECTED },
     });
   }
 
@@ -202,13 +199,13 @@ export class BookingService {
       throw new ForbiddenException('You are not authorized to cancel this booking');
     }
 
-    if (booking.status !== 'PENDING' && booking.status !== 'ACCEPTED') {
+    if (booking.status !== BookingStatus.PENDING && booking.status !== BookingStatus.ACCEPTED) {
       throw new BadRequestException('Only pending or accepted bookings can be cancelled');
     }
 
     return this.prisma.booking.update({
       where: { id: bookingId },
-      data: { status: 'CANCELLED' },
+      data: { status: BookingStatus.CANCELLED },
     });
   }
 
@@ -217,7 +214,7 @@ export class BookingService {
       where: { id: patientId },
     });
 
-    if (!user || user.role !== 'PATIENT') {
+    if (!user || user.role !== Role.PATIENT) {
       throw new ForbiddenException('Only patients can view their bookings');
     }
 
@@ -243,7 +240,7 @@ export class BookingService {
       where: { id: doctorId },
     });
 
-    if (!user || user.role !== 'DOCTOR') {
+    if (!user || user.role !== Role.DOCTOR) {
       throw new ForbiddenException('Only doctors can view their bookings');
     }
 
@@ -270,7 +267,7 @@ export class BookingService {
     date?: string,
   ) {
 
-    if (user.role !== 'DOCTOR') {
+    if (user.role !== Role.DOCTOR) {
       throw new ForbiddenException('Only doctors can view schedules');
     }
 
@@ -284,7 +281,7 @@ export class BookingService {
     };
 
     if (date) {
-      where.date = date; // YYYY-MM-DD
+      where.date = date;
     }
 
 
@@ -307,16 +304,15 @@ export class BookingService {
   }
 
   async getPublicBookedSlots(doctorId: string, date?: string) {
-    // Public endpoint to get booked time slots for a doctor (without patient info)
     const where: any = {
       doctorId,
       status: {
-        notIn: ['CANCELLED', 'REJECTED'],
+        notIn: [BookingStatus.CANCELLED, BookingStatus.REJECTED],
       },
     };
 
     if (date) {
-      where.date = date; // YYYY-MM-DD
+      where.date = date;
     }
 
     const bookings = await this.prisma.booking.findMany({

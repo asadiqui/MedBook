@@ -10,10 +10,22 @@ import {
 import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { ChatService } from './chat.service';
+import { BookingStatus } from '@prisma/client';
+
+const chatCorsOrigin = (process.env.FRONTEND_URL || 'https://localhost:8443')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const CHAT_ALLOWED_BOOKING_STATUSES: BookingStatus[] = [
+  BookingStatus.PENDING,
+  BookingStatus.ACCEPTED,
+];
 
 @WebSocketGateway({
   cors: {
-    origin: '*',
+    origin: chatCorsOrigin.length === 1 ? chatCorsOrigin[0] : chatCorsOrigin,
+    credentials: true,
   },
   namespace: '/chat',
 })
@@ -22,7 +34,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   server: Server;
   private readonly logger = new Logger(ChatGateway.name);
 
-  private connectedUsers: Map<string, string> = new Map(); // socketId -> userId
+  private connectedUsers: Map<string, string> = new Map();
 
   constructor(private readonly chatService: ChatService) {}
 
@@ -58,7 +70,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return { event: 'error', data: { message: 'Not allowed to join this room' } };
     }
 
-    if (!['PENDING', 'ACCEPTED'].includes(booking.status as any)) {
+    if (!CHAT_ALLOWED_BOOKING_STATUSES.includes(booking.status as BookingStatus)) {
       return { event: 'error', data: { message: 'Chat is not allowed for this booking status' } };
     }
 

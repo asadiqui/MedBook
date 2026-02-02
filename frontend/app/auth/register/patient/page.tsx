@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import { Mail, Phone, Calendar, User } from "lucide-react";
 import toast from "react-hot-toast";
@@ -12,15 +12,14 @@ import { useRegistration } from "@/lib/hooks/useRegistration";
 export const dynamic = 'force-dynamic';
 
 export default function PatientRegisterPage() {
-  const { isAuthenticated, isBootstrapping, redirectBasedOnRole } = useAuth();
+  const { isAuthenticated, redirectBasedOnRole } = useAuth();
+  const hasRedirectedRef = useRef(false);
 
-  useEffect(() => {
-    if (isBootstrapping) return;
-    // Redirect if user is already logged in
-    if (isAuthenticated) {
-      redirectBasedOnRole();
-    }
-  }, [isAuthenticated, isBootstrapping, redirectBasedOnRole]);
+  if (isAuthenticated && !hasRedirectedRef.current) {
+    hasRedirectedRef.current = true;
+    redirectBasedOnRole();
+    return null;
+  }
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -35,13 +34,12 @@ export default function PatientRegisterPage() {
 
   const { register, isLoading, errors } = useRegistration({
     role: "PATIENT",
-    apiUrl: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api",
+    apiUrl: process.env.NEXT_PUBLIC_API_URL || "https://localhost:8443/api",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate age (18+)
     if (formData.dateOfBirth) {
       const birthDate = new Date(formData.dateOfBirth);
       const today = new Date();
@@ -51,7 +49,7 @@ export default function PatientRegisterPage() {
         age--;
       }
       if (age < 18) {
-        toast.error("You must be at least 18 years old to register");
+        toast.error("Sorry, you need to be 18 or older to use MedBook");
         return;
       }
     }
@@ -66,9 +64,9 @@ export default function PatientRegisterPage() {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left Side - Hero Section */}
+      {}
       <div className="hidden lg:flex lg:w-2/5 relative overflow-hidden">
-        {/* Background Image */}
+        {}
         <div 
           className="absolute inset-0 bg-cover bg-center"
           style={{
@@ -76,12 +74,12 @@ export default function PatientRegisterPage() {
           }}
         />
         
-        {/* Teal Gradient Overlay */}
+        {}
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-teal-600/30 to-teal-800/70" />
 
-        {/* Content */}
+        {}
         <div className="relative z-10 flex flex-col justify-end p-12 text-white w-full">
-          {/* Main Content */}
+          {}
           <div className="space-y-6">
             <h1 className="text-5xl font-bold leading-tight">
               Healthcare simplified<br />for everyone.
@@ -92,29 +90,29 @@ export default function PatientRegisterPage() {
             </p>
           </div>
 
-          {/* Footer */}
+          {}
           <div className="text-sm text-white/70 mt-12">
             © 2026 MedBook. All rights reserved.
           </div>
         </div>
       </div>
 
-      {/* Right Side - Registration Form */}
+      {}
       <div className="flex-1 flex items-center justify-center p-8 bg-gray-50 relative overflow-hidden">
-        {/* Decorative Background Pattern */}
+        {}
         <div className="absolute inset-0 opacity-30">
           <div className="absolute top-0 right-0 w-96 h-96 bg-blue-100 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2"></div>
           <div className="absolute bottom-0 left-0 w-96 h-96 bg-teal-100 rounded-full blur-3xl transform -translate-x-1/2 translate-y-1/2"></div>
         </div>
         
-        {/* Top Bar - Absolute Positioning */}
+        {}
         <div className="absolute top-8 left-8 right-8 flex items-center justify-between z-10">
-          {/* Logo */}
+          {}
           <Link href="/" className="inline-flex">
             <Logo size="md" />
           </Link>
           
-          {/* Already a member */}
+          {}
           <div className="text-sm">
             <span className="text-gray-600">Already a member? </span>
             <Link href="/auth/login" className="text-blue-600 font-semibold hover:text-blue-700">
@@ -124,15 +122,15 @@ export default function PatientRegisterPage() {
         </div>
 
         <div className="w-full max-w-xl 2xl:max-w-2xl mt-20 relative z-10">
-          {/* Header */}
+          {}
           <div className="mb-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Create Account</h2>
             <p className="text-gray-600">Fill in your details to get started with your health journey.</p>
           </div>
 
-          {/* Form */}
+          {}
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Google Sign In */}
+            {}
             <button
               type="button"
               onClick={() => window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/google`}
@@ -147,7 +145,7 @@ export default function PatientRegisterPage() {
               Continue with Google
             </button>
 
-            {/* Divider */}
+            {}
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-gray-300"></div>
@@ -156,7 +154,7 @@ export default function PatientRegisterPage() {
                 <span className="px-2 bg-gray-50 text-gray-500">Or sign up with email</span>
               </div>
             </div>
-            {/* Name Fields */}
+            {}
             <div className="grid grid-cols-2 gap-4">
               <FormField label="First Name" required>
                 <input
@@ -178,7 +176,7 @@ export default function PatientRegisterPage() {
               </FormField>
             </div>
 
-            {/* Email */}
+            {}
             <FormField label="Email Address" error={errors.email} required>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -192,7 +190,7 @@ export default function PatientRegisterPage() {
               </div>
             </FormField>
 
-            {/* Phone Number and Date of Birth */}
+            {}
             <div className="grid grid-cols-2 gap-4">
               <FormField label="Phone Number" error={errors.phone} required>
                 <div className="relative">
@@ -221,7 +219,7 @@ export default function PatientRegisterPage() {
               </FormField>
             </div>
 
-            {/* Gender */}
+            {}
             <FormField label="Gender" error={errors.gender} required>
               <select
                 value={formData.gender}
@@ -235,7 +233,7 @@ export default function PatientRegisterPage() {
               </select>
             </FormField>
 
-            {/* Password */}
+            {}
             <FormField label="Create Password" error={errors.password} required>
               <PasswordInput
                 value={formData.password}
@@ -244,14 +242,14 @@ export default function PatientRegisterPage() {
               />
             </FormField>
 
-            {/* Terms and Conditions */}
+            {}
             <TermsAgreement
               agreedToTerms={formData.agreedToTerms}
               onTermsChange={(agreed) => setFormData({ ...formData, agreedToTerms: agreed })}
               error={errors.agreedToTerms}
             />
 
-            {/* Submit Button */}
+            {}
             <button
               type="submit"
               disabled={isLoading}

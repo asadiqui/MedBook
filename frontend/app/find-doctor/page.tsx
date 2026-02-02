@@ -42,7 +42,6 @@ export default function FindDoctorPage() {
   const { doctors, loading, error } = useDoctorDirectory();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSpecialty, setSelectedSpecialty] = useState("all");
-  const [selectedAvailability, setSelectedAvailability] = useState("anytime");
 
   useEffect(() => {
     if (isBootstrapping) return;
@@ -128,32 +127,6 @@ export default function FindDoctorPage() {
                 ))}
               </select>
             </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-gray-700">Availability</label>
-              <div className="relative">
-                <CalendarIcon className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-                <select
-                  value={selectedAvailability}
-                  onChange={(e) => setSelectedAvailability(e.target.value)}
-                  className="w-full appearance-none rounded-xl border border-gray-200 bg-gray-50 py-3 pl-10 pr-4 text-sm text-gray-900 transition focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                >
-                  <option value="anytime">Anytime</option>
-                  <option value="today">Today</option>
-                  <option value="tomorrow">Tomorrow</option>
-                  <option value="this-week">This Week</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex items-end">
-              <button
-                type="button"
-                className="w-full rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 md:w-auto"
-              >
-                Search
-              </button>
-            </div>
           </div>
         </div>
 
@@ -183,7 +156,7 @@ export default function FindDoctorPage() {
                   <div className="mb-4">
                     <div className="h-20 w-20 overflow-hidden rounded-full bg-gradient-to-br from-blue-100 to-blue-200 ring-2 ring-white shadow-sm">
                       {doctor.avatar ? (
-                        // eslint-disable-next-line @next/next/no-img-element
+
                         <img
                           src={resolveAvatarUrl(doctor.avatar)}
                           alt={doctor.name}

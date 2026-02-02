@@ -24,6 +24,22 @@ export class UsersService {
   async findAll(query: QueryUsersDto) {
     const { search, role, specialty, page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = query;
 
+    const allowedSortBy = new Set([
+      'createdAt',
+      'lastLoginAt',
+      'firstName',
+      'lastName',
+      'email',
+      'role',
+      'isActive',
+      'isVerified',
+      'specialty',
+      'consultationFee',
+      'yearsOfExperience',
+    ]);
+    const safeSortBy = allowedSortBy.has(sortBy) ? sortBy : 'createdAt';
+    const safeSortOrder = sortOrder === 'asc' ? 'asc' : 'desc';
+
     const where: any = {};
 
     if (search) {
@@ -70,7 +86,7 @@ export class UsersService {
         createdAt: true,
         lastLoginAt: true,
       },
-      orderBy: { [sortBy]: sortOrder },
+      orderBy: { [safeSortBy]: safeSortOrder },
       skip: (page - 1) * limit,
       take: limit,
     });
@@ -88,6 +104,22 @@ export class UsersService {
 
   async findAllDoctors(query: QueryUsersDto) {
     const { search, specialty, page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = query;
+
+    const allowedSortBy = new Set([
+      'createdAt',
+      'lastLoginAt',
+      'firstName',
+      'lastName',
+      'email',
+      'role',
+      'isActive',
+      'isVerified',
+      'specialty',
+      'consultationFee',
+      'yearsOfExperience',
+    ]);
+    const safeSortBy = allowedSortBy.has(sortBy) ? sortBy : 'createdAt';
+    const safeSortOrder = sortOrder === 'asc' ? 'asc' : 'desc';
 
     const where: any = {
       role: Role.DOCTOR,
@@ -122,7 +154,7 @@ export class UsersService {
         yearsOfExperience: true,
         clinicAddress: true,
       },
-      orderBy: { [sortBy]: sortOrder },
+      orderBy: { [safeSortBy]: safeSortOrder },
       skip: (page - 1) * limit,
       take: limit,
     });
@@ -283,7 +315,6 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    // Prevent deactivating admin accounts
     if (user.role === Role.ADMIN && dto.isActive === false) {
       throw new ForbiddenException('Cannot deactivate admin accounts');
     }
@@ -311,8 +342,7 @@ export class UsersService {
 
     if (wasInactive && isNowActive && user.role === Role.DOCTOR) {
       try {
-        const doctorName = `${user.firstName} ${user.lastName}`;
-        await this.emailService.sendDoctorApprovalEmail(user.email, doctorName);
+        await this.authService.sendDoctorApprovalEmail(user.id);
       } catch (error) {
         this.logger.error(
           'Failed to send doctor approval email',
@@ -335,12 +365,10 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    // Soft delete with anonymization for privacy
     await this.prisma.user.update({
       where: { id },
       data: {
         isActive: false,
-        // Anonymize personal information
         email: `deleted_${id}_${Date.now()}@deleted.MedBook.com`,
         firstName: 'Deleted',
         lastName: 'User',
@@ -350,7 +378,6 @@ export class UsersService {
       },
     });
 
-    // Delete sensitive auth data immediately
     await this.prisma.$transaction([
       this.prisma.refreshToken.deleteMany({
         where: { userId: id },
@@ -364,8 +391,7 @@ export class UsersService {
   }
 
   async getStats() {
-    const [totalUsers, totalDoctors, totalPatients, totalAdmins, activeUsers, verifiedDoctors, pendingDoctors, newUsersThisMonth] = await Promise.all([
-      // Exclude admins from total users count
+    const [totalUsers, totalDoctors, totalPatients, totalAdmins, activeUsers, verifiedDoctors, pendingDoctors] = await Promise.all([
       this.prisma.user.count({ where: { role: { not: Role.ADMIN } } }),
       this.prisma.user.count({ where: { role: Role.DOCTOR } }),
       this.prisma.user.count({ where: { role: Role.PATIENT } }),
@@ -373,14 +399,6 @@ export class UsersService {
       this.prisma.user.count({ where: { isActive: true, role: { not: Role.ADMIN } } }),
       this.prisma.user.count({ where: { role: Role.DOCTOR, isVerified: true } }),
       this.prisma.user.count({ where: { role: Role.DOCTOR, isVerified: false } }),
-      this.prisma.user.count({
-        where: {
-          role: { not: Role.ADMIN },
-          createdAt: {
-            gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-          },
-        },
-      }),
     ]);
 
     return {
@@ -448,7 +466,6 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    // Check for dependencies before permanent deletion
     const bookingsCount = await this.prisma.booking.count({
       where: {
         OR: [
@@ -467,7 +484,6 @@ export class UsersService {
       );
     }
 
-    // Permanent deletion (only if no active bookings exist)
     await this.prisma.$transaction([
       this.prisma.booking.deleteMany({
         where: {
@@ -521,7 +537,32 @@ export class UsersService {
         name: `${user.firstName} ${user.lastName}`,
         email: user.email,
       },
-      documentUrl: user.licenseDocument,
+      documentUrl: user.licenseDocument ? '/api/users/' + user.id + '/document/download' : null,
     };
+  }
+
+  async getDoctorDocumentFilePath(id: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        role: true,
+        licenseDocument: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.role !== Role.DOCTOR) {
+      throw new ForbiddenException('User is not a doctor');
+    }
+
+    if (!user.licenseDocument) {
+      throw new NotFoundException('Document not found');
+    }
+
+    return { documentPath: user.licenseDocument };
   }
 }

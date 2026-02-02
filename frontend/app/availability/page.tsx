@@ -7,8 +7,8 @@ import AvailabilityForm from "@/components/availability/AvailabilityForm";
 import { createAvailability, deleteAvailability, getMyAvailability } from "@/lib/api/availability";
 import { getDoctorBookings, Booking } from "@/lib/api/booking";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { timeToMinutes, minutesToTime, formatTime, formatDate } from "@/lib/utils/dateTime";
 
-// Icons
 function CalendarIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}>
@@ -64,7 +64,6 @@ export default function DoctorAvailabilityPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState<boolean>(false);
   const [deleting, setDeleting] = useState<string | null>(null);
-  const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
   const [selectedDate, setSelectedDate] = useState<string>("");
 
   useEffect(() => {
@@ -99,10 +98,9 @@ export default function DoctorAvailabilityPage() {
     }
 
     Promise.all([fetchAvailability(), fetchBookings()]).finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [user]);
 
-  // Auto-select first available date when availability changes
   useEffect(() => {
     if (availability.length > 0 && !selectedDate) {
       const dates = availability.map((a) => a.date).sort();
@@ -130,7 +128,7 @@ export default function DoctorAvailabilityPage() {
       await Promise.all([fetchAvailability(), fetchBookings()]);
       setShowForm(false); // Close form on success
       
-      // Auto-select the newly added date if no date is selected
+
       if (!selectedDate) {
         setSelectedDate(values.date);
       }
@@ -144,17 +142,6 @@ export default function DoctorAvailabilityPage() {
     } finally {
       setSaving(false);
     }
-  };
-
-  const timeToMinutes = (time: string): number => {
-    const [h, m] = time.split(":").map(Number);
-    return h * 60 + m;
-  };
-
-  const minutesToTime = (minutes: number): string => {
-    const h = Math.floor(minutes / 60);
-    const m = minutes % 60;
-    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
   };
 
   const hourlySchedule = useMemo(() => {
@@ -229,23 +216,6 @@ export default function DoctorAvailabilityPage() {
     return dates;
   }, [availability]);
 
-  const formatTime = (time: string) => {
-    const [hours, minutes] = time.split(":");
-    const hour = parseInt(hours);
-    const ampm = hour >= 12 ? "PM" : "AM";
-    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-    return `${displayHour}:${minutes} ${ampm}`;
-  };
-
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr + "T00:00:00");
-    return date.toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    });
-  };
-
   const handleQuickAddSlot = async (slotStartTime: string, slotEndTime: string) => {
     const confirmed = window.confirm(
       `Add availability for ${formatTime(slotStartTime)} - ${formatTime(slotEndTime)}?`
@@ -262,7 +232,7 @@ export default function DoctorAvailabilityPage() {
       await fetchAvailability();
       await fetchBookings();
       
-      // Auto-select the date if none selected
+
       if (!selectedDate) {
         setSelectedDate(selectedDate);
       }
@@ -282,7 +252,7 @@ export default function DoctorAvailabilityPage() {
     try {
       setDeleting(slotStartTime);
       
-      // Find the availability record that contains this hour slot
+
       const containingAvailability = availability.find((avail) => {
         if (avail.date !== selectedDate) return false;
         const availStart = timeToMinutes(avail.startTime);
@@ -301,15 +271,13 @@ export default function DoctorAvailabilityPage() {
       const slotStart = timeToMinutes(slotStartTime);
       const slotEnd = timeToMinutes(slotEndTime);
 
-      // Delete the original availability
       await deleteAvailability(containingAvailability.id);
 
-      // Determine what new availability records to create
       const needsBefore = slotStart > availStart;
       const needsAfter = slotEnd < availEnd;
 
       if (needsBefore) {
-        // Create availability for the time before the deleted slot
+
         await createAvailability({
           date: selectedDate,
           startTime: containingAvailability.startTime,
@@ -318,7 +286,7 @@ export default function DoctorAvailabilityPage() {
       }
 
       if (needsAfter) {
-        // Create availability for the time after the deleted slot
+
         await createAvailability({
           date: selectedDate,
           startTime: slotEndTime,
@@ -326,11 +294,10 @@ export default function DoctorAvailabilityPage() {
         });
       }
 
-      // Refresh availability data
       await fetchAvailability();
       await fetchBookings();
       
-      // Check if selected date still has availability
+
       setTimeout(() => {
         const hasRemainingSlots = availability.some((a) => a.date === selectedDate);
         if (!hasRemainingSlots) {
@@ -374,7 +341,7 @@ export default function DoctorAvailabilityPage() {
 
         {!loading && !error && (
           <div className="space-y-6">
-            {/* Add Availability Section */}
+            {}
             <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
               <button
                 type="button"
@@ -417,7 +384,7 @@ export default function DoctorAvailabilityPage() {
               )}
             </div>
 
-            {/* Schedule Overview Section */}
+            {}
             <div className="rounded-xl border bg-white shadow-sm">
               <div className="border-b bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4">
                 <div className="flex items-center gap-3">
@@ -432,7 +399,7 @@ export default function DoctorAvailabilityPage() {
               </div>
 
               <div className="p-6">
-                {/* Date Selector */}
+                {}
                 <div className="mb-6">
                   <label className="mb-3 block text-sm font-medium text-gray-700">Select Date</label>
                   {availableDates.length === 0 ? (
@@ -474,7 +441,7 @@ export default function DoctorAvailabilityPage() {
                   )}
                 </div>
 
-                {/* Legend */}
+                {}
                 {availableDates.length > 0 && (
                   <div className="mb-4 flex flex-wrap gap-4 rounded-lg bg-gray-50 px-4 py-3">
                     <div className="flex items-center gap-2">
@@ -496,7 +463,7 @@ export default function DoctorAvailabilityPage() {
                   </div>
                 )}
 
-                {/* Time Slots Grid */}
+                {}
                 {availableDates.length > 0 && (
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                     {hourlySchedule.map((slot) => (

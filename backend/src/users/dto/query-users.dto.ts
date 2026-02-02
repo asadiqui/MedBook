@@ -1,4 +1,4 @@
-import { IsOptional, IsEnum, IsString, IsNumber, Min } from 'class-validator';
+import { IsOptional, IsEnum, IsString, IsNumber, Min, Max, IsIn } from 'class-validator';
 import { Type } from 'class-transformer';
 import { Role } from '@prisma/client';
 
@@ -25,13 +25,16 @@ export class QueryUsersDto {
   @Type(() => Number)
   @IsNumber()
   @Min(1)
+  @Max(100)
   limit?: number = 10;
 
   @IsOptional()
   @IsString()
+  @IsIn(['createdAt', 'lastLoginAt', 'firstName', 'lastName', 'email', 'role', 'isActive', 'isVerified', 'specialty', 'consultationFee', 'yearsOfExperience'])
   sortBy?: string = 'createdAt';
 
   @IsOptional()
   @IsString()
+  @IsIn(['asc', 'desc'])
   sortOrder?: 'asc' | 'desc' = 'desc';
 }

@@ -1,38 +1,32 @@
-import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useCallback } from 'react';
 import { useAuthStore } from '@/lib/store/auth';
 import toast from 'react-hot-toast';
 
 export const useAuth = () => {
-  const { user, accessToken, isAuthenticated, isBootstrapping, logout, checkAuth } = useAuthStore();
+  const { user, isAuthenticated, isBootstrapping, isLoading, authChecked, logout } = useAuthStore();
   const router = useRouter();
 
-  // Removed automatic checkAuth call - now handled in ClientLayout
-
   const requireAuth = (allowedRoles?: string[]) => {
-    if (isBootstrapping) {
-      return false;
+
+    if (isBootstrapping || isLoading || !authChecked) {
+      return null; // Return null to indicate "still checking"
     }
 
-    if (accessToken && !isAuthenticated) {
-      return false;
-    }
-
-    if (!accessToken) {
+    if (!isAuthenticated) {
       router.push('/auth/login');
       return false;
     }
 
     if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-      toast.error('You do not have permission to access this page');
-      router.push('/auth/login');
+      router.push('/dashboard');
       return false;
     }
 
     return true;
   };
 
-  const redirectBasedOnRole = () => {
+  const redirectBasedOnRole = useCallback(() => {
     if (!user) return;
 
     switch (user.role) {
@@ -48,13 +42,14 @@ export const useAuth = () => {
       default:
         router.push('/auth/login');
     }
-  };
+  }, [user, router]);
 
   return {
     user,
-    accessToken,
     isAuthenticated,
     isBootstrapping,
+    isLoading,
+    authChecked,
     requireAuth,
     redirectBasedOnRole,
     logout,

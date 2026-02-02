@@ -18,15 +18,13 @@ export const resolveAvatarUrl = (
 
   if (!avatar) return fallback;
 
-  // Handle external URLs (e.g., Google OAuth avatars)
   if (avatar.startsWith("http://") || avatar.startsWith("https://")) {
     if (!cacheBust) return avatar;
-    // Add cache-busting parameter to external URLs
+
     const separator = avatar.includes("?") ? "&" : "?";
     return `${avatar}${separator}t=${Date.now()}`;
   }
 
-  // Handle relative/local URLs
   const resolvedBaseUrl = baseUrl ?? process.env.NEXT_PUBLIC_BASE_URL;
   if (!resolvedBaseUrl) return avatar;
 

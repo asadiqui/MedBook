@@ -1,27 +1,26 @@
 "use client";
 
-import { useEffect } from "react";
+import { useRef } from "react";
 import Link from "next/link";
 import { User, Stethoscope, CheckCircle2 } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { useAuth } from "@/lib/hooks/useAuth";
 
 export default function RegisterPage() {
-  const { isAuthenticated, isBootstrapping, redirectBasedOnRole } = useAuth();
+  const { isAuthenticated, redirectBasedOnRole } = useAuth();
+  const hasRedirectedRef = useRef(false);
 
-  useEffect(() => {
-    if (isBootstrapping) return;
-    // Redirect if user is already logged in
-    if (isAuthenticated) {
-      redirectBasedOnRole();
-    }
-  }, [isAuthenticated, isBootstrapping, redirectBasedOnRole]);
+  if (isAuthenticated && !hasRedirectedRef.current) {
+    hasRedirectedRef.current = true;
+    redirectBasedOnRole();
+    return null;
+  }
 
   return (
     <div className="min-h-screen flex">
-      {/* Left Side - Hero Section */}
+      {}
       <div className="hidden lg:flex lg:w-2/5 relative overflow-hidden">
-        {/* Background Image */}
+        {}
         <div 
           className="absolute inset-0 bg-cover bg-center"
           style={{
@@ -29,12 +28,12 @@ export default function RegisterPage() {
           }}
         />
         
-        {/* Blue Gradient Overlay - Clear Face at Top */}
+        {}
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-600/30 to-blue-800/70" />
 
-        {/* Content */}
+        {}
         <div className="relative z-10 flex flex-col justify-end p-12 text-white w-full">
-          {/* Main Content */}
+          {}
           <div className="space-y-6">
             <h1 className="text-4xl font-bold leading-tight">
               Start your<br />journey with<br />us today.
@@ -47,7 +46,7 @@ export default function RegisterPage() {
               everyone.
             </p>
 
-            {/* Features */}
+            {}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-white" strokeWidth={2} />
@@ -60,7 +59,7 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          {/* Footer */}
+          {}
           <div>
             <p className="text-xs text-blue-100">
               © 2026 MedBook Inc. All rights reserved.
@@ -69,22 +68,22 @@ export default function RegisterPage() {
         </div>
       </div>
 
-      {/* Right Side - Registration Options */}
+      {}
       <div className="flex-1 flex items-center justify-center bg-gray-50 p-8 relative overflow-hidden">
-        {/* Decorative Background Pattern */}
+        {}
         <div className="absolute inset-0 opacity-30">
           <div className="absolute top-0 right-0 w-96 h-96 bg-blue-100 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2"></div>
           <div className="absolute bottom-0 left-0 w-96 h-96 bg-teal-100 rounded-full blur-3xl transform -translate-x-1/2 translate-y-1/2"></div>
         </div>
         
-        {/* Top Bar */}
+        {}
         <div className="absolute top-8 left-8 right-8 flex items-center justify-between z-10">
-          {/* Logo */}
+          {}
           <Link href="/" className="inline-flex">
             <Logo size="md" />
           </Link>
           
-          {/* Already have account */}
+          {}
           <div className="text-sm">
             <span className="text-gray-600">Already have an account?</span>{" "}
             <Link
@@ -96,9 +95,9 @@ export default function RegisterPage() {
           </div>
         </div>
 
-        {/* Main Content */}
+        {}
         <div className="w-full max-w-3xl relative z-10 mt-20">
-          {/* Header */}
+          {}
           <div className="text-center mb-10">
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
               Join MedBook
@@ -108,9 +107,9 @@ export default function RegisterPage() {
             </p>
           </div>
 
-          {/* Registration Cards */}
+          {}
           <div className="grid md:grid-cols-2 gap-6 mb-8">
-            {/* Patient Card */}
+            {}
             <Link href="/auth/register/patient">
               <div className="bg-white p-8 rounded-xl border border-gray-200 hover:shadow-lg transition cursor-pointer h-full">
                 <div className="bg-blue-50 w-12 h-12 rounded-full flex items-center justify-center mb-4">
@@ -133,7 +132,7 @@ export default function RegisterPage() {
               </div>
             </Link>
 
-            {/* Doctor Card */}
+            {}
             <Link href="/auth/register/doctor">
               <div className="bg-white p-8 rounded-xl border border-gray-200 hover:shadow-lg transition cursor-pointer h-full">
                 <div className="bg-teal-50 w-12 h-12 rounded-full flex items-center justify-center mb-4">
@@ -157,7 +156,7 @@ export default function RegisterPage() {
             </Link>
           </div>
 
-          {/* Terms Footer */}
+          {}
           <p className="text-center text-xs text-gray-500">
             By registering, you agree to our{" "}
             <Link href="/terms" className="text-blue-600 hover:underline">

@@ -27,7 +27,7 @@ export default function ChatInput({ onSendMessage, onTyping }: ChatInputProps) {
     <div className="bg-white border-t border-gray-200">
       <form onSubmit={handleSubmit} className="p-4">
         <div className="flex items-center gap-3">
-          {/* Attachment Button */}
+          {}
           <button
             type="button"
             className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition"
@@ -35,7 +35,7 @@ export default function ChatInput({ onSendMessage, onTyping }: ChatInputProps) {
             <Paperclip className="w-5 h-5" />
           </button>
 
-          {/* Input */}
+          {}
           <div className="flex-1 relative">
             <input
               type="text"
@@ -46,7 +46,7 @@ export default function ChatInput({ onSendMessage, onTyping }: ChatInputProps) {
             />
           </div>
 
-          {/* Emoji Button */}
+          {}
           <button
             type="button"
             className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition"
@@ -54,7 +54,7 @@ export default function ChatInput({ onSendMessage, onTyping }: ChatInputProps) {
             <Smile className="w-5 h-5" />
           </button>
 
-          {/* Send Button */}
+          {}
           <button
             type="submit"
             disabled={!message.trim()}

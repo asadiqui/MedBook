@@ -236,7 +236,7 @@ export const DoctorPersonalInfo: React.FC<DoctorPersonalInfoProps> = ({
             </div>
           </div>
 
-          {/* Doctor-specific fields */}
+          {}
           <div className="md:col-span-2 bg-white rounded-xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Bio</p>
             <p className="text-lg font-semibold text-gray-900 mt-2">{userData.bio || "No bio provided"}</p>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import { Mail, Phone, Calendar, Upload, FileText, DollarSign, MapPin, User } from "lucide-react";
 import toast from "react-hot-toast";
@@ -10,15 +10,14 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { useRegistration } from "@/lib/hooks/useRegistration";
 
 export default function DoctorRegisterPage() {
-  const { isAuthenticated, isBootstrapping, redirectBasedOnRole } = useAuth();
+  const { isAuthenticated, redirectBasedOnRole } = useAuth();
+  const hasRedirectedRef = useRef(false);
 
-  useEffect(() => {
-    if (isBootstrapping) return;
-    // Redirect if user is already logged in
-    if (isAuthenticated) {
-      redirectBasedOnRole();
-    }
-  }, [isAuthenticated, isBootstrapping, redirectBasedOnRole]);
+  if (isAuthenticated && !hasRedirectedRef.current) {
+    hasRedirectedRef.current = true;
+    redirectBasedOnRole();
+    return null;
+  }
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -44,13 +43,12 @@ export default function DoctorRegisterPage() {
 
   const { register, isLoading, errors } = useRegistration({
     role: "DOCTOR",
-    apiUrl: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api",
+    apiUrl: process.env.NEXT_PUBLIC_API_URL || "https://localhost:8443/api",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate age (18+)
     if (formData.dateOfBirth) {
       const birthDate = new Date(formData.dateOfBirth);
       const today = new Date();
@@ -60,7 +58,7 @@ export default function DoctorRegisterPage() {
         age--;
       }
       if (age < 18) {
-        toast.error("You must be at least 18 years old to register");
+        toast.error("Sorry, you need to be 18 or older to register as a doctor");
         return;
       }
     }
@@ -91,9 +89,9 @@ export default function DoctorRegisterPage() {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left Side - Hero Section */}
+      {}
       <div className="hidden lg:flex lg:w-2/5 relative overflow-hidden">
-        {/* Background Image */}
+        {}
         <div 
           className="absolute inset-0 bg-cover bg-center"
           style={{
@@ -101,12 +99,12 @@ export default function DoctorRegisterPage() {
           }}
         />
         
-        {/* Blue Gradient Overlay */}
+        {}
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-600/30 to-blue-900/70" />
 
-        {/* Content */}
+        {}
         <div className="relative z-10 flex flex-col justify-end p-12 text-white w-full">
-          {/* Main Content */}
+          {}
           <div className="space-y-6">
             <h1 className="text-5xl font-bold leading-tight">
               Partner with us.<br />Grow your practice.
@@ -117,29 +115,29 @@ export default function DoctorRegisterPage() {
             </p>
           </div>
 
-          {/* Footer */}
+          {}
           <div className="text-sm text-white/70 mt-12">
             © 2026 MedBook Inc. All rights reserved.
           </div>
         </div>
       </div>
 
-      {/* Right Side - Registration Form */}
+      {}
       <div className="flex-1 flex items-center justify-center p-8 bg-gray-50 relative overflow-hidden">
-        {/* Decorative Background Pattern */}
+        {}
         <div className="absolute inset-0 opacity-30">
           <div className="absolute top-0 right-0 w-96 h-96 bg-blue-100 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2"></div>
           <div className="absolute bottom-0 left-0 w-96 h-96 bg-teal-100 rounded-full blur-3xl transform -translate-x-1/2 translate-y-1/2"></div>
         </div>
         
-        {/* Top Bar - Absolute Positioning */}
+        {}
         <div className="absolute top-8 left-8 right-8 flex items-center justify-between z-10">
-          {/* Logo */}
+          {}
           <Link href="/" className="inline-flex">
             <Logo size="md" />
           </Link>
           
-          {/* Already a member */}
+          {}
           <div className="text-sm">
             <span className="text-gray-600">Already have an account? </span>
             <Link href="/auth/login" className="text-blue-600 font-semibold hover:text-blue-700">
@@ -149,15 +147,15 @@ export default function DoctorRegisterPage() {
         </div>
 
         <div className="w-full max-w-2xl 2xl:max-w-3xl mt-20 mb-8 relative z-10">
-          {/* Header */}
+          {}
           <div className="mb-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Doctor Registration</h2>
             <p className="text-gray-600">Please fill out the form below to register. All steps are required to verify your medical practice.</p>
           </div>
 
-          {/* Form */}
+          {}
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Personal Information Section */}
+            {}
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
               <div className="flex items-center gap-2 mb-5">
                 <svg className="h-5 w-5 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
@@ -167,7 +165,7 @@ export default function DoctorRegisterPage() {
               </div>
 
               <div className="space-y-4">
-                {/* Name Fields */}
+                {}
                 <div className="grid grid-cols-2 gap-4">
                   <FormField label="First Name" required>
                     <input
@@ -189,7 +187,7 @@ export default function DoctorRegisterPage() {
                   </FormField>
                 </div>
 
-                {/* Email and Phone */}
+                {}
                 <div className="grid grid-cols-2 gap-4">
                   <FormField label="Email Address" error={errors.email} required>
                     <div className="relative">
@@ -217,7 +215,7 @@ export default function DoctorRegisterPage() {
                   </FormField>
                 </div>
 
-                {/* Password */}
+                {}
                 <FormField label="Create Password" error={errors.password} required>
                   <PasswordInput
                     value={formData.password}
@@ -226,7 +224,7 @@ export default function DoctorRegisterPage() {
                   />
                 </FormField>
 
-                {/* Gender and Date of Birth */}
+                {}
                 <div className="grid grid-cols-2 gap-4">
                   <FormField label="Gender" error={errors.gender} required>
                     <select
@@ -254,7 +252,7 @@ export default function DoctorRegisterPage() {
               </div>
             </div>
 
-            {/* Professional Credentials Section */}
+            {}
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
               <div className="flex items-center gap-2 mb-5">
                 <svg className="h-5 w-5 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
@@ -264,7 +262,7 @@ export default function DoctorRegisterPage() {
               </div>
 
               <div className="space-y-4">
-                {/* Specialization and License */}
+                {}
                 <div className="grid grid-cols-2 gap-4">
                   <FormField label="Specialization" error={errors.specialty} required>
                     <select
@@ -289,7 +287,7 @@ export default function DoctorRegisterPage() {
                   </FormField>
                 </div>
 
-                {/* Current Affiliation and Years of Experience */}
+                {}
                 <div className="grid grid-cols-2 gap-4">
                   <FormField label="Current Affiliation" error={errors.affiliation} required>
                     <input
@@ -312,7 +310,7 @@ export default function DoctorRegisterPage() {
                   </FormField>
                 </div>
 
-                {/* Consultation Fee */}
+                {}
                 <FormField label="Consultation Fee ($)" error={errors.consultationFee} required>
                   <input
                     type="number"
@@ -327,7 +325,7 @@ export default function DoctorRegisterPage() {
               </div>
             </div>
 
-            {/* Clinic Information Section */}
+            {}
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
               <div className="flex items-center gap-2 mb-5">
                 <svg className="h-5 w-5 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
@@ -337,7 +335,7 @@ export default function DoctorRegisterPage() {
               </div>
 
               <div className="space-y-4">
-                {/* Clinic Address */}
+                {}
                 <FormField label="Clinic / Hospital Address" error={errors.clinicAddress} required>
                   <input
                     type="text"
@@ -348,7 +346,7 @@ export default function DoctorRegisterPage() {
                   />
                 </FormField>
 
-                {/* Contact Person and Clinic Phone */}
+                {}
                 <div className="grid grid-cols-2 gap-4">
                   <FormField label="Contact Person" error={errors.clinicContactPerson} required>
                     <input
@@ -372,7 +370,7 @@ export default function DoctorRegisterPage() {
               </div>
             </div>
 
-            {/* Documents Section */}
+            {}
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
               <div className="flex items-center gap-2 mb-5">
                 <FileText className="h-5 w-5 text-blue-600" />
@@ -389,7 +387,7 @@ export default function DoctorRegisterPage() {
               </div>
             </div>
 
-            {/* Review & Confirmation Section */}
+            {}
             <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Review & Confirmation</h3>
               
@@ -423,7 +421,7 @@ export default function DoctorRegisterPage() {
               </div>
             </div>
 
-            {/* Submit Button */}
+            {}
             <button
               type="submit"
               disabled={isLoading}

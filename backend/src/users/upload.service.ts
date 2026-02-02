@@ -75,7 +75,7 @@ export class UploadService {
       await this.deleteFile(user.licenseDocument);
     }
 
-    const documentUrl = `/uploads/documents/${file.filename}`;
+    const documentUrl = `private/documents/${file.filename}`;
 
     const updatedUser = await this.prisma.user.update({
       where: { id: userId },
@@ -94,8 +94,8 @@ export class UploadService {
 
   private async deleteFile(filePath: string): Promise<void> {
     try {
-      // Use process.cwd() for Docker compatibility
-      const fullPath = path.join(process.cwd(), filePath);
+      const normalizedPath = filePath.replace(/^\/+/, '');
+      const fullPath = path.join(process.cwd(), normalizedPath);
       if (fs.existsSync(fullPath)) {
         fs.unlinkSync(fullPath);
       }

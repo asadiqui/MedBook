@@ -1,7 +1,20 @@
+"use client";
+
+import { useRef } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/ui/Logo";
+import { useAuth } from "@/lib/hooks/useAuth";
 
 export default function HomePage() {
+  const { isAuthenticated, redirectBasedOnRole } = useAuth();
+  const hasRedirectedRef = useRef(false);
+
+  if (isAuthenticated && !hasRedirectedRef.current) {
+    hasRedirectedRef.current = true;
+    redirectBasedOnRole();
+    return null;
+  }
+
   return (
     <main className="min-h-screen bg-white">
       <section className="relative overflow-hidden bg-gradient-to-b from-blue-50 via-white to-white">

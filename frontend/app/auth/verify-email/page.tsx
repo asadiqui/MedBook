@@ -6,13 +6,13 @@ import { useSearchParams } from "next/navigation";
 import { CheckCircle2, XCircle, Mail, Loader2 } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { useAuthStore } from "@/lib/store/auth";
+import api from "@/lib/api";
 
 export const dynamic = 'force-dynamic';
 
 export default function VerifyEmailPage() {
   const searchParams = useSearchParams();
   const token = searchParams?.get("token");
-  const { accessToken } = useAuthStore();
   
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [message, setMessage] = useState("");
@@ -28,74 +28,40 @@ export default function VerifyEmailPage() {
 
   const verifyEmail = async (token: string) => {
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/auth/email/verify`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ token }),
-        }
-      );
+      const response = await api.post("/auth/email/verify", { token });
+      const data = response.data;
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setStatus("success");
-        setMessage(data.message || "Your email has been successfully verified!");
-      } else {
-        setStatus("error");
-        setMessage(data.message || "Verification failed. The link may have expired or is invalid.");
-      }
-    } catch (error) {
+      setStatus("success");
+      setMessage(data.message || "Your email has been successfully verified!");
+    } catch (error: any) {
       setStatus("error");
-      setMessage("Verification failed. The link may have expired or is invalid.");
+      setMessage(error.response?.data?.message || "Verification failed. The link may have expired or is invalid.");
     }
   };
 
   const resendVerification = async () => {
     setStatus("loading");
-    if (!accessToken) {
-      setStatus("error");
-      setMessage("Please log in to resend the verification email.");
-      return;
-    }
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/auth/email/send-verification`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
+      const response = await api.post("/auth/email/send-verification");
+      const data = response.data;
 
-      const data = await response.json().catch(() => ({}));
-
-      if (response.ok) {
-        setStatus("success");
-        setMessage(data.message || "A new verification email has been sent. Please check your inbox.");
-      } else {
-        setStatus("error");
-        setMessage(data.message || "Failed to resend verification email.");
-      }
-    } catch (error) {
+      setStatus("success");
+      setMessage(data.message || "A new verification email has been sent. Please check your inbox.");
+    } catch (error: any) {
       setStatus("error");
-      setMessage("Failed to resend verification email.");
+      setMessage(error.response?.data?.message || "Failed to resend verification email.");
     }
   };
 
   return (
     <div className="min-h-screen flex">
-      {/* Left Side - Decorative */}
+      {}
       <div className="hidden lg:flex lg:w-2/5 relative bg-gradient-to-br from-blue-600 to-teal-500 items-center justify-center overflow-hidden">
         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1584820927498-cfe5211fd8bf?w=1920&q=95&fit=crop&crop=faces')] bg-cover bg-center opacity-20"></div>
         <div className="absolute inset-0 bg-gradient-to-br from-blue-900/40 via-blue-900/50 to-blue-950/70"></div>
         
-        {/* Decorative Elements */}
+        {}
         <div className="absolute top-20 left-20 w-72 h-72 bg-white/10 rounded-full blur-3xl"></div>
         <div className="absolute bottom-20 right-20 w-96 h-96 bg-teal-400/10 rounded-full blur-3xl"></div>
         
@@ -108,16 +74,16 @@ export default function VerifyEmailPage() {
         </div>
       </div>
 
-      {/* Right Side - Content */}
+      {}
       <div className="flex-1 flex items-center justify-center p-8 bg-gray-50 relative">
-        {/* Decorative background for smaller screens */}
+        {}
         <div className="absolute inset-0 overflow-hidden pointer-events-none lg:hidden">
           <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-100 rounded-full blur-3xl opacity-30"></div>
           <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-teal-100 rounded-full blur-3xl opacity-30"></div>
         </div>
 
         <div className="w-full max-w-md relative z-10">
-          {/* Logo */}
+          {}
           <div className="mb-8">
             <Logo size="lg" />
           </div>

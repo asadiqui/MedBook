@@ -1,34 +1,11 @@
-# Dependencies (Docker will install fresh)
 node_modules
-npm-debug.log
-
-# Build outputs
-dist
-build
-
-# Environment files
-.env
-.env.local
-.env.*.local
-
-# Git
+.next
+out
+.next/cache
+.npm
+.pnpm-store
+.yarn
 .git
 .gitignore
-
-# IDE
-.vscode
-.idea
-
-# Logs
+Dockerfile
 *.log
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Testing
-coverage
-
-# Temporary files
-*.tmp
-.cache

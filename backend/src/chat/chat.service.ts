@@ -5,15 +5,19 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { BookingStatus } from '@prisma/client';
 
-const CHAT_ALLOWED_BOOKING_STATUSES = ['PENDING', 'ACCEPTED'] as const;
+const CHAT_ALLOWED_BOOKING_STATUSES: BookingStatus[] = [
+  BookingStatus.PENDING,
+  BookingStatus.ACCEPTED,
+];
 
 @Injectable()
 export class ChatService {
   constructor(private readonly prisma: PrismaService) {}
 
   private assertChatAllowed(bookingStatus: string) {
-    if (!CHAT_ALLOWED_BOOKING_STATUSES.includes(bookingStatus as any)) {
+    if (!CHAT_ALLOWED_BOOKING_STATUSES.includes(bookingStatus as BookingStatus)) {
       throw new BadRequestException('Chat is not allowed for this booking status');
     }
   }
@@ -37,7 +41,6 @@ export class ChatService {
     receiverId: string,
     content: string,
   ) {
-    // Verify the booking exists
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
       include: {
@@ -52,7 +55,6 @@ export class ChatService {
 
     this.assertChatAllowed(booking.status);
 
-    // Verify sender and receiver exist
     const sender = await this.prisma.user.findUnique({
       where: { id: senderId },
     });
@@ -64,7 +66,6 @@ export class ChatService {
       throw new BadRequestException('User not found');
     }
 
-    // Verify that both users are part of this booking
     const validParticipants = [booking.doctorId, booking.patientId];
     if (
       !validParticipants.includes(senderId) ||
@@ -73,7 +74,6 @@ export class ChatService {
       throw new BadRequestException('Users must be part of this booking');
     }
 
-    // Create the message
     const message = await this.prisma.message.create({
       data: {
         content,
@@ -174,10 +174,9 @@ export class ChatService {
   }
 
   async getConversation(currentUserId: string, otherUserId: string) {
-    // Only allow conversation lookup when users share at least one active booking.
     const bookings = await this.prisma.booking.findMany({
       where: {
-        status: { in: CHAT_ALLOWED_BOOKING_STATUSES as any },
+        status: { in: CHAT_ALLOWED_BOOKING_STATUSES },
         OR: [
           { doctorId: currentUserId, patientId: otherUserId },
           { doctorId: otherUserId, patientId: currentUserId },
@@ -296,14 +295,13 @@ export class ChatService {
   }
 
   async getUserChats(userId: string) {
-    // Get all bookings where user is either doctor or patient
     const bookings = await this.prisma.booking.findMany({
       where: {
         OR: [
           { doctorId: userId },
           { patientId: userId },
         ],
-        status: { in: CHAT_ALLOWED_BOOKING_STATUSES as any },
+        status: { in: CHAT_ALLOWED_BOOKING_STATUSES },
       },
       include: {
         doctor: {
@@ -341,30 +339,40 @@ export class ChatService {
       orderBy: { updatedAt: 'desc' },
     });
 
-    // Get unread count for each booking
-    const chatsWithUnread = await Promise.all(
-      bookings.map(async (booking) => {
-        const unreadCount = await this.prisma.message.count({
-          where: {
-            bookingId: booking.id,
-            receiverId: userId,
-            isRead: false,
-          },
-        });
+    if (bookings.length === 0) {
+      return [];
+    }
 
-        const otherUser = booking.doctorId === userId ? booking.patient : booking.doctor;
-        const lastMessage = booking.messages[0] || null;
+    const bookingIds = bookings.map((booking) => booking.id);
+    const unreadCounts = await this.prisma.message.groupBy({
+      by: ['bookingId'],
+      where: {
+        bookingId: { in: bookingIds },
+        receiverId: userId,
+        isRead: false,
+      },
+      _count: { _all: true },
+    });
 
-        return {
-          bookingId: booking.id,
-          otherUser,
-          lastMessage,
-          unreadCount,
-          bookingDate: booking.date,
-          bookingStatus: booking.status,
-        };
-      }),
+    const unreadCountMap = new Map(
+      unreadCounts.map((item) => [item.bookingId, item._count._all]),
     );
+
+    const chatsWithUnread = bookings.map((booking) => {
+      const unreadCount = unreadCountMap.get(booking.id) ?? 0;
+
+      const otherUser = booking.doctorId === userId ? booking.patient : booking.doctor;
+      const lastMessage = booking.messages[0] || null;
+
+      return {
+        bookingId: booking.id,
+        otherUser,
+        lastMessage,
+        unreadCount,
+        bookingDate: booking.date,
+        bookingStatus: booking.status,
+      };
+    });
 
     return chatsWithUnread;
   }

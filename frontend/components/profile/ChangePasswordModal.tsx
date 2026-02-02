@@ -5,18 +5,17 @@ import { Lock, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { Modal } from "../shared/Modal";
 import { PasswordInput } from "../auth/PasswordInput";
+import api from "@/lib/api";
 
 interface ChangePasswordModalProps {
   isOpen: boolean;
   onClose: () => void;
-  accessToken: string | null;
   onPasswordChanged: () => void;
 }
 
 export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
   isOpen,
   onClose,
-  accessToken,
   onPasswordChanged,
 }) => {
   const [passwordData, setPasswordData] = useState({
@@ -28,11 +27,6 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!accessToken) {
-      toast.error("Authentication token not available");
-      return;
-    }
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       toast.error("New passwords don't match");
@@ -47,36 +41,22 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
     setIsLoading(true);
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/auth/change-password`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            currentPassword: passwordData.currentPassword,
-            newPassword: passwordData.newPassword,
-          }),
-        }
-      );
+      await api.post("/auth/change-password", {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+      });
 
-      if (response.ok) {
-        toast.success("Password changed successfully!");
-        onPasswordChanged();
-        onClose();
-        setPasswordData({
-          currentPassword: "",
-          newPassword: "",
-          confirmPassword: "",
-        });
-      } else {
-        const errorData = await response.json().catch(() => ({ message: 'Failed to change password' }));
-        toast.error(errorData.message || "Failed to change password");
-      }
-    } catch (error) {
-      toast.error("Failed to change password");
+      toast.success("Password changed successfully!");
+      onPasswordChanged();
+      onClose();
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || "Failed to change password";
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }

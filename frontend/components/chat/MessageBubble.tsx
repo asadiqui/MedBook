@@ -54,7 +54,6 @@ export default function MessageBubble({ message, isOwn, showAvatar = true }: Mes
     </div>
   );
 
-  // Check if message is a file attachment
   const isFileAttachment = message.attachment;
 
   if (isFileAttachment && message.attachment) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { 
   Users, UserCheck, UserX, Calendar, 
   TrendingUp, Activity, LogOut, Shield,
@@ -11,12 +12,14 @@ import toast from "react-hot-toast";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useAuthStore } from "@/lib/store/auth";
 import { Logo } from "@/components/ui/Logo";
+import api from "@/lib/api";
 
 export const dynamic = 'force-dynamic';
 
 export default function AdminDashboardPage() {
-  const { accessToken, user, isBootstrapping } = useAuth();
+  const { user, isBootstrapping } = useAuth();
   const { logout } = useAuthStore();
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalUsers: 0,
@@ -39,7 +42,7 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     if (isBootstrapping) return;
 
-    if (!accessToken || !user) {
+    if (!user) {
       setLoading(false);
       return;
     }
@@ -50,62 +53,25 @@ export default function AdminDashboardPage() {
     }
 
     fetchDashboardData();
-  }, [isBootstrapping, accessToken, user]);
+  }, [isBootstrapping, user]);
 
   const fetchDashboardData = async () => {
-    if (!accessToken) {
-      setLoading(false);
-      return;
-    }
-
     setLoading(true);
 
     try {
-      // Fetch stats
-      const statsResponse = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/users/stats`,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
 
-      if (statsResponse.status === 401 || statsResponse.status === 403) {
+      const statsResponse = await api.get("/users/stats");
+      setStats(statsResponse.data);
+
+      const usersResponse = await api.get("/users");
+      setUsers(usersResponse.data.data || []);
+    } catch (error: any) {
+      if (error.response?.status === 401 || error.response?.status === 403) {
         toast.error("Session expired. Please log in again.");
         logout();
         window.location.href = "/auth/login";
         return;
       }
-
-      if (statsResponse.ok) {
-        const statsData = await statsResponse.json();
-        setStats(statsData);
-      }
-
-      // Fetch users
-      const usersResponse = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/users`,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
-
-      if (usersResponse.status === 401 || usersResponse.status === 403) {
-        toast.error("Session expired. Please log in again.");
-        logout();
-        return;
-      }
-
-      if (usersResponse.ok) {
-        const usersData = await usersResponse.json();
-        setUsers(usersData.data || []);
-      } else {
-        setUsers([]);
-      }
-    } catch (error) {
       setUsers([]);
     } finally {
       setLoading(false);
@@ -114,29 +80,17 @@ export default function AdminDashboardPage() {
 
   const handleVerifyDoctor = async (userId: string) => {
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/users/${userId}/approve-doctor`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
-
-      if (response.ok) {
-        toast.success("Doctor verified successfully!");
-        fetchDashboardData();
-      } else {
-        toast.error("Failed to verify doctor");
-      }
-    } catch (error) {
-      toast.error("Failed to verify doctor");
+      await api.post(`/users/${userId}/approve-doctor`);
+      toast.success("Doctor verified successfully!");
+      fetchDashboardData();
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || "Failed to verify doctor";
+      toast.error(errorMessage);
     }
   };
 
   const handleDeactivateUser = async (userId: string) => {
-    // Prevent self-deactivation
+
     if (user && userId === user.id) {
       toast.error("You cannot deactivate your own account");
       return;
@@ -147,31 +101,17 @@ export default function AdminDashboardPage() {
     }
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/users/${userId}/admin`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({ isActive: false }),
-        }
-      );
-
-      if (response.ok) {
-        toast.success("User deactivated successfully!");
-        fetchDashboardData();
-      } else {
-        toast.error("Failed to deactivate user");
-      }
-    } catch (error) {
-      toast.error("Failed to deactivate user");
+      await api.patch(`/users/${userId}/admin`, { isActive: false });
+      toast.success("User deactivated successfully!");
+      fetchDashboardData();
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || "Failed to deactivate user";
+      toast.error(errorMessage);
     }
   };
 
   const handleActivateUser = async (userId: string) => {
-    // Prevent self-activation (though this shouldn't happen for inactive users)
+
     if (user && userId === user.id) {
       toast.error("You cannot activate your own account");
       return;
@@ -182,53 +122,29 @@ export default function AdminDashboardPage() {
     }
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/users/${userId}/admin`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({ isActive: true }),
-        }
-      );
-
-      if (response.ok) {
-        toast.success("User activated successfully!");
-        fetchDashboardData();
-      } else {
-        toast.error("Failed to activate user");
-      }
-    } catch (error) {
-      toast.error("Failed to activate user");
+      await api.patch(`/users/${userId}/admin`, { isActive: true });
+      toast.success("User activated successfully!");
+      fetchDashboardData();
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || "Failed to activate user";
+      toast.error(errorMessage);
     }
   };
 
   const handleViewDocument = async (userId: string) => {
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/users/${userId}/document`,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.documentUrl) {
-          setDocumentUrl(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'}${data.documentUrl}`);
-          setShowDocumentModal(true);
-        } else {
-          toast.error("No document available for this doctor");
-        }
+      const response = await api.get(`/users/${userId}/document`);
+      const data = response.data;
+      
+      if (data.documentUrl) {
+        setDocumentUrl(`${process.env.NEXT_PUBLIC_BASE_URL || 'https://localhost:8443'}${data.documentUrl}`);
+        setShowDocumentModal(true);
       } else {
-        toast.error("Failed to fetch document");
+        toast.error("No document available for this doctor");
       }
-    } catch (error) {
-      toast.error("Failed to fetch document");
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || "Failed to fetch document";
+      toast.error(errorMessage);
     }
   };
 
@@ -248,7 +164,6 @@ export default function AdminDashboardPage() {
   const handleDeleteUser = async () => {
     if (!userToDelete) return;
 
-    // Prevent self-deletion
     if (user && userToDelete.id === user.id) {
       toast.error("You cannot delete your own account");
       setShowDeleteModal(false);
@@ -257,53 +172,35 @@ export default function AdminDashboardPage() {
     }
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/users/${userToDelete.id}/admin`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
-
-      if (response.status === 401 || response.status === 403) {
+      await api.delete(`/users/${userToDelete.id}/admin`);
+      
+      toast.success("User deleted successfully!");
+      setShowDeleteModal(false);
+      setUserToDelete(null);
+      fetchDashboardData();
+    } catch (error: any) {
+      if (error.response?.status === 401 || error.response?.status === 403) {
         toast.error("Session expired. Please log in again.");
         logout();
         window.location.href = "/auth/login";
         return;
       }
-
-      if (response.ok) {
-        toast.success("User deleted successfully!");
-        setShowDeleteModal(false);
-        setUserToDelete(null);
-        fetchDashboardData();
-      } else {
-        let message = "Failed to delete user";
-        try {
-          const data = await response.json();
-          message = data?.message || message;
-        } catch {
-          // ignore parsing error
-        }
-        toast.error(message);
-      }
-    } catch (error: any) {
-      toast.error(error?.message || "Failed to delete user");
+      
+      const errorMessage = error.response?.data?.message || error.message || "Failed to delete user";
+      toast.error(errorMessage);
     }
   };
 
-  const handleLogout = () => {
-    logout();
-    window.location.href = "/auth/login";
+  const handleLogout = async () => {
+    await logout();
+    router.push("/auth/login");
   };
 
   const filteredUsers = users.filter((user) => {
-    // Exclude admin users from the list
+
     if (user.role === "ADMIN") return false;
     
-    // Apply role filter
+
     let roleMatch = true;
     if (filter === "PENDING") {
       roleMatch = user.role === "DOCTOR" && !user.isVerified;
@@ -311,7 +208,6 @@ export default function AdminDashboardPage() {
       roleMatch = user.role === filter;
     }
 
-    // Apply search filter
     const searchLower = searchTerm.toLowerCase();
     const searchMatch = searchTerm === "" || 
       `${user.firstName} ${user.lastName}`.toLowerCase().includes(searchLower) ||
@@ -358,7 +254,7 @@ export default function AdminDashboardPage() {
             Logout
           </button>
         </div>
-      {/* Stats Grid */}
+      {}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white rounded-2xl p-6 shadow border border-gray-100">
           <div className="flex items-center justify-between">
@@ -406,14 +302,14 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* Users Management Panel */}
+      {}
       <div className="bg-white rounded-2xl shadow border border-gray-100">
-        {/* Panel Header */}
+        {}
         <div className="px-6 py-5 border-b border-gray-200">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <h2 className="text-xl font-bold text-gray-900">User Management</h2>
             <div className="flex flex-col sm:flex-row gap-3">
-              {/* Search */}
+              {}
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <input
@@ -424,7 +320,7 @@ export default function AdminDashboardPage() {
                   className="pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition w-full sm:w-64"
                 />
               </div>
-              {/* Filters */}
+              {}
               <div className="flex gap-2">
                 <button
                   onClick={() => setFilter("ALL")}
@@ -470,7 +366,7 @@ export default function AdminDashboardPage() {
             </div>
           </div>
         </div>
-        {/* Table */}
+        {}
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
@@ -510,7 +406,7 @@ export default function AdminDashboardPage() {
                       <div className="flex items-center gap-3">
                         {user.avatar ? (
                           <img
-                            src={user.avatar.startsWith('http') ? user.avatar : `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'}${user.avatar}`}
+                            src={user.avatar.startsWith('http') ? user.avatar : `${process.env.NEXT_PUBLIC_BASE_URL || 'https://localhost:8443'}${user.avatar}`}
                             alt={`${user.firstName} ${user.lastName}`}
                             className="h-12 w-12 rounded-full object-cover ring-2 ring-gray-200"
                             referrerPolicy="no-referrer"
@@ -644,7 +540,7 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* User Detail Modal */}
+      {}
       {showUserModal && selectedUser && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-700">
@@ -659,11 +555,11 @@ export default function AdminDashboardPage() {
             </div>
             
             <div className="p-6 space-y-6">
-              {/* Avatar and Basic Info */}
+              {}
               <div className="flex items-center gap-4 pb-6 border-b border-gray-700">
                 {selectedUser.avatar ? (
                   <img
-                    src={selectedUser.avatar.startsWith('http') ? selectedUser.avatar : `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'}${selectedUser.avatar}`}
+                    src={selectedUser.avatar.startsWith('http') ? selectedUser.avatar : `${process.env.NEXT_PUBLIC_BASE_URL || 'https://localhost:8443'}${selectedUser.avatar}`}
                     alt={`${selectedUser.firstName} ${selectedUser.lastName}`}
                     className="h-20 w-20 rounded-full object-cover ring-4 ring-gray-700"
                     referrerPolicy="no-referrer"
@@ -683,7 +579,7 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
-              {/* Contact Information */}
+              {}
               <div>
                 <h5 className="text-sm font-semibold text-gray-400 uppercase mb-3">Contact Information</h5>
                 <div className="space-y-3">
@@ -700,7 +596,7 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
-              {/* Doctor Specific Info */}
+              {}
               {selectedUser.role === "DOCTOR" && (
                 <div>
                   <h5 className="text-sm font-semibold text-gray-400 uppercase mb-3">Professional Information</h5>
@@ -739,7 +635,7 @@ export default function AdminDashboardPage() {
                 </div>
               )}
 
-              {/* Status */}
+              {}
               <div>
                 <h5 className="text-sm font-semibold text-gray-400 uppercase mb-3">Status</h5>
                 <div className="flex gap-3">
@@ -773,7 +669,7 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* Document Viewer Modal */}
+      {}
       {showDocumentModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-gray-800 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden border border-gray-700">
@@ -801,7 +697,7 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {}
       {showDeleteModal && userToDelete && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full border border-red-500/50">

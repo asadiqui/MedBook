@@ -27,7 +27,7 @@ export default function ChatHeader({ otherUser, isTyping, bookingId }: ChatHeade
 
   return (
     <div className="bg-white px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-      {/* User Info */}
+      {}
       <div className="flex items-center gap-4">
         <div className="relative">
           <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
@@ -55,7 +55,7 @@ export default function ChatHeader({ otherUser, isTyping, bookingId }: ChatHeade
         </div>
       </div>
 
-      {/* Actions */}
+      {}
       <div className="flex items-center gap-2">
         {isDoctor ? (
           <></>

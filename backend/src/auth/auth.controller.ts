@@ -10,8 +10,9 @@ import {
   Res,
   UseInterceptors,
   UploadedFile,
+  UnauthorizedException,
 } from '@nestjs/common';
-import { Response } from 'express';
+import { Response, Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto, ChangePasswordDto, ForgotPasswordDto, ResetPasswordDto, Enable2FADto, Verify2FADto, VerifyEmailDto } from './dto';
@@ -27,6 +28,49 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
   ) {}
+
+  private getCookieOptions(maxAgeMs?: number) {
+    const isProd = this.configService.get<string>('NODE_ENV') === 'production';
+    return {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'lax' as const,
+      maxAge: maxAgeMs,
+      path: '/',
+    };
+  }
+
+  private parseExpiryToMs(value: string): number {
+    const match = /^\s*(\d+)\s*([smhd])\s*$/i.exec(value || '');
+    if (!match) {
+      return 7 * 24 * 60 * 60 * 1000;
+    }
+
+    const amount = Number(match[1]);
+    const unit = match[2].toLowerCase();
+
+    const multipliers: Record<string, number> = {
+      s: 1000,
+      m: 60 * 1000,
+      h: 60 * 60 * 1000,
+      d: 24 * 60 * 60 * 1000,
+    };
+
+    return amount * (multipliers[unit] ?? 7 * 24 * 60 * 60 * 1000);
+  }
+
+  private setAuthCookies(res: Response, accessToken: string, refreshToken: string) {
+    const accessExpiry = this.configService.get<string>('JWT_ACCESS_EXPIRY', '15m');
+    const refreshExpiry = this.configService.get<string>('JWT_REFRESH_EXPIRY', '7d');
+
+    res.cookie('accessToken', accessToken, this.getCookieOptions(this.parseExpiryToMs(accessExpiry)));
+    res.cookie('refreshToken', refreshToken, this.getCookieOptions(this.parseExpiryToMs(refreshExpiry)));
+  }
+
+  private clearAuthCookies(res: Response) {
+    res.clearCookie('accessToken', this.getCookieOptions());
+    res.clearCookie('refreshToken', this.getCookieOptions());
+  }
 
   @Public()
   @Post('register')
@@ -44,8 +88,12 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.login(dto);
+    if (result.tokens) {
+      this.setAuthCookies(res, result.tokens.accessToken, result.tokens.refreshToken);
+    }
+    return result;
   }
 
   @Post('logout')
@@ -53,15 +101,32 @@ export class AuthController {
   async logout(
     @CurrentUser('id') userId: string,
     @Body('refreshToken') refreshToken: string,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
   ) {
-    return this.authService.logout(userId, refreshToken);
+    const token = refreshToken || req.cookies?.refreshToken;
+    if (!token) {
+      throw new UnauthorizedException('Refresh token is required');
+    }
+    this.clearAuthCookies(res);
+    return this.authService.logout(userId, token);
   }
 
   @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  async refreshTokens(@Body('refreshToken') refreshToken: string) {
-    return this.authService.refreshTokens(refreshToken);
+  async refreshTokens(
+    @Body('refreshToken') refreshToken: string,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const token = refreshToken || req.cookies?.refreshToken;
+    if (!token) {
+      throw new UnauthorizedException('Refresh token is required');
+    }
+    const tokens = await this.authService.refreshTokens(token);
+    this.setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
+    return tokens;
   }
 
   @Get('me')
@@ -96,7 +161,6 @@ export class AuthController {
   @Get('google')
   @UseGuards(GoogleAuthGuard)
   async googleAuth() {
-    // Passport GoogleAuthGuard handles the redirect
   }
 
   @Public()
@@ -105,13 +169,17 @@ export class AuthController {
   async googleAuthCallback(@Req() req: any, @Res() res: Response) {
     try {
       const result = await this.authService.googleLogin(req.user);
-      
-      const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
-      const redirectUrl = `${frontendUrl}/auth/callback?accessToken=${result.tokens.accessToken}&refreshToken=${result.tokens.refreshToken}`;
-      
+
+      if (result.tokens) {
+        this.setAuthCookies(res, result.tokens.accessToken, result.tokens.refreshToken);
+      }
+
+      const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'https://localhost:8443');
+      const redirectUrl = `${frontendUrl}/auth/callback?success=1`;
+
       return res.redirect(redirectUrl);
     } catch (error) {
-      const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
+      const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'https://localhost:8443');
       const errorMessage = encodeURIComponent(error.message || 'Authentication failed');
       return res.redirect(`${frontendUrl}/auth/login?error=${errorMessage}`);
     }

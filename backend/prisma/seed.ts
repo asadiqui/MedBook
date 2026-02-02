@@ -1,13 +1,14 @@
-
 import { PrismaClient, Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { seedUsers } from '../config/seedUsers';
+import { Logger } from '@nestjs/common';
 
 const prisma = new PrismaClient();
+const logger = new Logger('Seed');
 
 async function main() {
   if (process.env.SEED_DB !== 'true') {
-    console.log('ℹ️  Skipping seed (set SEED_DB=true to enable)');
+    logger.log('Skipping seed (set SEED_DB=true to enable)');
     return;
   }
 
@@ -16,7 +17,6 @@ async function main() {
   }
 
 
-  // Check if admin already exists
   const existingAdmin = await prisma.user.findFirst({
     where: { role: Role.ADMIN },
   });
@@ -34,15 +34,11 @@ async function main() {
         isEmailVerified: true,
       },
     });
-    console.log('✅ Admin account created successfully!');
-    console.log('   Email:', admin.email);
-    console.log('');
+    logger.log(`Admin account created successfully: ${admin.email}`);
   } else {
-    console.log('✅ Admin account already exists:', existingAdmin.email);
+    logger.log(`Admin account already exists: ${existingAdmin.email}`);
   }
 
-
-  // Check if doctor already exists
   const existingDoctor = await prisma.user.findFirst({
     where: { role: Role.DOCTOR },
   });
@@ -70,15 +66,11 @@ async function main() {
         isVerified: true,
       },
     });
-    console.log('✅ Doctor account created successfully!');
-    console.log('   Email:', doctor.email);
-    console.log('');
+    logger.log(`Doctor account created successfully: ${doctor.email}`);
   } else {
-    console.log('✅ Doctor account already exists:', existingDoctor.email);
+    logger.log(`Doctor account already exists: ${existingDoctor.email}`);
   }
 
-
-  // Check if patient already exists
   const existingPatient = await prisma.user.findFirst({
     where: { role: Role.PATIENT },
   });
@@ -98,26 +90,21 @@ async function main() {
         isEmailVerified: true,
       },
     });
-    console.log('✅ Patient account created successfully!');
-    console.log('   Email:', patient.email);
-    console.log('');
+    logger.log(`Patient account created successfully: ${patient.email}`);
   } else {
-    console.log('✅ Patient account already exists:', existingPatient.email);
+    logger.log(`Patient account already exists: ${existingPatient.email}`);
   }
 
-  // Create some availability for the doctor
   const doctorForAvailability = await prisma.user.findFirst({
     where: { role: Role.DOCTOR },
   });
 
   if (doctorForAvailability) {
-    // Check if availability already exists
     const existingAvailability = await prisma.availability.findFirst({
       where: { doctorId: doctorForAvailability.id },
     });
 
     if (!existingAvailability) {
-      // Create availability for next day only
       const availabilities = [];
       const today = new Date();
       const date = new Date(today);
@@ -125,7 +112,7 @@ async function main() {
 
       availabilities.push({
         doctorId: doctorForAvailability.id,
-        date: date.toISOString().split('T')[0], // YYYY-MM-DD format
+        date: date.toISOString().split('T')[0],
         startTime: '09:00',
         endTime: '17:00',
       });
@@ -136,17 +123,16 @@ async function main() {
         });
       }
 
-      console.log(`✅ Created ${availabilities.length} availability slots for the doctor`);
-      console.log('');
+      logger.log(`Created ${availabilities.length} availability slots for the doctor`);
     } else {
-      console.log('✅ Doctor availability already exists');
+      logger.log('Doctor availability already exists');
     }
   }
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Seeding failed:', e);
+    logger.error('Seeding failed', e instanceof Error ? e.stack : `${e}`);
     process.exit(1);
   })
   .finally(async () => {

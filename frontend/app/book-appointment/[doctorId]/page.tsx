@@ -9,6 +9,7 @@ import { getAvailabilityCalendar } from "@/lib/api/availability";
 import { createBooking, getPatientBookings, getPublicBookedSlots, Booking, PublicBookedSlot } from "@/lib/api/booking";
 import { resolveAvatarUrl } from "@/lib/utils/avatar";
 import { getInitialsFromName } from "@/lib/utils/formatting";
+import { timeToMinutes, minutesToTime, formatTime, formatDate } from "@/lib/utils/dateTime";
 
 type AvailabilitySlot = {
   id: string;
@@ -57,14 +58,6 @@ function ClockIcon(props: React.SVGProps<SVGSVGElement>) {
       <path d="M12 6v6l4 2" />
     </svg>
   );
-}
-
-function formatTime(timeString: string): string {
-  const [hours, minutes] = timeString.split(":");
-  const hour = parseInt(hours);
-  const ampm = hour >= 12 ? "PM" : "AM";
-  const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-  return `${displayHour}:${minutes} ${ampm}`;
 }
 
 type ToastState = { open: false } | { open: true; type: "success" | "error"; message: string };
@@ -185,7 +178,6 @@ export default function BookAppointmentPage() {
 
       setAvailabilitySlots(slots);
 
-      // Fetch all booked slots (public endpoint)
       try {
         const bookedSlotsData = await getPublicBookedSlots(doctorId);
         setBookedSlots(bookedSlotsData || []);
@@ -221,17 +213,6 @@ export default function BookAppointmentPage() {
   useEffect(() => {
     fetchAvailability();
   }, [fetchAvailability]);
-
-  const timeToMinutes = (time: string): number => {
-    const [h, m] = time.split(":").map(Number);
-    return h * 60 + m;
-  };
-
-  const minutesToTime = (minutes: number): string => {
-    const h = Math.floor(minutes / 60);
-    const m = minutes % 60;
-    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-  };
 
   const availableDates = useMemo(() => {
     const dateSet = new Set(availabilitySlots.map((a) => a.date));
@@ -295,12 +276,11 @@ export default function BookAppointmentPage() {
         return startMinutes >= bookStart && endMinutes <= bookEnd;
       });
 
-      // Check if this slot is booked by someone else
       const myBookingIds = new Set(dateBookings.map(b => b.id));
       const otherBooking = dateBookedSlots.find((b) => {
         const bookStart = timeToMinutes(b.startTime);
         const bookEnd = timeToMinutes(b.endTime);
-        // Slot overlaps with a booked time and it's not my booking
+
         return !myBookingIds.has(b.id) && startMinutes >= bookStart && endMinutes <= bookEnd;
       });
 
@@ -371,7 +351,7 @@ export default function BookAppointmentPage() {
       setBookedSlots(bookedSlotsData || []);
       setSelectedSlot(null);
     } catch (error: any) {
-      // Extract the error message from the API response
+
       const errorMessage = 
         error?.response?.data?.message || 
         error?.response?.data?.error ||
@@ -428,7 +408,7 @@ export default function BookAppointmentPage() {
               <div className="flex items-start gap-6">
                 <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-blue-100 to-blue-200 ring-2 ring-white shadow-sm">
                   {doctor.avatar ? (
-                    // eslint-disable-next-line @next/next/no-img-element
+
                     <img src={resolveAvatarUrl(doctor.avatar)} alt={doctor.name} className="h-full w-full object-cover" />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-2xl font-bold text-blue-700">

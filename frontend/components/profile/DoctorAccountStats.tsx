@@ -23,7 +23,7 @@ export const DoctorAccountStats: React.FC<DoctorAccountStatsProps> = ({ userData
 
       <div className="p-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          {/* Email Status */}
+          {}
           <div className="text-center p-4 bg-gray-50 rounded-lg">
             <div className={`inline-flex items-center justify-center w-10 h-10 rounded-full mb-2 ${userData.isEmailVerified ? 'bg-green-100' : 'bg-yellow-100'}`}>
               <Mail className={`h-5 w-5 ${userData.isEmailVerified ? 'text-green-600' : 'text-yellow-600'}`} />
@@ -34,7 +34,7 @@ export const DoctorAccountStats: React.FC<DoctorAccountStatsProps> = ({ userData
             </p>
           </div>
 
-          {/* Approval Status */}
+          {}
           <div className="text-center p-4 bg-gray-50 rounded-lg">
             <div className={`inline-flex items-center justify-center w-10 h-10 rounded-full mb-2 ${doctorData.isVerified ? 'bg-green-100' : 'bg-yellow-100'}`}>
               <Award className={`h-5 w-5 ${doctorData.isVerified ? 'text-green-600' : 'text-yellow-600'}`} />
@@ -45,7 +45,7 @@ export const DoctorAccountStats: React.FC<DoctorAccountStatsProps> = ({ userData
             </p>
           </div>
 
-          {/* Last Login */}
+          {}
           <div className="text-center p-4 bg-gray-50 rounded-lg">
             <div className="inline-flex items-center justify-center w-10 h-10 rounded-full mb-2 bg-blue-100">
               <Clock className="h-5 w-5 text-blue-600" />
@@ -56,7 +56,7 @@ export const DoctorAccountStats: React.FC<DoctorAccountStatsProps> = ({ userData
             </p>
           </div>
 
-          {/* Member Since */}
+          {}
           <div className="text-center p-4 bg-gray-50 rounded-lg">
             <div className="inline-flex items-center justify-center w-10 h-10 rounded-full mb-2 bg-purple-100">
               <Calendar className="h-5 w-5 text-purple-600" />

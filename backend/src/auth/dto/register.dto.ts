@@ -1,9 +1,11 @@
 import { IsEmail, IsNotEmpty, IsString, MinLength, IsEnum, IsOptional, IsDateString, IsNumber, Validate, ValidationArguments, ValidatorConstraint, ValidatorConstraintInterface } from 'class-validator';
+import { Type } from 'class-transformer';
+import { Role, Gender } from '@prisma/client';
 
 @ValidatorConstraint({ name: 'IsNotFutureDate', async: false })
 export class IsNotFutureDate implements ValidatorConstraintInterface {
   validate(dateString: string, args: ValidationArguments) {
-    if (!dateString) return true; // Let @IsOptional handle empty values
+    if (!dateString) return true;
     const date = new Date(dateString);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -18,7 +20,7 @@ export class IsNotFutureDate implements ValidatorConstraintInterface {
 @ValidatorConstraint({ name: 'IsAtLeast18', async: false })
 export class IsAtLeast18 implements ValidatorConstraintInterface {
   validate(dateString: string, args: ValidationArguments) {
-    if (!dateString) return true; // Let @IsOptional handle empty values
+    if (!dateString) return true;
     const birthDate = new Date(dateString);
     const today = new Date();
     let age = today.getFullYear() - birthDate.getFullYear();
@@ -33,7 +35,6 @@ export class IsAtLeast18 implements ValidatorConstraintInterface {
     return 'You must be at least 18 years old to register';
   }
 }
-import { Role, Gender } from '@prisma/client';
 
 export class RegisterDto {
   @IsEmail({}, { message: 'Please provide a valid email address' })
@@ -85,6 +86,7 @@ export class RegisterDto {
 
   @IsNumber()
   @IsOptional()
+  @Type(() => Number)
   yearsOfExperience?: number;
 
   @IsString()
@@ -101,6 +103,7 @@ export class RegisterDto {
 
   @IsNumber()
   @IsOptional()
+  @Type(() => Number)
   consultationFee?: number;
   licenseDocument?: Express.Multer.File;
 }

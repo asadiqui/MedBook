@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
+import * as cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -9,11 +10,13 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
   
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: process.env.FRONTEND_URL || 'https://localhost:8443',
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
+
+  app.use(cookieParser());
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -28,7 +31,7 @@ async function bootstrap() {
   
   const port = process.env.PORT || 3001;
   await app.listen(port);
-  logger.log(`Backend running on http://localhost:${port}`);
-  logger.log(`API available at http://localhost:${port}/api`);
+  logger.log('Backend running on https://localhost:8443');
+  logger.log('API available at https://localhost:8443/api');
 }
 bootstrap();

@@ -13,7 +13,6 @@ import {
   getPatientBookings,
 } from "@/lib/api/booking";
 
-// Custom hook for managing cleared appointments with localStorage
 function useClearedAppointments() {
   const [clearedIds, setClearedIds] = useState<Set<string>>(new Set());
 
@@ -25,7 +24,7 @@ function useClearedAppointments() {
         setClearedIds(new Set(JSON.parse(stored)));
       }
     } catch {
-      // Ignore localStorage errors
+
     }
   }, []);
 
@@ -36,7 +35,7 @@ function useClearedAppointments() {
       try {
         localStorage.setItem('clearedAppointments', JSON.stringify(Array.from(updated)));
       } catch {
-        // Ignore localStorage errors
+
       }
       return updated;
     });
@@ -114,7 +113,6 @@ export default function DashboardPage() {
     }
   }, [user, isPatient, isDoctor, isBootstrapping]);
 
-  // Filter out cleared appointments
   const filteredBookings = useMemo(() => filterCleared(bookings), [bookings, filterCleared]);
 
   const upcomingPatient = useMemo(() => {

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import api from '@/lib/api';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -26,6 +26,7 @@ interface User {
   isActive: boolean;
   isEmailVerified: boolean;
   isOAuth: boolean;
+  isTwoFactorEnabled?: boolean;
   isVerified?: boolean;
   createdAt?: string;
   lastLoginAt?: string;
@@ -33,213 +34,91 @@ interface User {
 
 interface AuthState {
   user: User | null;
-  accessToken: string | null;
-  refreshToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  hasHydrated: boolean;
   isBootstrapping: boolean;
+  authChecked: boolean;
   setUser: (user: User | null) => void;
-  setTokens: (accessToken: string | null, refreshToken: string | null) => void;
   setLoading: (loading: boolean) => void;
-  setHasHydrated: (hasHydrated: boolean) => void;
   setBootstrapping: (isBootstrapping: boolean) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   initializeAuth: () => Promise<void>;
 }
 
-// Create the store with proper SSR handling
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set, get) => ({
+let authCheckPromise: Promise<void> | null = null;
+
+export const useAuthStore = create<AuthState>((set, get) => ({
+  user: null,
+  isAuthenticated: false,
+  isLoading: false,
+  isBootstrapping: true,
+  authChecked: false,
+
+  setUser: (user) => {
+    set({ user, isAuthenticated: !!user });
+  },
+
+  setLoading: (loading) => {
+    set({ isLoading: loading });
+  },
+
+  setBootstrapping: (isBootstrapping) => {
+    set({ isBootstrapping });
+  },
+
+  logout: async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch (error) {
+
+    }
+    
+    set({
       user: null,
-      accessToken: null,
-      refreshToken: null,
       isAuthenticated: false,
       isLoading: false,
-      hasHydrated: false,
-      isBootstrapping: true,
+      isBootstrapping: false,
+      authChecked: true,
+    });
+  },
 
-      setUser: (user) => {
-        set({ user, isAuthenticated: !!user });
-      },
+  checkAuth: async () => {
+    if (authCheckPromise) {
+      return authCheckPromise;
+    }
 
-      setTokens: (accessToken, refreshToken) => {
-        set({ accessToken, refreshToken });
-        if (accessToken) {
-          localStorage.setItem('accessToken', accessToken);
-        } else {
-          localStorage.removeItem('accessToken');
-        }
-        if (refreshToken) {
-          localStorage.setItem('refreshToken', refreshToken);
-        } else {
-          localStorage.removeItem('refreshToken');
-        }
-        // Don't automatically check auth here to avoid race conditions
-      },
-
-      setLoading: (loading) => {
-        set({ isLoading: loading });
-      },
-
-      setHasHydrated: (hasHydrated) => {
-        set({ hasHydrated });
-      },
-
-      setBootstrapping: (isBootstrapping) => {
-        set({ isBootstrapping });
-      },
-
-      logout: () => {
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        set({
-          user: null,
-          accessToken: null,
-          refreshToken: null,
-          isAuthenticated: false,
-          isLoading: false,
-        });
-      },
-
-      checkAuth: async () => {
-        let { accessToken, refreshToken } = get();
-
-        if (!accessToken) {
-          const storedAccessToken = localStorage.getItem('accessToken');
-          const storedRefreshToken = localStorage.getItem('refreshToken');
-          if (storedAccessToken) {
-            get().setTokens(storedAccessToken, storedRefreshToken);
-            accessToken = storedAccessToken;
-            refreshToken = storedRefreshToken;
-          }
-        }
-
-        if (!accessToken) {
-          set({ isAuthenticated: false, user: null });
+    authCheckPromise = (async () => {
+      try {
+        set({ isLoading: true });
+        
+        const response = await api.get('/auth/me');
+        
+        if (response.status === 304) {
+          const currentUser = get().user;
+          set({ user: currentUser, isAuthenticated: !!currentUser, isBootstrapping: false });
           return;
         }
 
-        try {
-          let tokenExpired = false;
-          try {
-            const base64Url = accessToken.split('.')[1] || '';
-            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-            const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
-            const payload = JSON.parse(atob(padded));
-            const currentTime = Date.now() / 1000;
-            tokenExpired = payload.exp && payload.exp < currentTime;
-          } catch (error) {
-            // If parsing fails, fall back to server validation
-            tokenExpired = false;
-          }
-
-          const refreshAccessToken = async () => {
-            const refresh = refreshToken || localStorage.getItem('refreshToken');
-            if (!refresh) return null;
-            const response = await fetch(`${API_URL}/auth/refresh`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ refreshToken: refresh }),
-            });
-            if (!response.ok) return null;
-            const data = await response.json();
-            if (data?.accessToken && data?.refreshToken) {
-              get().setTokens(data.accessToken, data.refreshToken);
-              return data.accessToken as string;
-            }
-            return null;
-          };
-
-          if (tokenExpired) {
-            const refreshedToken = await refreshAccessToken();
-            if (!refreshedToken) {
-              get().logout();
-              return;
-            }
-            accessToken = refreshedToken;
-          }
-
-          // Only fetch user data if we don't have it
-          if (!get().user) {
-            set({ isLoading: true });
-            try {
-              const response = await fetch(
-                `${API_URL}/auth/me`,
-                {
-                  headers: {
-                    Authorization: `Bearer ${accessToken}`,
-                  },
-                }
-              );
-
-              if (response.ok) {
-                const userData = await response.json();
-                get().setUser(userData);
-              } else if (response.status === 401) {
-                const refreshedToken = await refreshAccessToken();
-                if (refreshedToken) {
-                  const retry = await fetch(`${API_URL}/auth/me`, {
-                    headers: { Authorization: `Bearer ${refreshedToken}` },
-                  });
-                  if (retry.ok) {
-                    const userData = await retry.json();
-                    get().setUser(userData);
-                  } else {
-                    get().logout();
-                    return;
-                  }
-                } else {
-                  get().logout();
-                  return;
-                }
-              }
-            } catch (error) {
-              // Don't logout on network errors
-            } finally {
-              set({ isLoading: false });
-            }
-          }
-
-          set({ isAuthenticated: true });
-        } catch (error) {
-          get().logout();
+        const userData = response.data;
+        set({ user: userData, isAuthenticated: true, isBootstrapping: false });
+      } catch (error: any) {
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          set({ user: null, isAuthenticated: false, isBootstrapping: false });
+        } else {
+          const currentUser = get().user;
+          set({ user: currentUser, isAuthenticated: !!currentUser, isBootstrapping: false });
         }
-      },
+      } finally {
+        set({ isLoading: false, authChecked: true });
+        authCheckPromise = null;
+      }
+    })();
 
-      initializeAuth: async () => {
-        let { accessToken, refreshToken } = get();
-        if (!accessToken) {
-          const storedAccessToken = localStorage.getItem('accessToken');
-          const storedRefreshToken = localStorage.getItem('refreshToken');
-          if (storedAccessToken) {
-            get().setTokens(storedAccessToken, storedRefreshToken);
-            accessToken = storedAccessToken;
-            refreshToken = storedRefreshToken;
-          }
-        }
-        if (accessToken && !localStorage.getItem('accessToken')) {
-          localStorage.setItem('accessToken', accessToken);
-        }
-        if (refreshToken && !localStorage.getItem('refreshToken')) {
-          localStorage.setItem('refreshToken', refreshToken);
-        }
-        if (accessToken && !get().user) {
-          await get().checkAuth();
-        }
-      },
-    }),
-    {
-      name: 'auth-storage',
-      storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({
-        accessToken: state.accessToken,
-        refreshToken: state.refreshToken,
-      }),
-      // Skip hydration to prevent automatic API calls during SSR
-      skipHydration: true,
-    }
-  )
-);
+    return authCheckPromise;
+  },
+
+  initializeAuth: async () => {
+    await get().checkAuth();
+  },
+}));

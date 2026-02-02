@@ -8,7 +8,6 @@ interface SecuritySettingsProps {
   isOAuthUser: boolean;
   twoFactorEnabled: boolean;
   lastPasswordChange: string;
-  accessToken: string | null;
   onPasswordChangeClick: () => void;
   on2FAStatusChange: (enabled: boolean) => void;
 }
@@ -17,7 +16,6 @@ export const SecuritySettings: React.FC<SecuritySettingsProps> = ({
   isOAuthUser,
   twoFactorEnabled,
   lastPasswordChange,
-  accessToken,
   onPasswordChangeClick,
   on2FAStatusChange,
 }) => {
@@ -37,15 +35,15 @@ export const SecuritySettings: React.FC<SecuritySettingsProps> = ({
   } = use2FA();
 
   const handleEnableClick = () => {
-    handleEnable2FA(accessToken);
+    handleEnable2FA();
   };
 
   const handleVerifyClick = () => {
-    handleVerify2FA(accessToken, () => on2FAStatusChange(true));
+    handleVerify2FA(() => on2FAStatusChange(true));
   };
 
   const handleDisableClick = () => {
-    handleDisable2FA(accessToken, () => on2FAStatusChange(false));
+    handleDisable2FA(() => on2FAStatusChange(false));
   };
 
   return (
@@ -57,7 +55,7 @@ export const SecuritySettings: React.FC<SecuritySettingsProps> = ({
         </div>
 
         <div className="p-6 space-y-4">
-          {/* Password */}
+          {}
           {!isOAuthUser && (
             <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
               <div className="flex items-center gap-4">
@@ -78,7 +76,7 @@ export const SecuritySettings: React.FC<SecuritySettingsProps> = ({
             </div>
           )}
 
-          {/* Two-Factor Authentication */}
+          {}
           <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
             <div className="flex items-center gap-4 flex-1">
               <div className="bg-white p-2 rounded-lg">
@@ -113,7 +111,7 @@ export const SecuritySettings: React.FC<SecuritySettingsProps> = ({
         </div>
       </div>
 
-      {/* 2FA Enable Modal */}
+      {}
       {show2FAModal && (
         <Modal isOpen={show2FAModal} onClose={() => setShow2FAModal(false)} title="Enable Two-Factor Authentication">
           <div className="text-center mb-6">
@@ -155,7 +153,7 @@ export const SecuritySettings: React.FC<SecuritySettingsProps> = ({
         </Modal>
       )}
 
-      {/* 2FA Disable Modal */}
+      {}
       {showDisable2FAModal && (
         <Modal isOpen={showDisable2FAModal} onClose={() => setShowDisable2FAModal(false)} title="Disable Two-Factor Authentication">
           <div className="text-center mb-6">

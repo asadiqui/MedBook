@@ -12,7 +12,6 @@ import ChatSidebar from "@/components/chat/ChatSidebar";
 import ChatHeader from "@/components/chat/ChatHeader";
 import ChatMessages from "@/components/chat/ChatMessages";
 import ChatInput from "@/components/chat/ChatInput";
-import QuickReplies from "@/components/chat/QuickReplies";
 
 interface Message {
   id: string;
@@ -68,9 +67,9 @@ export default function ChatPage() {
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Auth check on mount
+
   useEffect(() => {
-    // Only allow authenticated users
+
     if (requireAuth && requireAuth()) {
       setAuthChecked(true);
     }
@@ -116,7 +115,7 @@ export default function ChatPage() {
     onMessageRead: handleMessageRead,
   });
 
-  // Fetch chats
+
   useEffect(() => {
     const fetchChats = async () => {
       try {
@@ -130,7 +129,7 @@ export default function ChatPage() {
     if (user) fetchChats();
   }, [user]);
 
-  // Fetch messages for selected chat
+
   useEffect(() => {
     const fetchMessages = async () => {
       if (!selectedBookingId) return;
@@ -166,6 +165,15 @@ export default function ChatPage() {
     typingTimeoutRef.current = setTimeout(() => sendTyping(false), 2000);
   };
 
+
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const isAuthLoading = !authChecked || !user;
 
   if (isAuthLoading || isLoading) {
@@ -180,20 +188,20 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Sidebar */}
+      {}
       <Sidebar role={user?.role || 'PATIENT'} />
-      {/* Top Header */}
+      {}
       <TopHeader title="Chat" />
-      {/* Main Content (offset by sidebar width and top nav) */}
+      {}
       <div className="flex flex-1 ml-64 mt-16">
-        {/* Chat Sidebar */}
+        {}
         <ChatSidebar
           chats={chats}
           selectedBookingId={selectedBookingId}
           onSelectChat={setSelectedBookingId}
           isConnected={isConnected}
         />
-        {/* Chat Area */}
+        {}
         <div className="flex-1 flex flex-col">
           {selectedBookingId && otherUser ? (
             <>
@@ -206,7 +214,6 @@ export default function ChatPage() {
                 messages={messages}
                 currentUserId={user?.id || ''}
               />
-              <QuickReplies onSelectReply={handleSendMessage} />
               <ChatInput
                 onSendMessage={handleSendMessage}
                 onTyping={handleTypingEvent}

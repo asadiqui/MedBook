@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Trash2, X, Check } from "lucide-react";
 import toast from "react-hot-toast";
 import { DashboardLayout } from "@/components/shared/DashboardLayout";
@@ -14,16 +15,17 @@ import { DoctorAccountStats } from "@/components/profile/DoctorAccountStats";
 import { ChangePasswordModal } from "@/components/profile/ChangePasswordModal";
 import { DeleteAccountModal } from "@/components/profile/DeleteAccountModal";
 import { resolveAvatarUrl } from "@/lib/utils/avatar";
+import api from "@/lib/api";
 
 export const dynamic = 'force-dynamic';
 
 export default function DoctorProfilePage() {
-  const { setUser, user, logout } = useAuthStore();
-  const { requireAuth, accessToken, isBootstrapping } = useAuth();
+  const { user, logout, checkAuth } = useAuthStore();
+  const { requireAuth, isBootstrapping } = useAuth();
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isOAuthUser, setIsOAuthUser] = useState(false);
-  const hasShownErrorToast = useRef(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
@@ -86,122 +88,73 @@ export default function DoctorProfilePage() {
 
   useEffect(() => {
     if (isBootstrapping) return;
-    fetchUserData();
-  }, [isBootstrapping]);
+    
+    const authResult = requireAuth(['DOCTOR']);
 
-  const fetchUserData = async () => {
-    // Check authentication first
-    if (!requireAuth(['DOCTOR'])) {
-      setLoading(false);
+    if (authResult !== true) {
+      if (authResult === false) {
+        setLoading(false);
+      }
       return;
     }
 
-    try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/auth/me`,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
+    if (user) {
+      const userData = {
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        email: user.email || "",
+        phone: user.phone || "",
+        gender: user.gender || "MALE",
+        dateOfBirth: user.dateOfBirth ? user.dateOfBirth.split('T')[0] : "",
+        bio: user.bio || "",
+        avatar: user.avatar || null,
+        isEmailVerified: user.isEmailVerified || false,
+        createdAt: user.createdAt || "",
+        lastLoginAt: user.lastLoginAt || "",
+      };
 
-      if (response.status === 401) {
-        if (!hasShownErrorToast.current) {
-          hasShownErrorToast.current = true;
-          const errorData = await response.json().catch(() => ({ message: 'Unauthorized' }));
-          toast.error(errorData.message || 'Your session has expired. Please log in again.');
-          setTimeout(() => {
-            window.location.href = "/auth/login";
-          }, 2000);
-        }
-        return;
-      }
+      setUserData(userData);
+      setDoctorData({
+        specialty: user.specialty || "",
+        licenseNumber: user.licenseNumber || "",
+        licenseDocument: user.licenseDocument || null,
+        consultationFee: user.consultationFee || 0,
+        affiliation: user.affiliation || "",
+        yearsOfExperience: user.yearsOfExperience || 0,
+        clinicAddress: user.clinicAddress || "",
+        clinicContactPerson: user.clinicContactPerson || "",
+        clinicPhone: user.clinicPhone || "",
+        isVerified: user.isVerified || false,
+      });
 
-      if (response.ok) {
-        const data = await response.json();
-        const user = {
-          id: data.id,
-          firstName: data.firstName || "",
-          lastName: data.lastName || "",
-          email: data.email || "",
-          phone: data.phone || "",
-          gender: data.gender || "MALE",
-          dateOfBirth: data.dateOfBirth ? data.dateOfBirth.split('T')[0] : "",
-          bio: data.bio || "",
-          avatar: data.avatar || null,
-          isEmailVerified: data.isEmailVerified || false,
-          isActive: data.isActive || true,
-          isOAuth: data.isOAuth || false,
-          role: data.role || "DOCTOR",
-          specialty: data.specialty || "",
-          licenseNumber: data.licenseNumber || "",
-          licenseDocument: data.licenseDocument || null,
-          consultationFee: data.consultationFee || 0,
-          affiliation: data.affiliation || "",
-          yearsOfExperience: data.yearsOfExperience || 0,
-          clinicAddress: data.clinicAddress || "",
-          clinicContactPerson: data.clinicContactPerson || "",
-          clinicPhone: data.clinicPhone || "",
-          isVerified: data.isVerified || false,
-          createdAt: data.createdAt || "",
-          lastLoginAt: data.lastLoginAt || "",
-        };
-        const doctor = {
-          specialty: data.specialty || "",
-          licenseNumber: data.licenseNumber || "",
-          licenseDocument: data.licenseDocument || null,
-          consultationFee: data.consultationFee || 0,
-          affiliation: data.affiliation || "",
-          yearsOfExperience: data.yearsOfExperience || 0,
-          clinicAddress: data.clinicAddress || "",
-          clinicContactPerson: data.clinicContactPerson || "",
-          clinicPhone: data.clinicPhone || "",
-          isVerified: data.isVerified || false,
-        };
-        setUserData(user);
-        setDoctorData({
-          specialty: user.specialty || "",
-          licenseNumber: user.licenseNumber || "",
-          licenseDocument: user.licenseDocument || null,
-          consultationFee: user.consultationFee || 0,
-          affiliation: user.affiliation || "",
-          yearsOfExperience: user.yearsOfExperience || 0,
-          clinicAddress: user.clinicAddress || "",
-          clinicContactPerson: user.clinicContactPerson || "",
-          clinicPhone: user.clinicPhone || "",
-          isVerified: user.isVerified || false,
-        });
-        setUser(user); // Set user in global store
-        setEditData({
-          firstName: user.firstName,
-          lastName: user.lastName,
-          phone: user.phone,
-          gender: user.gender,
-          dateOfBirth: user.dateOfBirth,
-          bio: user.bio,
-          avatar: user.avatar,
-          specialty: user.specialty,
-          licenseNumber: user.licenseNumber,
-          licenseDocument: user.licenseDocument,
-          consultationFee: user.consultationFee,
-          affiliation: user.affiliation,
-          yearsOfExperience: user.yearsOfExperience,
-          clinicAddress: user.clinicAddress,
-          clinicContactPerson: user.clinicContactPerson,
-          clinicPhone: user.clinicPhone,
-        });
-        setIsOAuthUser(data.isOAuth || false);
-        setSecurityData({
-          lastPasswordChange: "2 months ago",
-          twoFactorEnabled: data.isTwoFactorEnabled || false,
-        });
-      }
-    } catch (error) {
-    } finally {
-      setLoading(false);
+      setEditData({
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        phone: userData.phone,
+        gender: userData.gender,
+        dateOfBirth: userData.dateOfBirth,
+        bio: userData.bio,
+        avatar: userData.avatar,
+        specialty: user.specialty || "",
+        licenseNumber: user.licenseNumber || "",
+        licenseDocument: user.licenseDocument || null,
+        consultationFee: user.consultationFee || 0,
+        affiliation: user.affiliation || "",
+        yearsOfExperience: user.yearsOfExperience || 0,
+        clinicAddress: user.clinicAddress || "",
+        clinicContactPerson: user.clinicContactPerson || "",
+        clinicPhone: user.clinicPhone || "",
+      });
+
+      setIsOAuthUser(user.isOAuth || false);
+      setSecurityData({
+        lastPasswordChange: "2 months ago",
+        twoFactorEnabled: user.isTwoFactorEnabled || false,
+      });
     }
-  };
+
+    setLoading(false);
+  }, [isBootstrapping, user]);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -213,39 +166,23 @@ export default function DoctorProfilePage() {
       const formData = new FormData();
       formData.append("avatar", file);
 
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/users/${user.id}/avatar`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: formData,
-        }
-      );
+      await api.post(`/users/${user.id}/avatar`, formData);
 
-      if (response.ok) {
-        const data = await response.json();
-        // Refresh user data to get the updated avatar
-        await fetchUserData();
-        toast.success("Avatar uploaded successfully!");
-      } else {
-        toast.error("Failed to upload avatar");
-      }
-    } catch (error) {
-      toast.error("Failed to upload avatar");
+      await checkAuth();
+      toast.success("Avatar uploaded successfully!");
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || "Failed to upload avatar";
+      toast.error(errorMessage);
     }
   };
 
-
   const handleAvatarUploadWrapper = (file: File) => {
-    // Create a synthetic event to match the expected signature
+
     const syntheticEvent = {
       target: { files: [file] }
     } as unknown as React.ChangeEvent<HTMLInputElement>;
     handleAvatarUpload(syntheticEvent);
   };
-
 
   const handleEditToggle = () => {
     if (isEditing) {
@@ -275,7 +212,7 @@ export default function DoctorProfilePage() {
     if (!user) return;
 
     try {
-      // Prepare update data, filtering out empty values
+
       const updateData: any = {
         firstName: editData.firstName,
         lastName: editData.lastName,
@@ -294,48 +231,36 @@ export default function DoctorProfilePage() {
       if (editData.clinicContactPerson) updateData.clinicContactPerson = editData.clinicContactPerson;
       if (editData.clinicPhone) updateData.clinicPhone = editData.clinicPhone;
 
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/users/${user.id}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify(updateData),
-        }
-      );
+      await api.patch(`/users/${user.id}`, updateData);
 
-      if (response.ok) {
-        setUserData((prev) => ({
-          ...prev,
-          firstName: editData.firstName,
-          lastName: editData.lastName,
-          phone: editData.phone,
-          gender: editData.gender,
-          dateOfBirth: editData.dateOfBirth,
-          bio: editData.bio,
-          avatar: editData.avatar,
-        }));
-        setDoctorData({
-          specialty: editData.specialty,
-          licenseNumber: editData.licenseNumber,
-          licenseDocument: editData.licenseDocument,
-          consultationFee: editData.consultationFee,
-          affiliation: editData.affiliation,
-          yearsOfExperience: editData.yearsOfExperience,
-          clinicAddress: editData.clinicAddress,
-          clinicContactPerson: editData.clinicContactPerson,
-          clinicPhone: editData.clinicPhone,
-          isVerified: doctorData.isVerified,
-        });
-        setIsEditing(false);
-        toast.success("Profile updated successfully!");
-      } else {
-        toast.error("Failed to update profile");
-      }
-    } catch (error) {
-      toast.error("Failed to update profile");
+      setUserData((prev) => ({
+        ...prev,
+        firstName: editData.firstName,
+        lastName: editData.lastName,
+        phone: editData.phone,
+        gender: editData.gender,
+        dateOfBirth: editData.dateOfBirth,
+        bio: editData.bio,
+        avatar: editData.avatar,
+      }));
+      setDoctorData({
+        specialty: editData.specialty,
+        licenseNumber: editData.licenseNumber,
+        licenseDocument: editData.licenseDocument,
+        consultationFee: editData.consultationFee,
+        affiliation: editData.affiliation,
+        yearsOfExperience: editData.yearsOfExperience,
+        clinicAddress: editData.clinicAddress,
+        clinicContactPerson: editData.clinicContactPerson,
+        clinicPhone: editData.clinicPhone,
+        isVerified: doctorData.isVerified,
+      });
+      setIsEditing(false);
+      await checkAuth();
+      toast.success("Profile updated successfully!");
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || "Failed to update profile";
+      toast.error(errorMessage);
     }
   };
 
@@ -343,11 +268,10 @@ export default function DoctorProfilePage() {
     setEditData({ ...editData, ...data });
   };
 
-  const handleLogout = () => {
-    logout();
-    window.location.href = "/auth/login";
+  const handleLogout = async () => {
+    await logout();
+    router.push("/auth/login");
   };
-
 
   const handleChangePassword = async () => {
     if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
@@ -366,31 +290,17 @@ export default function DoctorProfilePage() {
     }
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/auth/change-password`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            currentPassword: passwordData.currentPassword,
-            newPassword: passwordData.newPassword,
-          }),
-        }
-      );
+      await api.post("/auth/change-password", {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+      });
 
-      if (response.ok) {
-        setShowChangePasswordModal(false);
-        setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
-        toast.success("Password changed successfully");
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        toast.error(errorData.message || "Failed to change password");
-      }
-    } catch (error) {
-      toast.error("Failed to change password");
+      setShowChangePasswordModal(false);
+      setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      toast.success("Password changed successfully");
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || "Failed to change password";
+      toast.error(errorMessage);
     }
   };
 
@@ -403,26 +313,14 @@ export default function DoctorProfilePage() {
     if (!user) return;
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/users/${user.id}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
+      await api.delete(`/users/${user.id}`);
 
-      if (response.ok) {
-        toast.success("Account deleted successfully");
-        logout();
-        setTimeout(() => window.location.href = "/auth/login", 2000);
-      } else {
-        const error = await response.json();
-        toast.error(error.message || "Failed to delete account");
-      }
-    } catch (error) {
-      toast.error("Failed to delete account");
+      toast.success("Account deleted successfully");
+      logout();
+      setTimeout(() => window.location.href = "/auth/login", 2000);
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || "Failed to delete account";
+      toast.error(errorMessage);
     }
   };
 
@@ -459,12 +357,11 @@ export default function DoctorProfilePage() {
             isOAuthUser={isOAuthUser}
             twoFactorEnabled={securityData.twoFactorEnabled}
             lastPasswordChange={securityData.lastPasswordChange}
-            accessToken={accessToken}
             onPasswordChangeClick={() => setShowChangePasswordModal(true)}
             on2FAStatusChange={(enabled) => setSecurityData({ ...securityData, twoFactorEnabled: enabled })}
           />
 
-          {/* Preferences */}
+          {}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200">
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">Preferences</h2>
@@ -491,7 +388,7 @@ export default function DoctorProfilePage() {
         </div>
       )}
 
-      {/* Change Password Modal */}
+      {}
       {showChangePasswordModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
@@ -565,7 +462,7 @@ export default function DoctorProfilePage() {
         </div>
       )}
 
-      {/* Delete Account Modal */}
+      {}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">

@@ -1,6 +1,3 @@
-// config/seedUsers.ts
-// Centralized seed user credentials for security and maintainability
-
 export const seedUsers = {
   admin: {
     email: process.env.SEED_ADMIN_EMAIL || 'admin@MedBook.com',

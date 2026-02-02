@@ -23,8 +23,6 @@ services:
       dockerfile: Dockerfile
     container_name: MedBook-back
     restart: unless-stopped
-    ports:
-      - "3001:3001"
     volumes:
       - ./backend:/app
       - /app/node_modules
@@ -37,7 +35,7 @@ services:
         condition: service_healthy
     networks:
       - app-network
-    command: sh -c "npx prisma generate && npx prisma migrate deploy && if [ \"$SEED_DB\" = \"true\" ]; then npx prisma db seed; fi && npm run start:dev"
+    command: sh -c "npm run prisma:generate && npm run prisma:migrate && if [ \"$SEED_DB\" = \"true\" ]; then npm run prisma:seed; fi && npm run start:dev"
 
   frontend:
     build:
@@ -45,8 +43,6 @@ services:
       dockerfile: Dockerfile
     container_name: MedBook-front
     restart: unless-stopped
-    ports:
-      - "3000:3000"
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -54,6 +50,22 @@ services:
     env_file:
       - .env
     depends_on:
+      - backend
+    networks:
+      - app-network
+
+  nginx:
+    image: nginx:1.28.1-alpine
+    container_name: MedBook-nginx
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+      - "8443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - frontend
       - backend
     networks:
       - app-network

@@ -35,7 +35,7 @@ export class EmailService {
   }
 
   async sendVerificationEmail(email: string, token: string, isDoctorApproval: boolean = false): Promise<void> {
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'https://localhost:8443');
     const verificationUrl = `${frontendUrl}/auth/verify-email?token=${token}`;
 
     const html = `
@@ -59,7 +59,7 @@ export class EmailService {
   }
 
   async sendPasswordResetEmail(email: string, token: string): Promise<void> {
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'https://localhost:8443');
     const resetUrl = `${frontendUrl}/auth/reset-password?token=${token}`;
 
     const html = `

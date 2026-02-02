@@ -4,7 +4,7 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { useAuthStore } from "@/lib/store/auth";
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001";
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "https://localhost:8443";
 
 interface Message {
   id: string;
@@ -47,7 +47,6 @@ export const useSocket = (options: UseSocketOptions = {}) => {
   useEffect(() => {
     if (!user) return;
 
-    // Initialize socket connection
     socketRef.current = io(`${SOCKET_URL}/chat`, {
       transports: ["websocket", "polling"],
       autoConnect: true,
@@ -68,22 +67,18 @@ export const useSocket = (options: UseSocketOptions = {}) => {
       setIsConnected(false);
     });
 
-    // Listen for new messages
     socket.on("new_message", (message: Message) => {
       if (onNewMessage) onNewMessage(message);
     });
 
-    // Listen for typing events
     socket.on("user_typing", (data: { userId: string; isTyping: boolean }) => {
       if (onTyping) onTyping(data);
     });
 
-    // Listen for message read events
     socket.on("message_read", (message: Message) => {
       if (onMessageRead) onMessageRead(message);
     });
 
-    // Listen for all messages read event
     socket.on("all_messages_read", (data: { bookingId: string; userId: string }) => {
       if (onAllMessagesRead) onAllMessagesRead(data);
     });
@@ -94,10 +89,9 @@ export const useSocket = (options: UseSocketOptions = {}) => {
       }
       socket.disconnect();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [user, bookingId]);
 
-  // Send a message
   const sendMessage = useCallback((receiverId: string, content: string) => {
     if (!socketRef.current || !user) return;
     socketRef.current.emit("send_message", {
@@ -108,7 +102,6 @@ export const useSocket = (options: UseSocketOptions = {}) => {
     });
   }, [user, bookingId]);
 
-  // Send typing event
   const sendTyping = useCallback((isTyping: boolean) => {
     if (!socketRef.current || !user) return;
     socketRef.current.emit("typing", {
@@ -118,7 +111,6 @@ export const useSocket = (options: UseSocketOptions = {}) => {
     });
   }, [user, bookingId]);
 
-  // Mark all messages as read
   const markAllAsRead = useCallback(() => {
     if (!socketRef.current || !user || !bookingId) return;
     socketRef.current.emit("mark_all_read", {

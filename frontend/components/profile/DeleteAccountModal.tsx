@@ -4,11 +4,11 @@ import { useState } from "react";
 import { Trash2, X, AlertTriangle } from "lucide-react";
 import toast from "react-hot-toast";
 import { Modal } from "../shared/Modal";
+import api from "@/lib/api";
 
 interface DeleteAccountModalProps {
   isOpen: boolean;
   onClose: () => void;
-  accessToken: string | null;
   userId: string | null | undefined;
   onAccountDeleted: () => void;
 }
@@ -16,7 +16,6 @@ interface DeleteAccountModalProps {
 export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
   isOpen,
   onClose,
-  accessToken,
   userId,
   onAccountDeleted,
 }) => {
@@ -24,11 +23,6 @@ export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
 
   const handleDelete = async () => {
-    if (!accessToken) {
-      toast.error("Authentication token not available");
-      return;
-    }
-
     if (!userId) {
       toast.error("User ID not available");
       return;
@@ -42,25 +36,13 @@ export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
     setIsLoading(true);
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/users/${userId}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
-
-      if (response.ok) {
-        toast.success("Account deleted successfully");
-        onAccountDeleted();
-      } else {
-        const error = await response.json();
-        toast.error(error.message || "Failed to delete account");
-      }
+      await api.delete(`/users/${userId}`);
+      
+      toast.success("Account deleted successfully");
+      onAccountDeleted();
     } catch (error: any) {
-      toast.error("Failed to delete account");
+      const errorMessage = error.response?.data?.message || "Failed to delete account";
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }

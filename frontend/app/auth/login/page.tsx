@@ -1,18 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Eye, EyeOff, Mail, Lock, Shield } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Logo } from "@/components/ui/Logo";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useAuthStore } from "@/lib/store/auth";
+import api from "@/lib/api";
 
 export const dynamic = 'force-dynamic';
 
 export default function LoginPage() {
-  const { isAuthenticated, isBootstrapping, redirectBasedOnRole } = useAuth();
-  const { setTokens, checkAuth } = useAuthStore();
+  const { isAuthenticated, redirectBasedOnRole } = useAuth();
+  const { checkAuth } = useAuthStore();
   const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -23,80 +24,61 @@ export default function LoginPage() {
     twoFactorCode: "",
   });
   const [showTwoFactor, setShowTwoFactor] = useState(false);
+  const hasRedirectedRef = useRef(false);
 
   useEffect(() => {
-    if (isBootstrapping) return;
-    // Redirect if already logged in
-    if (isAuthenticated) {
-      redirectBasedOnRole();
-      return;
-    }
-
     const errorParam = searchParams?.get("error");
     if (errorParam) {
       setError(decodeURIComponent(errorParam));
     }
-  }, [isAuthenticated, isBootstrapping, redirectBasedOnRole, searchParams]);
+  }, [searchParams]);
+
+  if (isAuthenticated && !hasRedirectedRef.current) {
+    hasRedirectedRef.current = true;
+    redirectBasedOnRole();
+    return null;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
+    
     setLoading(true);
     setError("");
     
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/auth/login`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email: formData.email,
-            password: formData.password,
-            twoFactorCode: formData.twoFactorCode || undefined,
-          }),
-        }
-      );
+      const response = await api.post("/auth/login", {
+        email: formData.email,
+        password: formData.password,
+        twoFactorCode: formData.twoFactorCode || undefined,
+      });
 
-      const data = await response.json();
+      const data = response.data;
 
-      if (!response.ok) {
-        if (data.message?.includes("Two-factor authentication code is required")) {
-          setShowTwoFactor(true);
-          setError("Please enter your 2FA code");
-        } else {
-          setError(data.message || "Login failed. Please try again.");
-        }
-        setLoading(false);
-        return;
-      }
-
-      // Store tokens using auth store
-      if (data.tokens) {
-        setTokens(data.tokens.accessToken, data.tokens.refreshToken);
-      }
-
-      // Fetch user before redirect
       await checkAuth();
-
-      // Redirect based on role
-      redirectBasedOnRole();
-    } catch (error) {
-      setError("An error occurred during login. Please try again.");
+    } catch (error: any) {
+      const message = error.response?.data?.message || error.message;
+      
+      if (message?.includes("Two-factor authentication code is required")) {
+        setShowTwoFactor(true);
+        setError("Please enter your 2FA code");
+      } else {
+        setError(message || "Login failed. Please try again.");
+      }
       setLoading(false);
     }
   };
 
   const handleGoogleLogin = () => {
+    setLoading(true);
     window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/google`;
   };
 
   return (
     <div className="min-h-screen flex">
-      {/* Left Side - Hero Section */}
+      {}
       <div className="hidden lg:flex lg:w-2/5 relative overflow-hidden">
-        {/* Background Image */}
+        {}
         <div 
           className="absolute inset-0 bg-cover bg-center"
           style={{
@@ -104,12 +86,12 @@ export default function LoginPage() {
           }}
         />
         
-        {/* Dark Blue Gradient Overlay - Lighter for clarity */}
+        {}
         <div className="absolute inset-0 bg-gradient-to-b from-blue-900/40 via-blue-900/50 to-blue-950/70" />
 
-        {/* Content */}
+        {}
         <div className="relative z-10 flex flex-col justify-end p-12 text-white w-full">
-          {/* Main Content */}
+          {}
           <div className="space-y-6">
             <h1 className="text-5xl font-bold leading-tight">
               Your Health,<br />Simplified.
@@ -120,29 +102,29 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Footer */}
+          {}
           <div className="text-sm text-white/70 mt-12">
             © 2026 MedBook. All rights reserved.
           </div>
         </div>
       </div>
 
-      {/* Right Side - Login Form */}
+      {}
       <div className="flex-1 flex items-center justify-center p-8 bg-gray-50 relative overflow-hidden">
-        {/* Decorative Background Pattern */}
+        {}
         <div className="absolute inset-0 opacity-30">
           <div className="absolute top-0 right-0 w-96 h-96 bg-blue-100 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2"></div>
           <div className="absolute bottom-0 left-0 w-96 h-96 bg-teal-100 rounded-full blur-3xl transform -translate-x-1/2 translate-y-1/2"></div>
         </div>
         
-        {/* Top Bar - Absolute Positioning */}
+        {}
         <div className="absolute top-8 left-8 right-8 flex items-center justify-between z-10">
-          {/* Logo */}
+          {}
           <Link href="/" className="inline-flex">
             <Logo size="md" />
           </Link>
           
-          {/* Register Link */}
+          {}
           <div className="text-sm">
             <span className="text-gray-600">Don't have an account? </span>
             <Link href="/auth/register" className="text-blue-600 font-semibold hover:text-blue-700">
@@ -152,22 +134,22 @@ export default function LoginPage() {
         </div>
 
         <div className="w-full max-w-md mt-20 relative z-10">
-          {/* Header */}
+          {}
           <div className="mb-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h2>
             <p className="text-gray-600">Please enter your details to access your account.</p>
           </div>
 
-          {/* Form */}
+          {}
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Error Message */}
+            {}
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
                 {error}
               </div>
             )}
 
-            {/* Email */}
+            {}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                 Email Address
@@ -186,7 +168,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Password */}
+            {}
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700">
@@ -217,7 +199,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Two-Factor Authentication (conditionally shown) */}
+            {}
             {showTwoFactor && (
               <div>
                 <label htmlFor="twoFactorCode" className="block text-sm font-medium text-gray-700 mb-1">
@@ -235,15 +217,16 @@ export default function LoginPage() {
               </div>
             )}
 
-            {/* Submit Button */}
+            {}
             <button
               type="submit"
-              className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+              disabled={loading}
+              className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Log In
+              {loading ? "Logging in..." : "Log In"}
             </button>
 
-            {/* Divider */}
+            {}
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-gray-300"></div>
@@ -253,11 +236,12 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Google Login Button */}
+            {}
             <button
               type="button"
               onClick={handleGoogleLogin}
-              className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-medium text-gray-700"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-medium text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -268,7 +252,7 @@ export default function LoginPage() {
               Continue with Google
             </button>
             
-            {/* Note for Doctors */}
+            {}
             <p className="text-xs text-center text-gray-500">
               <strong>Note for doctors:</strong> Please use email/password login. Google sign-in is for patients only.
             </p>

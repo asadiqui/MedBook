@@ -29,7 +29,6 @@ export default function ChatMessages({ messages, currentUserId }: ChatMessagesPr
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Group messages by date
   const groupedMessages = messages.reduce((groups, message) => {
     const date = new Date(message.createdAt).toLocaleDateString([], {
       weekday: 'long',
@@ -56,7 +55,7 @@ export default function ChatMessages({ messages, currentUserId }: ChatMessagesPr
     <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
       {Object.entries(groupedMessages).map(([date, dateMessages]) => (
         <div key={date}>
-          {/* Date Separator */}
+          {}
           <div className="flex items-center justify-center my-6">
             <span className="px-4 py-1.5 bg-gray-200 text-xs text-gray-600 rounded-full">
               {isToday(date) ? 'Today' : date}

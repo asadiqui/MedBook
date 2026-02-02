@@ -133,7 +133,7 @@ export class AuthService {
         phone: dto.phone,
         dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : undefined,
         isActive: dto.role === Role.DOCTOR ? false : true,
-        licenseDocument: dto.licenseDocument ? `/uploads/documents/${dto.licenseDocument.filename}` : null,
+        licenseDocument: dto.licenseDocument ? `private/documents/${dto.licenseDocument.filename}` : null,
         ...this.getDoctorData(dto),
       },
       select: USER_SELECT,
@@ -148,13 +148,11 @@ export class AuthService {
     }
 
     if (dto.role === Role.DOCTOR) {
-      // Send email verification for doctors too
       try {
         await this.sendEmailVerification(user.id, true);
       } catch (error) {
         this.logger.warn('Failed to send doctor verification email', error as Error);
       }
-      // Also send notification about pending approval
       try {
         await this.sendDoctorRegistrationEmail(user.id);
       } catch (error) {
@@ -599,13 +597,11 @@ export class AuthService {
     });
 
     if (!user) {
-      // Check if email already exists (registered manually or with different OAuth)
       const existingUser = await this.prisma.user.findUnique({
         where: { email: googleUser.email.toLowerCase() },
       });
 
       if (existingUser) {
-        // Email already in use - no account linking allowed
         if (existingUser.googleId) {
           throw new ConflictException(
             'This email is already registered with a different Google account. Please use that Google account to log in.',
@@ -617,7 +613,6 @@ export class AuthService {
         }
       }
 
-      // Create new Google OAuth user (patients only)
       user = await this.prisma.user.create({
         data: {
           email: googleUser.email.toLowerCase(),
@@ -636,8 +631,6 @@ export class AuthService {
       throw new UnauthorizedException('Your account has been deactivated or deleted');
     }
 
-    // Update avatar and last login on every Google login
-    // Always update avatar from Google to ensure fresh URLs (Google avatar URLs can expire)
     const updateData: any = { lastLoginAt: new Date() };
     if (googleUser.avatar) {
       updateData.avatar = googleUser.avatar;

@@ -22,17 +22,17 @@ export function TopHeader({ title }: TopHeaderProps) {
       <h1 className="text-2xl font-semibold text-gray-900">{title}</h1>
 
       <div className="flex items-center gap-4">
-        {/* Notifications */}
+        {}
         <button className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-50">
           <Bell className="h-5 w-5" />
         </button>
 
-        {/* Messages */}
+        {}
         <button className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-50">
           <MessageCircle className="h-5 w-5" />
         </button>
 
-        {/* User Profile */}
+        {}
         <Link
           href={profileHref}
           className="flex items-center gap-3 rounded-full px-2 py-1 hover:bg-gray-50"
@@ -44,7 +44,7 @@ export function TopHeader({ title }: TopHeaderProps) {
             <p className="text-xs text-gray-500 capitalize">{user?.role.toLowerCase()}</p>
           </div>
           <img
-            src={resolveAvatarUrl(user?.avatar, { cacheBust: true })}
+            src={resolveAvatarUrl(user?.avatar)}
             alt="Profile"
             className="h-8 w-8 rounded-full object-cover"
           />

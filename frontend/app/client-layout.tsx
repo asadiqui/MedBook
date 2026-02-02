@@ -4,11 +4,9 @@ import { useEffect, useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { Toaster } from "react-hot-toast";
 import { useAuthStore } from "@/lib/store/auth";
-import { useAuth } from "@/lib/hooks/useAuth";
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
-  const { initializeAuth, setHasHydrated, setBootstrapping } = useAuthStore();
-  const { user, isBootstrapping, requireAuth } = useAuth();
+  const { initializeAuth, setBootstrapping, isLoading, authChecked } = useAuthStore();
   const pathname = usePathname();
 
   const requiredRoles = useMemo(() => {
@@ -28,36 +26,18 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   useEffect(() => {
-    // Skip auth initialization on callback page to avoid conflicts
-    if (pathname === '/auth/callback') {
-      return;
-    }
+    if (!pathname) return;
+    if (pathname === '/auth/callback') return;
+    if (authChecked) return;
 
-    // Initialize auth state on client-side mount (for page refreshes)
     const bootstrapAuth = async () => {
       setBootstrapping(true);
-      await useAuthStore.persist.rehydrate();
-      setHasHydrated(true);
       await initializeAuth();
       setBootstrapping(false);
     };
 
     bootstrapAuth();
-  }, [initializeAuth, pathname, setHasHydrated, setBootstrapping]);
-
-  useEffect(() => {
-    if (!pathname) return;
-
-    if (pathname.startsWith("/auth")) {
-      return;
-    }
-
-    if (isBootstrapping) return;
-
-    if (requiredRoles) {
-      requireAuth(requiredRoles);
-    }
-  }, [isBootstrapping, pathname, requireAuth, requiredRoles, user]);
+  }, [pathname, authChecked]);
 
   return (
     <>

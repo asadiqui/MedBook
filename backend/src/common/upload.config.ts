@@ -3,10 +3,9 @@ import { extname, join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { existsSync, mkdirSync } from 'fs';
 
-// Ensure upload directories exist - use process.cwd() for Docker compatibility
 const uploadsDir = join(process.cwd(), 'uploads');
 const avatarsDir = join(uploadsDir, 'avatars');
-const documentsDir = join(uploadsDir, 'documents');
+const documentsDir = join(process.cwd(), 'private', 'documents');
 
 if (!existsSync(avatarsDir)) {
   mkdirSync(avatarsDir, { recursive: true });

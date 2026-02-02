@@ -1,28 +1,30 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { DashboardLayout } from "@/components/shared/DashboardLayout";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { useAuthStore } from "@/lib/store/auth";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { PersonalInfo } from "@/components/profile/PersonalInfoView";
+import { PersonalInfo } from "@/components/profile/PersonalInfo";
 import { SecuritySettings } from "@/components/profile/SecuritySettings";
 import { AccountStats } from "@/components/profile/AccountStats";
 import { ChangePasswordModal } from "@/components/profile/ChangePasswordModal";
 import { DeleteAccountModal } from "@/components/profile/DeleteAccountModal";
 import { resolveAvatarUrl } from "@/lib/utils/avatar";
+import api from "@/lib/api";
 
 export const dynamic = 'force-dynamic';
 
 export default function PatientProfilePage() {
-  const { setUser, user, logout } = useAuthStore();
-  const { requireAuth, accessToken, isBootstrapping } = useAuth();
+  const { user, logout, checkAuth } = useAuthStore();
+  const { requireAuth, isBootstrapping } = useAuth();
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isOAuthUser, setIsOAuthUser] = useState(false);
-  const hasShownErrorToast = useRef(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   
@@ -55,80 +57,49 @@ export default function PatientProfilePage() {
 
   useEffect(() => {
     if (isBootstrapping) return;
-    fetchUserData();
-  }, [isBootstrapping]);
+    
+    const authResult = requireAuth(['PATIENT']);
 
-  const fetchUserData = async () => {
-    // Check authentication first
-    if (!requireAuth(['PATIENT'])) {
+    if (authResult === null) return;
+
+    if (authResult === false) {
       setLoading(false);
       return;
     }
 
-    try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/auth/me`,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
+    if (user) {
+      const userData = {
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        email: user.email || "",
+        phone: user.phone || "",
+        gender: user.gender || "MALE",
+        dateOfBirth: user.dateOfBirth ? user.dateOfBirth.split('T')[0] : "",
+        avatar: user.avatar || null,
+        createdAt: user.createdAt || "",
+        isEmailVerified: user.isEmailVerified || false,
+        lastLoginAt: user.lastLoginAt || "",
+      };
 
-      if (response.status === 401) {
-        if (!hasShownErrorToast.current) {
-          hasShownErrorToast.current = true;
-          const errorData = await response.json().catch(() => ({ message: 'Unauthorized' }));
-          toast.error(errorData.message || 'Your session has expired. Please log in again.');
-          setTimeout(() => {
-            window.location.href = "/auth/login";
-          }, 2000);
-        }
-        return;
-      }
+      setUserData(userData);
+      setEditData({
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        phone: userData.phone,
+        gender: userData.gender,
+        dateOfBirth: userData.dateOfBirth,
+        avatar: userData.avatar,
+      });
 
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data); // Set full user in store
-        const user = {
-          firstName: data.firstName || "",
-          lastName: data.lastName || "",
-          email: data.email || "",
-          phone: data.phone || "",
-          gender: data.gender || "MALE",
-          dateOfBirth: data.dateOfBirth ? data.dateOfBirth.split('T')[0] : "",
-          avatar: data.avatar || null,
-          createdAt: data.createdAt || "",
-          isEmailVerified: data.isEmailVerified || false,
-          lastLoginAt: data.lastLoginAt || "",
-        };
-        setUserData(user);
-        setEditData({
-          firstName: user.firstName,
-          lastName: user.lastName,
-          phone: user.phone,
-          gender: user.gender,
-          dateOfBirth: user.dateOfBirth,
-          avatar: user.avatar,
-        });
-        setIsOAuthUser(data.isOAuth || false);
-        setSecurityData({
-          lastPasswordChange: "3 months ago",
-          twoFactorEnabled: data.isTwoFactorEnabled || false,
-        });
-      } else {
-        // If unauthorized, clear tokens and redirect
-        logout();
-        window.location.href = "/auth/login";
-      }
-    } catch (error) {
-      // Clear tokens on error and redirect
-      logout();
-      window.location.href = "/auth/login";
-    } finally {
-      setLoading(false);
+      setIsOAuthUser(user.isOAuth || false);
+      setSecurityData({
+        lastPasswordChange: "3 months ago",
+        twoFactorEnabled: user.isTwoFactorEnabled || false,
+      });
     }
-  };
+
+    setLoading(false);
+  }, [isBootstrapping, user]);
 
   const handleAvatarUpload = async (file: File) => {
     if (!user) return;
@@ -137,36 +108,23 @@ export default function PatientProfilePage() {
       const formData = new FormData();
       formData.append("avatar", file);
 
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/users/${user.id}/avatar`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: formData,
-        }
-      );
+      const response = await api.post(`/users/${user.id}/avatar`, formData);
 
-      if (response.ok) {
-        const data = await response.json();
-        
-        // Update avatar immediately in state
-        const newAvatar = data.avatar;
-        
-        setUserData(prev => ({ ...prev, avatar: newAvatar }));
-        setEditData(prev => ({ ...prev, avatar: newAvatar }));
-        
-        // Also refresh user data from server to be sure
-        await fetchUserData();
-        
-        toast.success("Avatar uploaded successfully!");
-      } else {
-        const errorData = await response.json().catch(() => null);
-        toast.error(`Failed to upload avatar: ${errorData?.message || response.statusText}`);
-      }
+      const data = response.data;
+      
+
+      const newAvatar = data.avatar;
+      
+      setUserData(prev => ({ ...prev, avatar: newAvatar }));
+      setEditData(prev => ({ ...prev, avatar: newAvatar }));
+      
+
+      await checkAuth();
+      
+      toast.success("Avatar uploaded successfully!");
     } catch (error: any) {
-      toast.error(`Failed to upload avatar: ${error.message || 'Network error'}`);
+      const errorMessage = error.response?.data?.message || error.message || 'Network error';
+      toast.error(`Failed to upload avatar: ${errorMessage}`);
     }
   };
 
@@ -188,7 +146,7 @@ export default function PatientProfilePage() {
     if (!user) return;
 
     try {
-      // Prepare update data, filtering out empty values
+
       const updateData: any = {
         firstName: editData.firstName,
         lastName: editData.lastName,
@@ -198,35 +156,22 @@ export default function PatientProfilePage() {
       if (editData.gender) updateData.gender = editData.gender;
       if (editData.dateOfBirth) updateData.dateOfBirth = editData.dateOfBirth;
 
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/users/${user.id}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify(updateData),
-        }
-      );
+      await api.patch(`/users/${user.id}`, updateData);
 
-      if (response.ok) {
-        setUserData((prev) => ({ ...prev, ...editData }));
-        setIsEditing(false);
-        toast.success("Profile updated successfully!");
-      } else {
-        toast.error("Failed to update profile");
-      }
-    } catch (error) {
-      toast.error("Failed to update profile");
+      setUserData((prev) => ({ ...prev, ...editData }));
+      setIsEditing(false);
+      await checkAuth();
+      toast.success("Profile updated successfully!");
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || "Failed to update profile";
+      toast.error(errorMessage);
     }
   };
 
-  const handleLogout = () => {
-    logout();
-    window.location.href = "/auth/login";
+  const handleLogout = async () => {
+    await logout();
+    router.push("/auth/login");
   };
-
 
   const handle2FAStatusChange = (enabled: boolean) => {
     setSecurityData({ ...securityData, twoFactorEnabled: enabled });
@@ -256,7 +201,7 @@ export default function PatientProfilePage() {
           onDataChange={handleDataChange}
           onAvatarUpload={handleAvatarUpload}
           getAvatarUrl={(avatar: string | null | undefined) =>
-            resolveAvatarUrl(avatar, { cacheBust: true })
+            resolveAvatarUrl(avatar)
           }
         />
 
@@ -266,12 +211,11 @@ export default function PatientProfilePage() {
           isOAuthUser={isOAuthUser}
           twoFactorEnabled={securityData.twoFactorEnabled}
           lastPasswordChange={securityData.lastPasswordChange}
-          accessToken={accessToken}
           onPasswordChangeClick={() => setShowChangePasswordModal(true)}
           on2FAStatusChange={handle2FAStatusChange}
         />
 
-        {/* Danger Zone */}
+        {}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200">
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-900">Danger Zone</h2>
@@ -301,14 +245,12 @@ export default function PatientProfilePage() {
       <ChangePasswordModal
         isOpen={showChangePasswordModal}
         onClose={() => setShowChangePasswordModal(false)}
-        accessToken={accessToken}
         onPasswordChanged={handlePasswordChanged}
       />
 
       <DeleteAccountModal
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
-        accessToken={accessToken}
         userId={user?.id}
         onAccountDeleted={handleLogout}
       />

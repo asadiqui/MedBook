@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { SendMessageDto } from './dto';
 
 @Controller('chat')
 export class ChatController {
@@ -15,16 +16,14 @@ export class ChatController {
 
   @Post('send')
   async sendMessage(
-    @Body('bookingId') bookingId: string,
-    @Body('receiverId') receiverId: string,
-    @Body('content') content: string,
+    @Body() dto: SendMessageDto,
     @CurrentUser('id') userId: string,
   ) {
     return this.chatService.saveMessage(
-      bookingId,
+      dto.bookingId,
       userId,
-      receiverId,
-      content,
+      dto.receiverId,
+      dto.content,
     );
   }
 

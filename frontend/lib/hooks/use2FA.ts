@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import toast from "react-hot-toast";
+import api from "@/lib/api";
 
 interface Use2FAReturn {
-  // State
+
   show2FAModal: boolean;
   qrCode: string;
   twoFactorSecret: string;
@@ -12,16 +13,14 @@ interface Use2FAReturn {
   showDisable2FAModal: boolean;
   disable2FACode: string;
 
-  // Actions
   setShow2FAModal: (show: boolean) => void;
   setVerificationCode: (code: string) => void;
   setShowDisable2FAModal: (show: boolean) => void;
   setDisable2FACode: (code: string) => void;
 
-  // Functions
-  handleEnable2FA: (accessToken: string | null) => Promise<void>;
-  handleVerify2FA: (accessToken: string | null, onSuccess: () => void) => Promise<void>;
-  handleDisable2FA: (accessToken: string | null, onSuccess: () => void) => Promise<void>;
+  handleEnable2FA: () => Promise<void>;
+  handleVerify2FA: (onSuccess: () => void) => Promise<void>;
+  handleDisable2FA: (onSuccess: () => void) => Promise<void>;
 }
 
 export const use2FA = (): Use2FAReturn => {
@@ -32,114 +31,55 @@ export const use2FA = (): Use2FAReturn => {
   const [showDisable2FAModal, setShowDisable2FAModal] = useState(false);
   const [disable2FACode, setDisable2FACode] = useState("");
 
-  const handleEnable2FA = async (accessToken: string | null) => {
-    if (!accessToken) {
-      toast.error("Authentication token not available");
-      return;
-    }
-
+  const handleEnable2FA = async () => {
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/auth/2fa/enable`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setQrCode(data.qrCodeUrl);
-        setTwoFactorSecret(data.secret);
-        setShow2FAModal(true);
-      } else {
-        toast.error("Failed to generate 2FA QR code");
-      }
-    } catch (error) {
-      toast.error("Failed to enable 2FA");
+      const response = await api.post("/auth/2fa/enable");
+      const data = response.data;
+      
+      setQrCode(data.qrCodeUrl);
+      setTwoFactorSecret(data.secret);
+      setShow2FAModal(true);
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || "Failed to generate 2FA QR code";
+      toast.error(errorMessage);
     }
   };
 
-  const handleVerify2FA = async (accessToken: string | null, onSuccess: () => void) => {
-    if (!accessToken) {
-      toast.error("Authentication token not available");
-      return;
-    }
-
+  const handleVerify2FA = async (onSuccess: () => void) => {
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/auth/2fa/verify`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            code: verificationCode,
-          }),
-        }
-      );
-
-      if (response.ok) {
-        onSuccess();
-        setShow2FAModal(false);
-        setVerificationCode("");
-        toast.success("Two-factor authentication enabled successfully!");
-      } else {
-        const errorData = await response.json().catch(() => ({ message: 'Invalid verification code' }));
-        toast.error(errorData.message || "Invalid verification code");
-        // Don't clear the code so user can try again
-      }
-    } catch (error) {
-      toast.error("Failed to verify 2FA");
+      await api.post("/auth/2fa/verify", { code: verificationCode });
+      
+      onSuccess();
+      setShow2FAModal(false);
+      setVerificationCode("");
+      toast.success("Two-factor authentication enabled successfully!");
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || 'Invalid verification code';
+      toast.error(errorMessage);
     }
   };
 
-  const handleDisable2FA = async (accessToken: string | null, onSuccess: () => void) => {
-    if (!accessToken) {
-      toast.error("Authentication token not available");
-      return;
-    }
-
+  const handleDisable2FA = async (onSuccess: () => void) => {
     if (!disable2FACode || disable2FACode.length !== 6) {
       toast.error("Please enter a valid 6-digit code");
       return;
     }
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/auth/2fa/disable`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            code: disable2FACode,
-          }),
-        }
-      );
-
-      if (response.ok) {
-        onSuccess();
-        setShowDisable2FAModal(false);
-        setDisable2FACode("");
-        toast.success("Two-factor authentication disabled successfully!");
-      } else {
-        const errorData = await response.json().catch(() => ({ message: 'Invalid verification code' }));
-        toast.error(errorData.message || "Failed to disable 2FA");
-      }
-    } catch (error) {
-      toast.error("Failed to disable 2FA");
+      await api.post("/auth/2fa/disable", { code: disable2FACode });
+      
+      onSuccess();
+      setShowDisable2FAModal(false);
+      setDisable2FACode("");
+      toast.success("Two-factor authentication disabled successfully!");
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || "Failed to disable 2FA";
+      toast.error(errorMessage);
     }
   };
 
   return {
-    // State
+
     show2FAModal,
     qrCode,
     twoFactorSecret,
@@ -147,13 +87,11 @@ export const use2FA = (): Use2FAReturn => {
     showDisable2FAModal,
     disable2FACode,
 
-    // Actions
     setShow2FAModal,
     setVerificationCode,
     setShowDisable2FAModal,
     setDisable2FACode,
 
-    // Functions
     handleEnable2FA,
     handleVerify2FA,
     handleDisable2FA,

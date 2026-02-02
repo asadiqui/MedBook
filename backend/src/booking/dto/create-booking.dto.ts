@@ -1,16 +1,19 @@
-import { IsString, Matches, IsInt } from 'class-validator';
+import { IsString, Matches, IsInt, IsUUID, IsDateString, IsIn } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateBookingDto {
-  @IsString()
+  @IsUUID()
   doctorId: string;
 
-  @IsString()
-  date: string; // YYYY-MM-DD
+  @IsDateString()
+  date: string;
 
   @IsString()
   @Matches(/^([0-1]\d|2[0-3]):([0-5]\d)$/)
-  startTime: string; // HH:mm
+  startTime: string;
 
   @IsInt()
-  duration: number; // in minutes, 60 or 120
+  @IsIn([60, 120])
+  @Type(() => Number)
+  duration: number;
 }

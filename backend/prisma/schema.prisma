@@ -38,36 +38,30 @@ model User {
   gender              Gender?
   dateOfBirth         DateTime?
   bio                 String?
-  
-  // Doctor-specific fields
+
   specialty           String?
   licenseNumber       String?
-  licenseDocument     String?   // Uploaded license/certification file path
+  licenseDocument     String?
   consultationFee     Float?
-  affiliation         String?   // Current Affiliation (Clinic/Hospital Name)
+  affiliation         String?
   yearsOfExperience   Int?
   clinicAddress       String?
   clinicContactPerson String?
   clinicPhone         String?
   isVerified          Boolean   @default(false)
-  
-  // Account status
+
   isActive            Boolean   @default(true)
   isEmailVerified     Boolean   @default(false)
-  
-  // Two-factor authentication
+
   isTwoFactorEnabled  Boolean   @default(false)
   twoFactorSecret     String?
-  
-  // OAuth
+
   googleId            String?   @unique
-  
-  // Timestamps
+
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
   lastLoginAt         DateTime?
-  
-  // Relations
+
   refreshTokens       RefreshToken[]
   passwordResets      PasswordReset[]
   availabilities      Availability[] @relation("DoctorAvailability")

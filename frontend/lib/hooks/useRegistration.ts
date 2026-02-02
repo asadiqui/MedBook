@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import toast from "react-hot-toast";
+import api from "@/lib/api";
 
 interface UseRegistrationProps {
   role: "PATIENT" | "DOCTOR";
@@ -15,7 +16,6 @@ export const useRegistration = ({ role, apiUrl }: UseRegistrationProps) => {
   const validateForm = (formData: any) => {
     const newErrors: Record<string, string> = {};
 
-    // Common validations
     if (!formData.firstName?.trim()) newErrors.firstName = "First name is required";
     if (!formData.lastName?.trim()) newErrors.lastName = "Last name is required";
     if (!formData.email?.trim()) newErrors.email = "Email is required";
@@ -30,7 +30,6 @@ export const useRegistration = ({ role, apiUrl }: UseRegistrationProps) => {
 
     if (!formData.agreedToTerms) newErrors.agreedToTerms = "You must agree to the terms";
 
-    // Doctor-specific validations
     if (role === "DOCTOR") {
       if (!formData.specialty?.trim()) newErrors.specialty = "Specialty is required";
       if (!formData.licenseNumber?.trim()) newErrors.licenseNumber = "License number is required";
@@ -57,7 +56,6 @@ export const useRegistration = ({ role, apiUrl }: UseRegistrationProps) => {
     try {
       const submitData = new FormData();
 
-      // Add common fields
       submitData.append("firstName", formData.firstName);
       submitData.append("lastName", formData.lastName);
       submitData.append("email", formData.email);
@@ -67,7 +65,6 @@ export const useRegistration = ({ role, apiUrl }: UseRegistrationProps) => {
       submitData.append("gender", formData.gender);
       submitData.append("role", role);
 
-      // Add doctor-specific fields
       if (role === "DOCTOR") {
         submitData.append("specialty", formData.specialty);
         submitData.append("licenseNumber", formData.licenseNumber);
@@ -83,22 +80,25 @@ export const useRegistration = ({ role, apiUrl }: UseRegistrationProps) => {
         }
       }
 
-      const response = await fetch(`${apiUrl}/auth/register`, {
-        method: "POST",
-        body: submitData,
-      });
+      const response = await api.post("/auth/register", submitData);
 
-      if (response.ok) {
-        const data = await response.json();
-        toast.success("Registration successful! Please check your email to verify your account.");
-        return true;
-      } else {
-        const errorData = await response.json().catch(() => ({ message: "Registration failed" }));
-        toast.error(errorData.message || "Registration failed");
-        return false;
+      toast.success("Registration successful! Please check your email to verify your account.");
+      return true;
+    } catch (error: any) {
+      const rawMessage = error.response?.data?.message || "Registration failed";
+      const normalized = Array.isArray(rawMessage) ? rawMessage.join(" ") : String(rawMessage);
+      const lower = normalized.toLowerCase();
+
+      let friendlyMessage = normalized;
+      if (lower.includes("at least 18") || lower.includes("18 years old")) {
+        friendlyMessage = "Sorry, you need to be 18 or older to register.";
+      } else if (lower.includes("date of birth") && lower.includes("future")) {
+        friendlyMessage = "Date of birth cannot be in the future.";
+      } else if (lower.includes("date") && lower.includes("valid") && lower.includes("iso")) {
+        friendlyMessage = "Please enter a valid date of birth.";
       }
-    } catch (error) {
-      toast.error("An error occurred during registration");
+
+      toast.error(friendlyMessage);
       return false;
     } finally {
       setIsLoading(false);

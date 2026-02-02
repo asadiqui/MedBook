@@ -28,9 +28,6 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       firstName: name?.givenName || '',
       lastName: name?.familyName || '',
       avatar: photos?.[0]?.value,
-      // Note: Google OAuth basic profile doesn't include phone and birthday by default
-      // These require Google People API with additional setup
-      // For now, we'll leave them undefined and user can add them later in profile
     };
 
     done(null, user);
