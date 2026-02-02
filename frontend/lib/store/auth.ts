@@ -38,6 +38,7 @@ interface AuthState {
   isLoading: boolean;
   isBootstrapping: boolean;
   authChecked: boolean;
+  redirectPath: string | null;
   setUser: (user: User | null) => void;
   setLoading: (loading: boolean) => void;
   setBootstrapping: (isBootstrapping: boolean) => void;
@@ -54,6 +55,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLoading: false,
   isBootstrapping: true,
   authChecked: false,
+  redirectPath: null,
 
   setUser: (user) => {
     set({ user, isAuthenticated: !!user });
@@ -80,6 +82,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isLoading: false,
       isBootstrapping: false,
       authChecked: true,
+      redirectPath: null,
     });
   },
 
@@ -101,10 +104,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
 
         const userData = response.data;
-        set({ user: userData, isAuthenticated: true, isBootstrapping: false });
+        const redirectPath = userData?.redirectPath;
+        set({ user: userData, isAuthenticated: true, isBootstrapping: false, redirectPath });
       } catch (error: any) {
         if (error.response?.status === 401 || error.response?.status === 403) {
-          set({ user: null, isAuthenticated: false, isBootstrapping: false });
+          set({ user: null, isAuthenticated: false, isBootstrapping: false, redirectPath: null });
         } else {
           const currentUser = get().user;
           set({ user: currentUser, isAuthenticated: !!currentUser, isBootstrapping: false });

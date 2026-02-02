@@ -1,22 +1,19 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Mail, Phone, Calendar, Upload, FileText, DollarSign, MapPin, User } from "lucide-react";
 import toast from "react-hot-toast";
 import { Logo } from "@/components/ui/Logo";
 import { PasswordInput, FormField, FileUpload, TermsAgreement } from "@/components/auth";
-import { useAuth } from "@/lib/hooks/useAuth";
+import { useAuthRedirect } from "@/lib/hooks/useAuthRedirect";
 import { useRegistration } from "@/lib/hooks/useRegistration";
 
 export default function DoctorRegisterPage() {
-  const { isAuthenticated, redirectBasedOnRole } = useAuth();
-  const hasRedirectedRef = useRef(false);
+  const { isAuthenticated, user } = useAuthRedirect();
 
-  if (isAuthenticated && !hasRedirectedRef.current) {
-    hasRedirectedRef.current = true;
-    redirectBasedOnRole();
-    return null;
+  if (isAuthenticated && user) {
+    return <div className="min-h-screen flex items-center justify-center">Redirecting...</div>;
   }
 
   const [formData, setFormData] = useState({

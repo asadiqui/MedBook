@@ -48,6 +48,7 @@ export interface AuthResponse {
     isOAuth: boolean;
   };
   tokens: TokenPayload | null;
+  redirectPath?: string;
   message?: string;
 }
 
@@ -221,12 +222,15 @@ export class AuthService {
 
     const { password, twoFactorSecret, googleId, ...userWithoutSensitive } = user;
 
+    const redirectPath = user.role === 'ADMIN' ? '/admin/dashboard' : '/dashboard';
+
     return {
       user: {
         ...userWithoutSensitive,
         isOAuth: !!googleId,
       },
       tokens,
+      redirectPath,
     };
   }
 
@@ -578,9 +582,12 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
 
+    const redirectPath = user.role === 'ADMIN' ? '/admin/dashboard' : '/dashboard';
+
     return {
       ...user,
       isOAuth: !!user.googleId,
+      redirectPath,
     };
   }
 

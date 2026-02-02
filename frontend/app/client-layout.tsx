@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { Toaster } from "react-hot-toast";
 import { useAuthStore } from "@/lib/store/auth";
@@ -8,6 +8,7 @@ import { useAuthStore } from "@/lib/store/auth";
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   const { initializeAuth, setBootstrapping, isLoading, authChecked } = useAuthStore();
   const pathname = usePathname();
+  const hasInitializedRef = useRef(false);
 
   const requiredRoles = useMemo(() => {
     if (!pathname) return null;
@@ -28,16 +29,27 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!pathname) return;
     if (pathname === '/auth/callback') return;
+    if (hasInitializedRef.current) return;
     if (authChecked) return;
 
+    hasInitializedRef.current = true;
+    let isMounted = true;
+
     const bootstrapAuth = async () => {
+      if (!isMounted) return;
       setBootstrapping(true);
       await initializeAuth();
-      setBootstrapping(false);
+      if (isMounted) {
+        setBootstrapping(false);
+      }
     };
 
     bootstrapAuth();
-  }, [pathname, authChecked]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   return (
     <>

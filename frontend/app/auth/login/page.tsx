@@ -1,19 +1,17 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Eye, EyeOff, Mail, Lock, Shield } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Logo } from "@/components/ui/Logo";
-import { useAuth } from "@/lib/hooks/useAuth";
 import { useAuthStore } from "@/lib/store/auth";
+import { useAuthRedirect } from "@/lib/hooks/useAuthRedirect";
 import api from "@/lib/api";
 
-export const dynamic = 'force-dynamic';
-
 export default function LoginPage() {
-  const { isAuthenticated, redirectBasedOnRole } = useAuth();
   const { checkAuth } = useAuthStore();
+  const { isAuthenticated, user } = useAuthRedirect();
   const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -24,7 +22,6 @@ export default function LoginPage() {
     twoFactorCode: "",
   });
   const [showTwoFactor, setShowTwoFactor] = useState(false);
-  const hasRedirectedRef = useRef(false);
 
   useEffect(() => {
     const errorParam = searchParams?.get("error");
@@ -33,10 +30,8 @@ export default function LoginPage() {
     }
   }, [searchParams]);
 
-  if (isAuthenticated && !hasRedirectedRef.current) {
-    hasRedirectedRef.current = true;
-    redirectBasedOnRole();
-    return null;
+  if (isAuthenticated && user) {
+    return <div className="min-h-screen flex items-center justify-center">Redirecting...</div>;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -54,6 +49,11 @@ export default function LoginPage() {
       });
 
       const data = response.data;
+
+      // Store redirectPath from backend response
+      if (data.redirectPath) {
+        useAuthStore.setState({ redirectPath: data.redirectPath });
+      }
 
       await checkAuth();
     } catch (error: any) {
@@ -73,6 +73,10 @@ export default function LoginPage() {
     setLoading(true);
     window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/google`;
   };
+
+  if (isAuthenticated) {
+    return <div className="min-h-screen flex items-center justify-center">Redirecting...</div>;
+  }
 
   return (
     <div className="min-h-screen flex">

@@ -1,19 +1,15 @@
 "use client";
 
-import { useRef } from "react";
 import Link from "next/link";
 import { User, Stethoscope, CheckCircle2 } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
-import { useAuth } from "@/lib/hooks/useAuth";
+import { useAuthRedirect } from "@/lib/hooks/useAuthRedirect";
 
 export default function RegisterPage() {
-  const { isAuthenticated, redirectBasedOnRole } = useAuth();
-  const hasRedirectedRef = useRef(false);
+  const { isAuthenticated, user } = useAuthRedirect();
 
-  if (isAuthenticated && !hasRedirectedRef.current) {
-    hasRedirectedRef.current = true;
-    redirectBasedOnRole();
-    return null;
+  if (isAuthenticated && user) {
+    return <div className="min-h-screen flex items-center justify-center">Redirecting...</div>;
   }
 
   return (

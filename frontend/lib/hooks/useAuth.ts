@@ -1,5 +1,4 @@
 import { useRouter } from 'next/navigation';
-import { useCallback } from 'react';
 import { useAuthStore } from '@/lib/store/auth';
 import toast from 'react-hot-toast';
 
@@ -26,24 +25,6 @@ export const useAuth = () => {
     return true;
   };
 
-  const redirectBasedOnRole = useCallback(() => {
-    if (!user) return;
-
-    switch (user.role) {
-      case 'ADMIN':
-        router.push('/admin/dashboard');
-        break;
-      case 'DOCTOR':
-        router.push('/dashboard');
-        break;
-      case 'PATIENT':
-        router.push('/dashboard');
-        break;
-      default:
-        router.push('/auth/login');
-    }
-  }, [user, router]);
-
   return {
     user,
     isAuthenticated,
@@ -51,7 +32,6 @@ export const useAuth = () => {
     isLoading,
     authChecked,
     requireAuth,
-    redirectBasedOnRole,
     logout,
   };
 };
