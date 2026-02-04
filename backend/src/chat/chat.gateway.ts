@@ -17,8 +17,8 @@ const chatCorsOrigin = (process.env.FRONTEND_URL || 'https://localhost:8443')
   .map((origin) => origin.trim())
   .filter(Boolean);
 
+// Only allow chat for ACCEPTED bookings
 const CHAT_ALLOWED_BOOKING_STATUSES: BookingStatus[] = [
-  BookingStatus.PENDING,
   BookingStatus.ACCEPTED,
 ];
 
@@ -34,7 +34,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   server: Server;
   private readonly logger = new Logger(ChatGateway.name);
 
+  // Map socketId -> userId
   private connectedUsers: Map<string, string> = new Map();
+  // Map userId -> Set of socketIds (a user can have multiple tabs/devices)
+  private onlineUsers: Map<string, Set<string>> = new Map();
 
   constructor(private readonly chatService: ChatService) {}
 
@@ -44,7 +47,22 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   handleDisconnect(client: Socket) {
     this.logger.log(`Client disconnected: ${client.id}`);
+    const userId = this.connectedUsers.get(client.id);
     this.connectedUsers.delete(client.id);
+    
+    // Remove this socket from user's online set
+    if (userId) {
+      const userSockets = this.onlineUsers.get(userId);
+      if (userSockets) {
+        userSockets.delete(client.id);
+        if (userSockets.size === 0) {
+          this.onlineUsers.delete(userId);
+          // Broadcast that user went offline
+          this.server.emit('user_status', { userId, isOnline: false });
+          this.logger.log(`User ${userId} is now offline`);
+        }
+      }
+    }
   }
 
   @SubscribeMessage('register_user')
@@ -53,8 +71,30 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() data: { userId: string },
   ) {
     this.connectedUsers.set(client.id, data.userId);
+    
+    // Track online status
+    if (!this.onlineUsers.has(data.userId)) {
+      this.onlineUsers.set(data.userId, new Set());
+    }
+    this.onlineUsers.get(data.userId)!.add(client.id);
+    
+    // Broadcast that user is online
+    this.server.emit('user_status', { userId: data.userId, isOnline: true });
+    
     this.logger.log(`User ${data.userId} registered with socket ${client.id}`);
     return { event: 'registered', data: { success: true } };
+  }
+
+  @SubscribeMessage('get_online_status')
+  handleGetOnlineStatus(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { userIds: string[] },
+  ) {
+    const statuses: Record<string, boolean> = {};
+    for (const userId of data.userIds) {
+      statuses[userId] = this.onlineUsers.has(userId) && this.onlineUsers.get(userId)!.size > 0;
+    }
+    return { event: 'online_statuses', data: statuses };
   }
 
   @SubscribeMessage('join_room')

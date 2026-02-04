@@ -7,8 +7,8 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { BookingStatus } from '@prisma/client';
 
+// Only allow chat for ACCEPTED bookings
 const CHAT_ALLOWED_BOOKING_STATUSES: BookingStatus[] = [
-  BookingStatus.PENDING,
   BookingStatus.ACCEPTED,
 ];
 

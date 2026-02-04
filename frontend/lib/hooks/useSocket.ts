@@ -36,13 +36,15 @@ interface UseSocketOptions {
   onTyping?: (data: { userId: string; isTyping: boolean }) => void;
   onMessageRead?: (message: Message) => void;
   onAllMessagesRead?: (data: { bookingId: string; userId: string }) => void;
+  onUserStatus?: (data: { userId: string; isOnline: boolean }) => void;
 }
 
 export const useSocket = (options: UseSocketOptions = {}) => {
-  const { bookingId, onNewMessage, onTyping, onMessageRead, onAllMessagesRead } = options;
+  const { bookingId, onNewMessage, onTyping, onMessageRead, onAllMessagesRead, onUserStatus } = options;
   const socketRef = useRef<Socket | null>(null);
   const { user } = useAuthStore();
   const [isConnected, setIsConnected] = useState(false);
+  const [onlineUsers, setOnlineUsers] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (!user) return;
@@ -83,6 +85,15 @@ export const useSocket = (options: UseSocketOptions = {}) => {
       if (onAllMessagesRead) onAllMessagesRead(data);
     });
 
+    socket.on("user_status", (data: { userId: string; isOnline: boolean }) => {
+      setOnlineUsers(prev => ({ ...prev, [data.userId]: data.isOnline }));
+      if (onUserStatus) onUserStatus(data);
+    });
+
+    socket.on("online_statuses", (statuses: Record<string, boolean>) => {
+      setOnlineUsers(prev => ({ ...prev, ...statuses }));
+    });
+
     return () => {
       if (bookingId) {
         socket.emit("leave_room", { bookingId });
@@ -119,10 +130,22 @@ export const useSocket = (options: UseSocketOptions = {}) => {
     });
   }, [user, bookingId]);
 
+  const getOnlineStatus = useCallback((userIds: string[]) => {
+    if (!socketRef.current) return;
+    socketRef.current.emit("get_online_status", { userIds });
+  }, []);
+
+  const isUserOnline = useCallback((userId: string) => {
+    return onlineUsers[userId] ?? false;
+  }, [onlineUsers]);
+
   return {
     sendMessage,
     sendTyping,
     markAllAsRead,
+    getOnlineStatus,
+    isUserOnline,
+    onlineUsers,
     isConnected,
   };
 };

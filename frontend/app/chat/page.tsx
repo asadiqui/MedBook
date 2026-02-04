@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useSocket } from "@/lib/hooks/useSocket";
 import api from "@/lib/api";
+import { useChatStore } from "@/lib/store/chat";
 import { Sidebar } from "@/components/shared/Sidebar";
 import { TopHeader } from "@/components/shared/TopHeader";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
@@ -108,12 +109,19 @@ export default function ChatPage() {
     );
   }, []);
 
-  const { sendMessage, sendTyping, markAllAsRead, isConnected } = useSocket({
+  const { sendMessage, sendTyping, markAllAsRead, getOnlineStatus, isUserOnline, isConnected } = useSocket({
     bookingId: selectedBookingId,
     onNewMessage: handleNewMessage,
     onTyping: handleTyping,
     onMessageRead: handleMessageRead,
   });
+
+  // Request online status when otherUser changes
+  useEffect(() => {
+    if (otherUser && isConnected) {
+      getOnlineStatus([otherUser.id]);
+    }
+  }, [otherUser, isConnected, getOnlineStatus]);
 
 
   useEffect(() => {
@@ -140,11 +148,20 @@ export default function ChatPage() {
         const other = booking.doctorId === user?.id ? booking.patient : booking.doctor;
         setOtherUser(other);
         markAllAsRead();
+        // Get the unread count for this chat before resetting
+        const chatToUpdate = chats.find(c => c.bookingId === selectedBookingId);
+        const unreadInThisChat = chatToUpdate?.unreadCount || 0;
+        
         setChats((prev) =>
           prev.map((chat) =>
             chat.bookingId === selectedBookingId ? { ...chat, unreadCount: 0 } : chat
           )
         );
+        
+        // Update global unread count
+        if (unreadInThisChat > 0) {
+          useChatStore.getState().decrementUnreadCount(unreadInThisChat);
+        }
       } catch (error) {
         setMessages([]);
         setOtherUser(null);
@@ -157,6 +174,28 @@ export default function ChatPage() {
     if (!otherUser) return;
     sendMessage(otherUser.id, content);
     sendTyping(false);
+  };
+
+  const handleSendAttachment = async (file: File) => {
+    if (!otherUser || !selectedBookingId) return;
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('bookingId', selectedBookingId);
+      formData.append('receiverId', otherUser.id);
+      
+      const response = await api.post('/chat/send-attachment', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      
+      // The message will be received via socket, but add it immediately for responsiveness
+      if (response.data) {
+        setMessages(prev => [...prev, response.data]);
+      }
+    } catch (error) {
+      console.error('Failed to send attachment:', error);
+    }
   };
 
   const handleTypingEvent = () => {
@@ -209,6 +248,7 @@ export default function ChatPage() {
                 otherUser={otherUser}
                 isTyping={isTyping}
                 bookingId={selectedBookingId}
+                isOnline={isUserOnline(otherUser.id)}
               />
               <ChatMessages
                 messages={messages}
@@ -217,6 +257,7 @@ export default function ChatPage() {
               <ChatInput
                 onSendMessage={handleSendMessage}
                 onTyping={handleTypingEvent}
+                onSendAttachment={handleSendAttachment}
               />
             </>
           ) : (

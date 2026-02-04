@@ -1,9 +1,11 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Logo } from '../ui/Logo';
 import { useAuthStore } from '@/lib/store/auth';
+import { useChatStore } from '@/lib/store/chat';
 
 interface SidebarProps {
   role: 'PATIENT' | 'DOCTOR' | 'ADMIN';
@@ -30,6 +32,15 @@ export function Sidebar({ role }: SidebarProps) {
   const router = useRouter();
   const navItems = role === 'DOCTOR' ? doctorNavItems : patientNavItems;
   const { logout } = useAuthStore();
+  const { unreadCount, fetchUnreadCount } = useChatStore();
+
+  // Fetch unread message count
+  useEffect(() => {
+    fetchUnreadCount();
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
+  }, [fetchUnreadCount]);
 
   return (
     <aside className="w-64 bg-white border-r border-gray-200 flex flex-col fixed h-full">
@@ -51,7 +62,12 @@ export function Sidebar({ role }: SidebarProps) {
             <svg className="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
             </svg>
-            {item.label}
+            <span className="flex-1">{item.label}</span>
+            {item.label === 'Messages' && unreadCount > 0 && (
+              <span className="bg-blue-500 text-white text-xs font-medium px-2 py-0.5 rounded-full min-w-[20px] text-center">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
           </Link>
         ))}
       </nav>

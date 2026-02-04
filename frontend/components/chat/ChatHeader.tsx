@@ -18,9 +18,10 @@ interface ChatHeaderProps {
   otherUser: OtherUser;
   isTyping: boolean;
   bookingId: string;
+  isOnline?: boolean;
 }
 
-export default function ChatHeader({ otherUser, isTyping, bookingId }: ChatHeaderProps) {
+export default function ChatHeader({ otherUser, isTyping, bookingId, isOnline = false }: ChatHeaderProps) {
   const { user } = useAuthStore();
   const isDoctor = user?.role === 'DOCTOR';
   const isOtherDoctor = otherUser.role === 'DOCTOR';
@@ -43,7 +44,12 @@ export default function ChatHeader({ otherUser, isTyping, bookingId }: ChatHeade
               </span>
             )}
           </div>
-          <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full" />
+          <span 
+            className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white rounded-full ${
+              isOnline ? 'bg-green-500' : 'bg-gray-400'
+            }`} 
+            title={isOnline ? 'Online' : 'Offline'}
+          />
         </div>
         <div>
           <h2 className="font-semibold text-gray-900">
@@ -51,7 +57,9 @@ export default function ChatHeader({ otherUser, isTyping, bookingId }: ChatHeade
           </h2>
             {isTyping ? (
               <p className="text-sm text-green-600">Typing...</p>
-            ) : null}
+            ) : (
+              <p className="text-sm text-gray-500">{isOnline ? 'Online' : 'Offline'}</p>
+            )}
         </div>
       </div>
 

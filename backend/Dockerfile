@@ -12,7 +12,7 @@ RUN npm run prisma:generate
 
 COPY . .
 
-RUN mkdir -p uploads/avatars uploads/documents
+RUN mkdir -p uploads/avatars uploads/documents uploads/chat
 
 EXPOSE 3001
 
