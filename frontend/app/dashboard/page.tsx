@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { DashboardLayout } from "@/components/shared/DashboardLayout";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useClearedAppointments } from "@/lib/hooks/useClearedAppointments";
 import { formatTime12h } from "@/lib/utils/time";
 import { getInitials } from "@/lib/utils/formatting";
 import {
@@ -12,41 +13,6 @@ import {
   getDoctorSchedule,
   getPatientBookings,
 } from "@/lib/api/booking";
-
-function useClearedAppointments() {
-  const [clearedIds, setClearedIds] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      const stored = localStorage.getItem('clearedAppointments');
-      if (stored) {
-        setClearedIds(new Set(JSON.parse(stored)));
-      }
-    } catch {
-
-    }
-  }, []);
-
-  const clearAppointment = useCallback((id: string) => {
-    setClearedIds((prev) => {
-      const updated = new Set(prev);
-      updated.add(id);
-      try {
-        localStorage.setItem('clearedAppointments', JSON.stringify(Array.from(updated)));
-      } catch {
-
-      }
-      return updated;
-    });
-  }, []);
-
-  const filterCleared = useCallback((bookings: Booking[]) => {
-    return bookings.filter(b => !clearedIds.has(b.id));
-  }, [clearedIds]);
-
-  return { clearAppointment, filterCleared };
-}
 
 function bySoonest(a: Booking, b: Booking) {
   const keyA = `${a.date}T${a.startTime}`;
@@ -83,9 +49,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (isBootstrapping) return;
     requireAuth(["PATIENT", "DOCTOR"]);
-  }, [isBootstrapping, requireAuth]);
 
-  useEffect(() => {
     const run = async () => {
       if (!user) return;
       try {
@@ -101,6 +65,7 @@ export default function DashboardPage() {
           setBookings(Array.isArray(data) ? data : []);
         }
       } catch (err: any) {
+        console.error('Dashboard: Failed to load bookings:', err);
         setError(err?.message || "Failed to load dashboard");
         setBookings([]);
       } finally {
@@ -108,10 +73,8 @@ export default function DashboardPage() {
       }
     };
 
-    if (!isBootstrapping) {
-      run();
-    }
-  }, [user, isPatient, isDoctor, isBootstrapping]);
+    run();
+  }, [isBootstrapping, user]);
 
   const filteredBookings = useMemo(() => filterCleared(bookings), [bookings, filterCleared]);
 

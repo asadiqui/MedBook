@@ -12,12 +12,11 @@ import { Server, Socket } from 'socket.io';
 import { ChatService } from './chat.service';
 import { BookingStatus } from '@prisma/client';
 
-const chatCorsOrigin = (process.env.FRONTEND_URL || 'https://localhost:8443')
+const chatCorsOrigin = process.env.FRONTEND_URL
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
 
-// Only allow chat for ACCEPTED bookings
 const CHAT_ALLOWED_BOOKING_STATUSES: BookingStatus[] = [
   BookingStatus.ACCEPTED,
 ];
@@ -34,9 +33,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   server: Server;
   private readonly logger = new Logger(ChatGateway.name);
 
-  // Map socketId -> userId
   private connectedUsers: Map<string, string> = new Map();
-  // Map userId -> Set of socketIds (a user can have multiple tabs/devices)
   private onlineUsers: Map<string, Set<string>> = new Map();
 
   constructor(private readonly chatService: ChatService) {}
@@ -50,14 +47,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const userId = this.connectedUsers.get(client.id);
     this.connectedUsers.delete(client.id);
     
-    // Remove this socket from user's online set
     if (userId) {
       const userSockets = this.onlineUsers.get(userId);
       if (userSockets) {
         userSockets.delete(client.id);
         if (userSockets.size === 0) {
           this.onlineUsers.delete(userId);
-          // Broadcast that user went offline
           this.server.emit('user_status', { userId, isOnline: false });
           this.logger.log(`User ${userId} is now offline`);
         }
@@ -72,13 +67,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     this.connectedUsers.set(client.id, data.userId);
     
-    // Track online status
     if (!this.onlineUsers.has(data.userId)) {
       this.onlineUsers.set(data.userId, new Set());
     }
     this.onlineUsers.get(data.userId)!.add(client.id);
     
-    // Broadcast that user is online
     this.server.emit('user_status', { userId: data.userId, isOnline: true });
     
     this.logger.log(`User ${data.userId} registered with socket ${client.id}`);

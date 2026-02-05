@@ -1,7 +1,8 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ServeStaticModule } from '@nestjs/serve-static';
+import { ScheduleModule } from '@nestjs/schedule';
 import { join } from 'path';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
@@ -12,6 +13,7 @@ import { ChatModule } from './chat/chat.module';
 import { LlmModule } from './ai/llm/llm.module';
 import { EmailModule } from './common/email.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import { LoggerMiddleware } from './common/logger.middleware';
 
 @Module({
   imports: [
@@ -19,6 +21,7 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
       isGlobal: true,
       envFilePath: ['.env', '../.env'],
     }),
+    ScheduleModule.forRoot(),
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
@@ -43,4 +46,8 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(LoggerMiddleware).forRoutes('*');
+  }
+}

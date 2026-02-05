@@ -1,13 +1,13 @@
 export const seedUsers = {
   admin: {
-    email: process.env.SEED_ADMIN_EMAIL || 'admin@MedBook.com',
-    password: process.env.SEED_ADMIN_PASSWORD || '',
+    email: process.env.SEED_ADMIN_EMAIL,
+    password: process.env.SEED_ADMIN_PASSWORD,
     firstName: 'Admin',
     lastName: 'MedBook',
   },
   doctor: {
-    email: process.env.SEED_DOCTOR_EMAIL || 'doctor@MedBook.com',
-    password: process.env.SEED_DOCTOR_PASSWORD || '',
+    email: process.env.SEED_DOCTOR_EMAIL,
+    password: process.env.SEED_DOCTOR_PASSWORD,
     firstName: 'Dr. Sarah',
     lastName: 'Johnson',
     phone: '+1234567890',
@@ -21,8 +21,8 @@ export const seedUsers = {
     clinicPhone: '+1234567891',
   },
   patient: {
-    email: process.env.SEED_PATIENT_EMAIL || 'patient@MedBook.com',
-    password: process.env.SEED_PATIENT_PASSWORD || '',
+    email: process.env.SEED_PATIENT_EMAIL,
+    password: process.env.SEED_PATIENT_PASSWORD,
     firstName: 'John',
     lastName: 'Doe',
     phone: '+1234567892',

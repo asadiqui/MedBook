@@ -5,6 +5,7 @@ import Link from "next/link";
 import { DashboardLayout } from "@/components/shared/DashboardLayout";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useClearedAppointments } from "@/lib/hooks/useClearedAppointments";
 import { resolveAvatarUrl } from "@/lib/utils/avatar";
 import { useBookings } from "@/lib/hooks/useBookings";
 import { formatTime12h } from "@/lib/utils/time";
@@ -16,41 +17,6 @@ import {
   getDoctorBookings,
   rejectBooking,
 } from "@/lib/api/booking";
-
-function useClearedAppointments() {
-  const [clearedIds, setClearedIds] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      const stored = localStorage.getItem('clearedAppointments');
-      if (stored) {
-        setClearedIds(new Set(JSON.parse(stored)));
-      }
-    } catch {
-
-    }
-  }, []);
-
-  const clearAppointment = useCallback((id: string) => {
-    setClearedIds((prev) => {
-      const updated = new Set(prev);
-      updated.add(id);
-      try {
-        localStorage.setItem('clearedAppointments', JSON.stringify(Array.from(updated)));
-      } catch {
-
-      }
-      return updated;
-    });
-  }, []);
-
-  const filterCleared = useCallback((bookings: Booking[]) => {
-    return bookings.filter(b => !clearedIds.has(b.id));
-  }, [clearedIds]);
-
-  return { clearAppointment, filterCleared };
-}
 
 function cityFromAddress(addr?: string | null): string | null {
   const raw = String(addr || "").trim();
@@ -130,6 +96,7 @@ export default function AppointmentsPage() {
       const data = await getDoctorBookings();
       setDoctorItems(Array.isArray(data) ? data : []);
     } catch (err: any) {
+      console.error('Appointments: Failed to load doctor bookings:', err);
       setDoctorError(getErrorMessage(err, "Failed to load appointments"));
       setDoctorItems([]);
     } finally {

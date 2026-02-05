@@ -4,63 +4,97 @@ import { useState } from "react";
 import Link from "next/link";
 import { Mail, Phone, Calendar, Upload, FileText, DollarSign, MapPin, User } from "lucide-react";
 import toast from "react-hot-toast";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import { Logo } from "@/components/ui/Logo";
 import { PasswordInput, FormField, FileUpload, TermsAgreement } from "@/components/auth";
 import { useAuthRedirect } from "@/lib/hooks/useAuthRedirect";
 import { useRegistration } from "@/lib/hooks/useRegistration";
 
+const doctorSchema = z.object({
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  email: z.string().email("Please enter a valid email"),
+  phone: z.string().min(10, "Please enter a valid phone number"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  dateOfBirth: z.string().min(1, "Date of birth is required"),
+  gender: z.enum(["MALE", "FEMALE", "OTHER"], { errorMap: () => ({ message: "Please select a gender" }) }),
+  specialty: z.string().min(1, "Specialization is required"),
+  licenseNumber: z.string().min(1, "License number is required"),
+  affiliation: z.string().min(1, "Affiliation is required"),
+  yearsOfExperience: z.string().min(1, "Years of experience is required"),
+  clinicAddress: z.string().min(1, "Clinic address is required"),
+  clinicContactPerson: z.string().min(1, "Contact person is required"),
+  clinicPhone: z.string().min(10, "Please enter a valid clinic phone number"),
+  consultationFee: z.string().min(1, "Consultation fee is required"),
+  agreedToTerms: z.boolean().refine((val) => val === true, {
+    message: "You must agree to the terms and conditions",
+  }),
+  agreedToVerification: z.boolean().refine((val) => val === true, {
+    message: "You must agree to verification",
+  }),
+});
+
+type DoctorFormData = z.infer<typeof doctorSchema>;
+
 export default function DoctorRegisterPage() {
   const { isAuthenticated, user } = useAuthRedirect();
+
+  const {
+    register: registerField,
+    handleSubmit,
+    formState: { errors: formErrors, isSubmitting },
+    setValue,
+    watch,
+  } = useForm<DoctorFormData>({
+    resolver: zodResolver(doctorSchema),
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+      password: "",
+      dateOfBirth: "",
+      gender: undefined,
+      specialty: "",
+      licenseNumber: "",
+      affiliation: "",
+      yearsOfExperience: "",
+      clinicAddress: "",
+      clinicContactPerson: "",
+      clinicPhone: "",
+      consultationFee: "",
+      agreedToTerms: false,
+      agreedToVerification: false,
+    },
+  });
+
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+
+  const { register: registerUser, isLoading, errors: apiErrors } = useRegistration({
+    role: "DOCTOR",
+    apiUrl: process.env.NEXT_PUBLIC_API_URL,
+  });
 
   if (isAuthenticated && user) {
     return <div className="min-h-screen flex items-center justify-center">Redirecting...</div>;
   }
 
-  const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    password: "",
-    dateOfBirth: "",
-    gender: "",
-    specialty: "",
-    licenseNumber: "",
-    affiliation: "",
-    yearsOfExperience: "",
-    clinicAddress: "",
-    clinicContactPerson: "",
-    clinicPhone: "",
-    consultationFee: "",
-    agreedToTerms: false,
-    agreedToVerification: false,
-  });
-
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-
-  const { register, isLoading, errors } = useRegistration({
-    role: "DOCTOR",
-    apiUrl: process.env.NEXT_PUBLIC_API_URL || "https://localhost:8443/api",
-  });
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (formData.dateOfBirth) {
-      const birthDate = new Date(formData.dateOfBirth);
-      const today = new Date();
-      let age = today.getFullYear() - birthDate.getFullYear();
-      const monthDiff = today.getMonth() - birthDate.getMonth();
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-        age--;
-      }
-      if (age < 18) {
-        toast.error("Sorry, you need to be 18 or older to register as a doctor");
-        return;
-      }
+  const onSubmit = async (data: DoctorFormData) => {
+    const birthDate = new Date(data.dateOfBirth);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    if (age < 18) {
+      toast.error("Sorry, you need to be 18 or older to register as a doctor");
+      return;
     }
 
-    const success = await register(formData, uploadedFile);
+    const success = await registerUser(data, uploadedFile);
     if (success) {
       setTimeout(() => {
         window.location.href = "/auth/login";
@@ -151,7 +185,7 @@ export default function DoctorRegisterPage() {
           </div>
 
           {}
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {}
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
               <div className="flex items-center gap-2 mb-5">
@@ -164,20 +198,18 @@ export default function DoctorRegisterPage() {
               <div className="space-y-4">
                 {}
                 <div className="grid grid-cols-2 gap-4">
-                  <FormField label="First Name" required>
+                  <FormField label="First Name" error={formErrors.firstName?.message} required>
                     <input
                       type="text"
-                      value={formData.firstName}
-                      onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                      {...registerField("firstName")}
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                       placeholder="Jane"
                     />
                   </FormField>
-                  <FormField label="Last Name" required>
+                  <FormField label="Last Name" error={formErrors.lastName?.message} required>
                     <input
                       type="text"
-                      value={formData.lastName}
-                      onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                      {...registerField("lastName")}
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                       placeholder="Doe"
                     />
@@ -186,25 +218,29 @@ export default function DoctorRegisterPage() {
 
                 {}
                 <div className="grid grid-cols-2 gap-4">
-                  <FormField label="Email Address" error={errors.email} required>
+                  <FormField label="Email Address" error={formErrors.email?.message || apiErrors.email} required>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                       <input
                         type="email"
-                        value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        {...registerField("email")}
                         className="w-full pl-11 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                         placeholder="jane.doe@example.com"
                       />
                     </div>
                   </FormField>
-                  <FormField label="Phone Number" error={errors.phone} required>
+                  <FormField label="Phone Number" error={formErrors.phone?.message || apiErrors.phone} required>
                     <div className="relative">
                       <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                       <input
                         type="tel"
-                        value={formData.phone}
-                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        {...registerField("phone", {
+                          onChange: (e) => {
+                            const value = e.target.value.replace(/[^0-9+\\s()-]/g, '');
+                            setValue("phone", value);
+                          }
+                        })}
+                        inputMode="numeric"
                         className="w-full pl-11 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                         placeholder="+1 (555) 000-0000"
                       />
@@ -213,20 +249,19 @@ export default function DoctorRegisterPage() {
                 </div>
 
                 {}
-                <FormField label="Create Password" error={errors.password} required>
+                <FormField label="Create Password" error={formErrors.password?.message || apiErrors.password} required>
                   <PasswordInput
-                    value={formData.password}
-                    onChange={(password) => setFormData({ ...formData, password })}
+                    value={watch("password")}
+                    onChange={(password) => setValue("password", password)}
                     placeholder="Min. 8 characters including a number and a special character"
                   />
                 </FormField>
 
                 {}
                 <div className="grid grid-cols-2 gap-4">
-                  <FormField label="Gender" error={errors.gender} required>
+                  <FormField label="Gender" error={formErrors.gender?.message || apiErrors.gender} required>
                     <select
-                      value={formData.gender}
-                      onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                      {...registerField("gender")}
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition bg-white"
                     >
                       <option value="">Select Gender</option>
@@ -235,13 +270,19 @@ export default function DoctorRegisterPage() {
                       <option value="OTHER">Other</option>
                     </select>
                   </FormField>
-                  <FormField label="Date of Birth" error={errors.dateOfBirth} required>
+                  <FormField label="Date of Birth" error={formErrors.dateOfBirth?.message || apiErrors.dateOfBirth} required>
                     <input
                       type="date"
-                      value={formData.dateOfBirth}
-                      onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                      {...registerField("dateOfBirth", {
+                        onChange: (e) => {
+                          e.target.setCustomValidity('');
+                        }
+                      })}
+                      onInvalid={(e) => {
+                        const target = e.target as HTMLInputElement;
+                        target.setCustomValidity('You must be at least 18 years old to register');
+                      }}
                       max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
-                      title="You must be at least 18 years old to register"
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                     />
                   </FormField>
@@ -261,10 +302,9 @@ export default function DoctorRegisterPage() {
               <div className="space-y-4">
                 {}
                 <div className="grid grid-cols-2 gap-4">
-                  <FormField label="Specialization" error={errors.specialty} required>
+                  <FormField label="Specialization" error={formErrors.specialty?.message || apiErrors.specialty} required>
                     <select
-                      value={formData.specialty}
-                      onChange={(e) => setFormData({ ...formData, specialty: e.target.value })}
+                      {...registerField("specialty")}
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition bg-white"
                     >
                       <option value="">Select Specialization</option>
@@ -273,11 +313,10 @@ export default function DoctorRegisterPage() {
                       ))}
                     </select>
                   </FormField>
-                  <FormField label="Medical License Number" error={errors.licenseNumber} required>
+                  <FormField label="Medical License Number" error={formErrors.licenseNumber?.message || apiErrors.licenseNumber} required>
                     <input
                       type="text"
-                      value={formData.licenseNumber}
-                      onChange={(e) => setFormData({ ...formData, licenseNumber: e.target.value })}
+                      {...registerField("licenseNumber")}
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                       placeholder="e.g. MD-12345.67"
                     />
@@ -286,20 +325,18 @@ export default function DoctorRegisterPage() {
 
                 {}
                 <div className="grid grid-cols-2 gap-4">
-                  <FormField label="Current Affiliation" error={errors.affiliation} required>
+                  <FormField label="Current Affiliation" error={formErrors.affiliation?.message || apiErrors.affiliation} required>
                     <input
                       type="text"
-                      value={formData.affiliation}
-                      onChange={(e) => setFormData({ ...formData, affiliation: e.target.value })}
+                      {...registerField("affiliation")}
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                       placeholder="Clinic or Hospital Name"
                     />
                   </FormField>
-                  <FormField label="Years of Experience" error={errors.yearsOfExperience} required>
+                  <FormField label="Years of Experience" error={formErrors.yearsOfExperience?.message || apiErrors.yearsOfExperience} required>
                     <input
                       type="number"
-                      value={formData.yearsOfExperience}
-                      onChange={(e) => setFormData({ ...formData, yearsOfExperience: e.target.value })}
+                      {...registerField("yearsOfExperience")}
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                       placeholder="e.g. 5"
                       min="0"
@@ -308,11 +345,10 @@ export default function DoctorRegisterPage() {
                 </div>
 
                 {}
-                <FormField label="Consultation Fee ($)" error={errors.consultationFee} required>
+                <FormField label="Consultation Fee ($)" error={formErrors.consultationFee?.message || apiErrors.consultationFee} required>
                   <input
                     type="number"
-                    value={formData.consultationFee}
-                    onChange={(e) => setFormData({ ...formData, consultationFee: e.target.value })}
+                    {...registerField("consultationFee")}
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                     placeholder="e.g. 100"
                     min="0"
@@ -333,11 +369,10 @@ export default function DoctorRegisterPage() {
 
               <div className="space-y-4">
                 {}
-                <FormField label="Clinic / Hospital Address" error={errors.clinicAddress} required>
+                <FormField label="Clinic / Hospital Address" error={formErrors.clinicAddress?.message || apiErrors.clinicAddress} required>
                   <input
                     type="text"
-                    value={formData.clinicAddress}
-                    onChange={(e) => setFormData({ ...formData, clinicAddress: e.target.value })}
+                    {...registerField("clinicAddress")}
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                     placeholder="123 Medical Plaza, Suite 400"
                   />
@@ -345,20 +380,24 @@ export default function DoctorRegisterPage() {
 
                 {}
                 <div className="grid grid-cols-2 gap-4">
-                  <FormField label="Contact Person" error={errors.clinicContactPerson} required>
+                  <FormField label="Contact Person" error={formErrors.clinicContactPerson?.message || apiErrors.clinicContactPerson} required>
                     <input
                       type="text"
-                      value={formData.clinicContactPerson}
-                      onChange={(e) => setFormData({ ...formData, clinicContactPerson: e.target.value })}
+                      {...registerField("clinicContactPerson")}
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                       placeholder="Admin Name or Self"
                     />
                   </FormField>
-                  <FormField label="Clinic Phone Number" error={errors.clinicPhone} required>
+                  <FormField label="Clinic Phone Number" error={formErrors.clinicPhone?.message || apiErrors.clinicPhone} required>
                     <input
                       type="tel"
-                      value={formData.clinicPhone}
-                      onChange={(e) => setFormData({ ...formData, clinicPhone: e.target.value })}
+                      {...registerField("clinicPhone", {
+                        onChange: (e) => {
+                          const value = e.target.value.replace(/[^0-9+\s()-]/g, '');
+                          setValue("clinicPhone", value);
+                        }
+                      })}
+                      inputMode="numeric"
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                       placeholder="+1 (555) 999-8888"
                     />
@@ -408,12 +447,12 @@ export default function DoctorRegisterPage() {
 
               <div className="space-y-3">
                 <TermsAgreement
-                  agreedToTerms={formData.agreedToTerms}
-                  agreedToVerification={formData.agreedToVerification}
-                  onTermsChange={(agreed) => setFormData({ ...formData, agreedToTerms: agreed })}
-                  onVerificationChange={(agreed) => setFormData({ ...formData, agreedToVerification: agreed })}
+                  agreedToTerms={watch("agreedToTerms")}
+                  agreedToVerification={watch("agreedToVerification")}
+                  onTermsChange={(agreed) => setValue("agreedToTerms", agreed)}
+                  onVerificationChange={(agreed) => setValue("agreedToVerification", agreed)}
                   showVerification={true}
-                  error={errors.agreedToTerms || errors.agreedToVerification}
+                  error={formErrors.agreedToTerms?.message || formErrors.agreedToVerification?.message || apiErrors.agreedToTerms || apiErrors.agreedToVerification}
                 />
               </div>
             </div>
@@ -421,10 +460,10 @@ export default function DoctorRegisterPage() {
             {}
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isSubmitting || isLoading}
               className="w-full bg-blue-600 text-white py-3.5 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2 text-base disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? (
+              {(isSubmitting || isLoading) ? (
                 <>
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                   Creating Account...

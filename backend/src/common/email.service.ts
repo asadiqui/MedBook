@@ -21,6 +21,12 @@ export class EmailService {
 
   async sendEmail(to: string, subject: string, html: string): Promise<void> {
     try {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(to)) {
+        this.logger.error(`Invalid email address: ${to}`);
+        return;
+      }
+
       const mailOptions = {
         from: `"${this.configService.get<string>('APP_NAME', 'MedBook')}" <${this.configService.get<string>('SMTP_USER')}>`,
         to,
@@ -29,8 +35,9 @@ export class EmailService {
       };
 
       await this.transporter.sendMail(mailOptions);
+      this.logger.log(`Email sent successfully to ${to}`);
     } catch (error) {
-      this.logger.warn('Email sending failed', error as Error);
+      this.logger.error('Email sending failed', error as Error);
     }
   }
 

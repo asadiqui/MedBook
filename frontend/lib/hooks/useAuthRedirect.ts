@@ -3,16 +3,16 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/store/auth';
 
 export const useAuthRedirect = (redirectWhenAuthenticated: boolean = true) => {
-  const { isAuthenticated, redirectPath } = useAuthStore();
+  const { isAuthenticated, user, redirectPath, isBootstrapping } = useAuthStore();
   const router = useRouter();
 
   useEffect(() => {
-    if (!redirectWhenAuthenticated) return;
+    if (!redirectWhenAuthenticated || isBootstrapping) return;
     
     if (isAuthenticated && redirectPath) {
       router.push(redirectPath);
     }
-  }, [isAuthenticated, redirectPath, router, redirectWhenAuthenticated]);
+  }, [isAuthenticated, redirectPath, router, redirectWhenAuthenticated, isBootstrapping]);
 
-  return { isAuthenticated };
+  return { isAuthenticated, user, isBootstrapping };
 };

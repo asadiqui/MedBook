@@ -56,7 +56,7 @@ interface ChatInfo {
 export default function ChatPage() {
   const searchParams = useSearchParams();
   const bookingIdParam = searchParams?.get("bookingId");
-  const { user, isAuthenticated, requireAuth } = useAuth();
+  const { user, isAuthenticated, requireAuth, isBootstrapping } = useAuth();
   const [chats, setChats] = useState<ChatInfo[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [selectedBookingId, setSelectedBookingId] = useState<string | undefined>(
@@ -68,13 +68,15 @@ export default function ChatPage() {
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-
   useEffect(() => {
-
-    if (requireAuth && requireAuth()) {
+    if (isBootstrapping) return;
+    const result = requireAuth();
+    if (result !== null) {
       setAuthChecked(true);
     }
-  }, [requireAuth]);
+  }, [isBootstrapping, requireAuth]);
+
+  const markAllAsReadRef = useRef<(() => void) | null>(null);
 
   const handleNewMessage = useCallback((message: Message) => {
     setMessages((prev) => [...prev, message]);
@@ -95,6 +97,15 @@ export default function ChatPage() {
         return bTs - aTs;
       });
     });
+    
+    // Auto-mark as read if user is viewing this chat
+    if (message.receiverId === user?.id && message.bookingId === selectedBookingId) {
+      setTimeout(() => {
+        if (markAllAsReadRef.current) {
+          markAllAsReadRef.current();
+        }
+      }, 500);
+    }
   }, [selectedBookingId, user?.id]);
 
   const handleTyping = useCallback((data: { userId: string; isTyping: boolean }) => {
@@ -116,7 +127,8 @@ export default function ChatPage() {
     onMessageRead: handleMessageRead,
   });
 
-  // Request online status when otherUser changes
+  markAllAsReadRef.current = markAllAsRead;
+
   useEffect(() => {
     if (otherUser && isConnected) {
       getOnlineStatus([otherUser.id]);
@@ -148,7 +160,6 @@ export default function ChatPage() {
         const other = booking.doctorId === user?.id ? booking.patient : booking.doctor;
         setOtherUser(other);
         markAllAsRead();
-        // Get the unread count for this chat before resetting
         const chatToUpdate = chats.find(c => c.bookingId === selectedBookingId);
         const unreadInThisChat = chatToUpdate?.unreadCount || 0;
         
@@ -158,7 +169,6 @@ export default function ChatPage() {
           )
         );
         
-        // Update global unread count
         if (unreadInThisChat > 0) {
           useChatStore.getState().decrementUnreadCount(unreadInThisChat);
         }
@@ -189,7 +199,6 @@ export default function ChatPage() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       
-      // The message will be received via socket, but add it immediately for responsiveness
       if (response.data) {
         setMessages(prev => [...prev, response.data]);
       }

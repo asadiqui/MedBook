@@ -7,7 +7,6 @@ down:
 build:
 	docker compose up --build -d
 
-# Force rebuild without cache
 rebuild:
 	docker compose build --no-cache
 	docker compose up -d
@@ -15,7 +14,6 @@ rebuild:
 restart:
 	docker compose restart
 
-# View logs
 logs:
 	docker compose logs -f
 
@@ -28,7 +26,6 @@ logs-front:
 logs-db:
 	docker compose logs -f postgres
 
-# Shell access
 shell-back:
 	docker compose exec backend sh
 
@@ -44,4 +41,4 @@ clean:
 prune:
 	docker system prune -af
 
-.PHONY: up down build rebuild logs logs-back logs-front logs-db shell-back shell-front shell-db clean prune restart
+.PHONY: up down build rebuild restart prod-up prod-down prod-build prod-rebuild prod-logs logs logs-back logs-front logs-db shell-back shell-front shell-db clean prune

@@ -34,10 +34,8 @@ export function Sidebar({ role }: SidebarProps) {
   const { logout } = useAuthStore();
   const { unreadCount, fetchUnreadCount } = useChatStore();
 
-  // Fetch unread message count
   useEffect(() => {
     fetchUnreadCount();
-    // Refresh every 30 seconds
     const interval = setInterval(fetchUnreadCount, 30000);
     return () => clearInterval(interval);
   }, [fetchUnreadCount]);

@@ -5,14 +5,15 @@ RUN apk add --no-cache git openssl
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+
+RUN npm install && npm cache clean --force
 
 COPY prisma ./prisma/
-RUN npm run prisma:generate
+RUN npx prisma generate
 
 COPY . .
 
-RUN mkdir -p uploads/avatars uploads/documents uploads/chat
+RUN mkdir -p uploads/avatars private/documents uploads/chat
 
 EXPOSE 3001
 

@@ -19,7 +19,6 @@ export const useChatStore = create<ChatStore>((set) => ({
       const response = await api.get('/chat/unread-count');
       set({ unreadCount: response.data.unreadCount || 0 });
     } catch (error) {
-      // Ignore errors - user might not be logged in
     }
   },
 }));

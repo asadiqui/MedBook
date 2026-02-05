@@ -48,6 +48,12 @@ model User {
   clinicAddress       String?
   clinicContactPerson String?
   clinicPhone         String?
+
+  @@index([role])
+  @@index([specialty])
+  @@index([isActive])
+  @@index([isVerified])
+  @@index([email])
   isVerified          Boolean   @default(false)
 
   isActive            Boolean   @default(true)

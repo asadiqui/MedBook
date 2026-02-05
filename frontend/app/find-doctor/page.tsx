@@ -46,7 +46,7 @@ export default function FindDoctorPage() {
   useEffect(() => {
     if (isBootstrapping) return;
     requireAuth(["PATIENT"]);
-  }, [isBootstrapping, requireAuth]);
+  }, [isBootstrapping]);
 
   const specialties = useMemo(() => {
     const uniqueSpecialties = new Set<string>();

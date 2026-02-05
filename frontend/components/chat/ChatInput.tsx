@@ -4,7 +4,6 @@ import { useState, useRef, useEffect } from 'react';
 import { Paperclip, Smile, Send, X } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
-// Dynamically import emoji picker to avoid SSR issues
 const EmojiPicker = dynamic(() => import('emoji-picker-react'), { ssr: false });
 
 interface ChatInputProps {
@@ -21,7 +20,6 @@ export default function ChatInput({ onSendMessage, onTyping, onSendAttachment }:
   const fileInputRef = useRef<HTMLInputElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
 
-  // Close emoji picker when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target as Node)) {
@@ -38,13 +36,11 @@ export default function ChatInput({ onSendMessage, onTyping, onSendAttachment }:
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Handle file attachment
     if (selectedFile && onSendAttachment) {
       onSendAttachment(selectedFile);
       clearFile();
     }
     
-    // Handle text message
     if (message.trim()) {
       onSendMessage(message.trim());
       setMessage('');
@@ -68,7 +64,6 @@ export default function ChatInput({ onSendMessage, onTyping, onSendAttachment }:
     if (file) {
       setSelectedFile(file);
       
-      // Create preview for images
       if (file.type.startsWith('image/')) {
         const url = URL.createObjectURL(file);
         setPreviewUrl(url);

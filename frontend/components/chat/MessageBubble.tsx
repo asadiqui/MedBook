@@ -157,7 +157,7 @@ export default function MessageBubble({ message, isOwn, showAvatar = true }: Mes
     );
   }
 
-  // Regular text message
+
   return (
     <div className={`flex items-end gap-2 mb-4 ${isOwn ? 'justify-end' : ''}`}>
       {showAvatar && !isOwn && <Avatar />}

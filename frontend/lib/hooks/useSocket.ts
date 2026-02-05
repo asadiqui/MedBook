@@ -4,7 +4,7 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { useAuthStore } from "@/lib/store/auth";
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "https://localhost:8443";
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL;
 
 interface Message {
   id: string;
@@ -49,12 +49,12 @@ export const useSocket = (options: UseSocketOptions = {}) => {
   useEffect(() => {
     if (!user) return;
 
-    socketRef.current = io(`${SOCKET_URL}/chat`, {
+    const socket = io(`${SOCKET_URL}/chat`, {
       transports: ["websocket", "polling"],
       autoConnect: true,
     });
 
-    const socket = socketRef.current;
+    socketRef.current = socket;
 
     socket.on("connect", () => {
       setIsConnected(true);
@@ -95,10 +95,15 @@ export const useSocket = (options: UseSocketOptions = {}) => {
     });
 
     return () => {
-      if (bookingId) {
-        socket.emit("leave_room", { bookingId });
+      if (socket.connected || socket.io.engine?.readyState === 'open') {
+        if (bookingId) {
+          socket.emit("leave_room", { bookingId });
+        }
+        socket.disconnect();
+      } else {
+        socket.close();
       }
-      socket.disconnect();
+      socketRef.current = null;
     };
 
   }, [user, bookingId]);

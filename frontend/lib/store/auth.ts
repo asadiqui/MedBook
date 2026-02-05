@@ -44,7 +44,6 @@ interface AuthState {
   setBootstrapping: (isBootstrapping: boolean) => void;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
-  initializeAuth: () => Promise<void>;
 }
 
 let authCheckPromise: Promise<void> | null = null;
@@ -120,9 +119,5 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     })();
 
     return authCheckPromise;
-  },
-
-  initializeAuth: async () => {
-    await get().checkAuth();
   },
 }));
