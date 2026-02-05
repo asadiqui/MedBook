@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useLayoutEffect } from 'react';
 import MessageBubble from './MessageBubble';
 
 interface Message {
@@ -23,10 +23,32 @@ interface ChatMessagesProps {
 }
 
 export default function ChatMessages({ messages, currentUserId }: ChatMessagesProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const prevMessagesLengthRef = useRef(0);
 
+  // Scroll to bottom function
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    if (containerRef.current) {
+      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+    }
+  };
+
+  // Scroll to bottom on initial load (instant)
+  useLayoutEffect(() => {
+    scrollToBottom('instant');
+  }, []);
+
+  // Scroll to bottom when new messages arrive
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Only smooth scroll if messages were added (not on initial load)
+    if (messages.length > prevMessagesLengthRef.current) {
+      // Small delay to ensure DOM is updated
+      setTimeout(() => {
+        scrollToBottom('smooth');
+      }, 100);
+    }
+    prevMessagesLengthRef.current = messages.length;
   }, [messages]);
 
   const groupedMessages = messages.reduce((groups, message) => {
@@ -52,7 +74,7 @@ export default function ChatMessages({ messages, currentUserId }: ChatMessagesPr
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+    <div ref={containerRef} className="flex-1 overflow-y-auto p-6 bg-gray-50">
       {Object.entries(groupedMessages).map(([date, dateMessages]) => (
         <div key={date}>
           {}

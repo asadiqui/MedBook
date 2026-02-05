@@ -158,8 +158,19 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         data.content,
       );
 
+      // Emit to the chat room (for users in the chat)
       const room = `booking_${data.bookingId}`;
       this.server.to(room).emit('new_message', savedMessage);
+
+      // Also emit directly to receiver's sockets (for global notification/unread count)
+      // This ensures users NOT in the room still get notified
+      const receiverSockets = this.onlineUsers.get(receiverId);
+      if (receiverSockets) {
+        receiverSockets.forEach((socketId) => {
+          this.server.to(socketId).emit('new_message', savedMessage);
+        });
+        this.logger.log(`Message also sent directly to receiver ${receiverId} (${receiverSockets.size} sockets)`);
+      }
 
       this.logger.log(`Message sent to room ${room}: ${savedMessage.content}`);
 
@@ -237,5 +248,34 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       );
       return { event: 'error', data: { message: error.message } };
     }
+  }
+
+  /**
+   * Emit a message to a booking room (used by controller for attachments)
+   */
+  emitMessageToRoom(bookingId: string, message: any) {
+    const room = `booking_${bookingId}`;
+    this.server.to(room).emit('new_message', message);
+    
+    // Also emit directly to receiver's sockets for global notification
+    const receiverId = message.receiverId;
+    if (receiverId) {
+      const receiverSockets = this.onlineUsers.get(receiverId);
+      if (receiverSockets) {
+        receiverSockets.forEach((socketId) => {
+          this.server.to(socketId).emit('new_message', message);
+        });
+        this.logger.log(`Attachment also sent directly to receiver ${receiverId}`);
+      }
+    }
+    
+    this.logger.log(`Emitted attachment message to room ${room}`);
+  }
+
+  /**
+   * Check if a user is currently online
+   */
+  isUserOnline(userId: string): boolean {
+    return this.onlineUsers.has(userId) && this.onlineUsers.get(userId)!.size > 0;
   }
 }

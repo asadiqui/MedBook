@@ -79,7 +79,12 @@ export default function ChatPage() {
   const markAllAsReadRef = useRef<(() => void) | null>(null);
 
   const handleNewMessage = useCallback((message: Message) => {
-    setMessages((prev) => [...prev, message]);
+    // Avoid duplicates (message might already be added locally for sender)
+    setMessages((prev) => {
+      const exists = prev.some(m => m.id === message.id);
+      if (exists) return prev;
+      return [...prev, message];
+    });
     setChats((prev) => {
       const updated = prev.map((chat) => {
         if (chat.bookingId !== message.bookingId) return chat;
@@ -195,16 +200,36 @@ export default function ChatPage() {
       formData.append('bookingId', selectedBookingId);
       formData.append('receiverId', otherUser.id);
       
-      const response = await api.post('/chat/send-attachment', formData, {
+      // REST API uploads the file and backend emits via WebSocket
+      // The message will arrive via handleNewMessage callback
+      await api.post('/chat/send-attachment', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      
-      if (response.data) {
-        setMessages(prev => [...prev, response.data]);
-      }
     } catch (error) {
       console.error('Failed to send attachment:', error);
     }
+  };
+
+  const handleSendAttachments = async (files: File[]) => {
+    if (!otherUser || !selectedBookingId) return;
+    
+    // Send all files in parallel for better UX
+    const uploadPromises = files.map(async (file) => {
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('bookingId', selectedBookingId);
+        formData.append('receiverId', otherUser.id);
+        
+        await api.post('/chat/send-attachment', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+      } catch (error) {
+        console.error(`Failed to send attachment ${file.name}:`, error);
+      }
+    });
+    
+    await Promise.all(uploadPromises);
   };
 
   const handleTypingEvent = () => {
@@ -267,6 +292,7 @@ export default function ChatPage() {
                 onSendMessage={handleSendMessage}
                 onTyping={handleTypingEvent}
                 onSendAttachment={handleSendAttachment}
+                onSendAttachments={handleSendAttachments}
               />
             </>
           ) : (

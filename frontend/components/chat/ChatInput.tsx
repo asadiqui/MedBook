@@ -6,17 +6,23 @@ import dynamic from 'next/dynamic';
 
 const EmojiPicker = dynamic(() => import('emoji-picker-react'), { ssr: false });
 
+interface FileWithPreview {
+  file: File;
+  previewUrl: string | null;
+  id: string;
+}
+
 interface ChatInputProps {
   onSendMessage: (message: string) => void;
   onTyping: () => void;
   onSendAttachment?: (file: File) => void;
+  onSendAttachments?: (files: File[]) => void;
 }
 
-export default function ChatInput({ onSendMessage, onTyping, onSendAttachment }: ChatInputProps) {
+export default function ChatInput({ onSendMessage, onTyping, onSendAttachment, onSendAttachments }: ChatInputProps) {
   const [message, setMessage] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<FileWithPreview[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
 
@@ -33,12 +39,21 @@ export default function ChatInput({ onSendMessage, onTyping, onSendAttachment }:
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showEmojiPicker]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (selectedFile && onSendAttachment) {
-      onSendAttachment(selectedFile);
-      clearFile();
+    // Send all attachments
+    if (selectedFiles.length > 0) {
+      if (onSendAttachments) {
+        // Use batch send if available
+        onSendAttachments(selectedFiles.map(f => f.file));
+      } else if (onSendAttachment) {
+        // Fall back to sending one by one
+        for (const fileWithPreview of selectedFiles) {
+          onSendAttachment(fileWithPreview.file);
+        }
+      }
+      clearAllFiles();
     }
     
     if (message.trim()) {
@@ -60,23 +75,38 @@ export default function ChatInput({ onSendMessage, onTyping, onSendAttachment }:
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      
-      if (file.type.startsWith('image/')) {
-        const url = URL.createObjectURL(file);
-        setPreviewUrl(url);
-      }
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    const newFiles: FileWithPreview[] = Array.from(files).map(file => ({
+      file,
+      previewUrl: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
+      id: `${file.name}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    }));
+    
+    setSelectedFiles(prev => [...prev, ...newFiles]);
+    
+    // Reset input so same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
-  const clearFile = () => {
-    setSelectedFile(null);
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
-    }
+  const removeFile = (id: string) => {
+    setSelectedFiles(prev => {
+      const fileToRemove = prev.find(f => f.id === id);
+      if (fileToRemove?.previewUrl) {
+        URL.revokeObjectURL(fileToRemove.previewUrl);
+      }
+      return prev.filter(f => f.id !== id);
+    });
+  };
+
+  const clearAllFiles = () => {
+    selectedFiles.forEach(f => {
+      if (f.previewUrl) URL.revokeObjectURL(f.previewUrl);
+    });
+    setSelectedFiles([]);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -101,27 +131,59 @@ export default function ChatInput({ onSendMessage, onTyping, onSendAttachment }:
         </div>
       )}
 
-      {/* File Preview */}
-      {selectedFile && (
-        <div className="p-3 border-b border-gray-100 flex items-center gap-3">
-          {previewUrl ? (
-            <img src={previewUrl} alt="Preview" className="w-16 h-16 object-cover rounded" />
-          ) : (
-            <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center">
-              <Paperclip className="w-6 h-6 text-gray-400" />
-            </div>
-          )}
-          <div className="flex-1">
-            <p className="text-sm font-medium text-gray-900 truncate">{selectedFile.name}</p>
-            <p className="text-xs text-gray-500">{(selectedFile.size / 1024).toFixed(1)} KB</p>
+      {/* File Previews - Multiple files */}
+      {selectedFiles.length > 0 && (
+        <div className="p-3 border-b border-gray-100">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-gray-500">{selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''} selected</span>
+            {selectedFiles.length > 1 && (
+              <button
+                type="button"
+                onClick={clearAllFiles}
+                className="text-xs text-red-500 hover:text-red-700"
+              >
+                Clear all
+              </button>
+            )}
           </div>
-          <button
-            type="button"
-            onClick={clearFile}
-            className="p-1 text-gray-400 hover:text-gray-600"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex flex-wrap gap-2">
+            {selectedFiles.map((fileWithPreview) => (
+              <div key={fileWithPreview.id} className="relative group">
+                {fileWithPreview.previewUrl ? (
+                  <img 
+                    src={fileWithPreview.previewUrl} 
+                    alt="Preview" 
+                    className="w-16 h-16 object-cover rounded border border-gray-200" 
+                  />
+                ) : (
+                  <div className="w-16 h-16 bg-gray-100 rounded border border-gray-200 flex flex-col items-center justify-center p-1">
+                    <Paperclip className="w-4 h-4 text-gray-400" />
+                    <span className="text-[8px] text-gray-500 truncate w-full text-center mt-1">
+                      {fileWithPreview.file.name.split('.').pop()?.toUpperCase()}
+                    </span>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => removeFile(fileWithPreview.id)}
+                  className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+                <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[8px] px-1 truncate rounded-b">
+                  {(fileWithPreview.file.size / 1024).toFixed(0)}KB
+                </div>
+              </div>
+            ))}
+            {/* Add more button */}
+            <button
+              type="button"
+              onClick={openFilePicker}
+              className="w-16 h-16 border-2 border-dashed border-gray-300 rounded flex items-center justify-center text-gray-400 hover:border-blue-400 hover:text-blue-400 transition"
+            >
+              <span className="text-2xl">+</span>
+            </button>
+          </div>
         </div>
       )}
 
@@ -133,17 +195,18 @@ export default function ChatInput({ onSendMessage, onTyping, onSendAttachment }:
             type="file"
             onChange={handleFileSelect}
             accept="image/*,.pdf,.doc,.docx"
+            multiple
             className="hidden"
           />
           <button
             type="button"
             onClick={openFilePicker}
             className={`p-2 rounded-full transition ${
-              selectedFile 
+              selectedFiles.length > 0 
                 ? 'text-blue-500 bg-blue-100' 
                 : 'text-gray-500 hover:bg-gray-100'
             }`}
-            title="Attach file"
+            title="Attach files"
           >
             <Paperclip className="w-5 h-5" />
           </button>
@@ -176,9 +239,9 @@ export default function ChatInput({ onSendMessage, onTyping, onSendAttachment }:
           {/* Send button */}
           <button
             type="submit"
-            disabled={!message.trim() && !selectedFile}
+            disabled={!message.trim() && selectedFiles.length === 0}
             className={`p-2 rounded-full transition ${
-              message.trim() || selectedFile
+              message.trim() || selectedFiles.length > 0
                 ? 'text-blue-500 hover:bg-blue-100'
                 : 'text-gray-300 cursor-not-allowed'
             }`}

@@ -8,12 +8,15 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
+  forwardRef,
+  Inject,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { ChatService } from './chat.service';
+import { ChatGateway } from './chat.gateway';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { SendMessageDto } from './dto';
 
@@ -27,7 +30,11 @@ const chatUploadStorage = diskStorage({
 
 @Controller('chat')
 export class ChatController {
-  constructor(private readonly chatService: ChatService) {}
+  constructor(
+    private readonly chatService: ChatService,
+    @Inject(forwardRef(() => ChatGateway))
+    private readonly chatGateway: ChatGateway,
+  ) {}
 
   @Post('send')
   async sendMessage(
@@ -78,7 +85,12 @@ export class ChatController {
     const fileUrl = `/uploads/chat/${file.filename}`;
     const content = `[attachment:${fileUrl}:${file.originalname}:${file.mimetype}]`;
 
-    return this.chatService.saveMessage(bookingId, userId, receiverId, content);
+    const savedMessage = await this.chatService.saveMessage(bookingId, userId, receiverId, content);
+    
+    // Emit the attachment message via WebSocket so receiver sees it immediately
+    this.chatGateway.emitMessageToRoom(bookingId, savedMessage);
+    
+    return savedMessage;
   }
 
   @Get('booking/:id')

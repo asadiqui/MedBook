@@ -4,6 +4,7 @@ import api from '@/lib/api';
 interface ChatStore {
   unreadCount: number;
   setUnreadCount: (count: number) => void;
+  incrementUnreadCount: (by?: number) => void;
   decrementUnreadCount: (by?: number) => void;
   fetchUnreadCount: () => Promise<void>;
 }
@@ -11,6 +12,9 @@ interface ChatStore {
 export const useChatStore = create<ChatStore>((set) => ({
   unreadCount: 0,
   setUnreadCount: (count) => set({ unreadCount: count }),
+  incrementUnreadCount: (by = 1) => set((state) => ({ 
+    unreadCount: state.unreadCount + by 
+  })),
   decrementUnreadCount: (by = 1) => set((state) => ({ 
     unreadCount: Math.max(0, state.unreadCount - by) 
   })),

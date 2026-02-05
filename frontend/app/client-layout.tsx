@@ -4,9 +4,15 @@ import { useEffect, useMemo, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { Toaster } from "react-hot-toast";
 import { useAuthStore } from "@/lib/store/auth";
+import { useGlobalSocket } from "@/lib/hooks/useGlobalSocket";
+
+function GlobalSocketProvider() {
+  useGlobalSocket();
+  return null;
+}
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
-  const { checkAuth, setBootstrapping, authChecked } = useAuthStore();
+  const { checkAuth, setBootstrapping, authChecked, user } = useAuthStore();
   const pathname = usePathname();
   const hasInitializedRef = useRef(false);
 
@@ -35,6 +41,8 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <>
+      {/* Global socket for unread message notifications */}
+      {user && <GlobalSocketProvider />}
       {children}
       <Toaster
         position="top-right"

@@ -5,6 +5,7 @@ import { io, Socket } from "socket.io-client";
 import { useAuthStore } from "@/lib/store/auth";
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL;
+const ONLINE_STATUS_POLL_INTERVAL = 30000; // Poll every 30 seconds
 
 interface Message {
   id: string;
@@ -45,6 +46,7 @@ export const useSocket = (options: UseSocketOptions = {}) => {
   const { user } = useAuthStore();
   const [isConnected, setIsConnected] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState<Record<string, boolean>>({});
+  const trackedUsersRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!user) return;
@@ -62,6 +64,11 @@ export const useSocket = (options: UseSocketOptions = {}) => {
 
       if (bookingId) {
         socket.emit("join_room", { bookingId, userId: user.id });
+      }
+      
+      // Re-fetch online status for tracked users on reconnect
+      if (trackedUsersRef.current.size > 0) {
+        socket.emit("get_online_status", { userIds: Array.from(trackedUsersRef.current) });
       }
     });
 
@@ -94,7 +101,15 @@ export const useSocket = (options: UseSocketOptions = {}) => {
       setOnlineUsers(prev => ({ ...prev, ...statuses }));
     });
 
+    // Periodic polling for online status
+    const pollInterval = setInterval(() => {
+      if (socket.connected && trackedUsersRef.current.size > 0) {
+        socket.emit("get_online_status", { userIds: Array.from(trackedUsersRef.current) });
+      }
+    }, ONLINE_STATUS_POLL_INTERVAL);
+
     return () => {
+      clearInterval(pollInterval);
       if (socket.connected || socket.io.engine?.readyState === 'open') {
         if (bookingId) {
           socket.emit("leave_room", { bookingId });
@@ -137,6 +152,8 @@ export const useSocket = (options: UseSocketOptions = {}) => {
 
   const getOnlineStatus = useCallback((userIds: string[]) => {
     if (!socketRef.current) return;
+    // Track these users for periodic polling
+    userIds.forEach(id => trackedUsersRef.current.add(id));
     socketRef.current.emit("get_online_status", { userIds });
   }, []);
 

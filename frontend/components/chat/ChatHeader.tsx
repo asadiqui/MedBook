@@ -3,8 +3,6 @@
 import { useAuthStore } from '@/lib/store/auth';
 import { resolveAvatarUrl } from '@/lib/utils/avatar';
 import { getInitials } from '@/lib/utils/formatting';
-import { Phone, Video, Info, Calendar } from 'lucide-react';
-import Link from 'next/link';
 
 interface OtherUser {
   id: string;
@@ -23,12 +21,11 @@ interface ChatHeaderProps {
 
 export default function ChatHeader({ otherUser, isTyping, bookingId, isOnline = false }: ChatHeaderProps) {
   const { user } = useAuthStore();
-  const isDoctor = user?.role === 'DOCTOR';
   const isOtherDoctor = otherUser.role === 'DOCTOR';
 
   return (
     <div className="bg-white px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-      {}
+      {/* User info */}
       <div className="flex items-center gap-4">
         <div className="relative">
           <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
@@ -55,19 +52,12 @@ export default function ChatHeader({ otherUser, isTyping, bookingId, isOnline = 
           <h2 className="font-semibold text-gray-900">
             {isOtherDoctor ? 'Dr. ' : ''}{otherUser.firstName} {otherUser.lastName}
           </h2>
-            {isTyping ? (
-              <p className="text-sm text-green-600">Typing...</p>
-            ) : (
-              <p className="text-sm text-gray-500">{isOnline ? 'Online' : 'Offline'}</p>
-            )}
+          {isTyping ? (
+            <p className="text-sm text-green-600">Typing...</p>
+          ) : (
+            <p className="text-sm text-gray-500">{isOnline ? 'Online' : 'Offline'}</p>
+          )}
         </div>
-      </div>
-
-      {}
-      <div className="flex items-center gap-2">
-        {isDoctor ? (
-          <></>
-        ) : null}
       </div>
     </div>
   );
