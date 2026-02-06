@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { DashboardLayout } from "@/components/shared/DashboardLayout";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useClearedAppointments } from "@/lib/hooks/useClearedAppointments";
 import { resolveAvatarUrl } from "@/lib/utils/avatar";
@@ -58,7 +59,7 @@ function getErrorMessage(err: any, defaultMsg: string): string {
          defaultMsg;
 }
 
-type UiTab = "ALL" | "PENDING" | "APPROVED" | "COMPLETED" | "CANCELLED";
+type UiTab = "ALL" | "PENDING" | "APPROVED" | "CANCELLED";
 
 export default function AppointmentsPage() {
   const { user, isBootstrapping, requireAuth } = useAuth();
@@ -87,6 +88,17 @@ export default function AppointmentsPage() {
   const [tab, setTab] = useState<UiTab>("ALL");
   const [actingId, setActingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+  });
 
   const fetchDoctorBookings = useCallback(async () => {
     if (!isDoctor) return;
@@ -125,7 +137,6 @@ export default function AppointmentsPage() {
     if (tab === "PENDING") return rowsAll.filter((b) => status(b) === "PENDING");
     if (tab === "APPROVED")
       return rowsAll.filter((b) => status(b) === "ACCEPTED" || status(b) === "APPROVED");
-    if (tab === "COMPLETED") return rowsAll.filter((b) => status(b) === "COMPLETED");
     return rowsAll.filter((b) => status(b) === "CANCELLED" || status(b) === "REJECTED");
   }, [rowsAll, tab]);
 
@@ -162,6 +173,15 @@ export default function AppointmentsPage() {
   if (isPatient) {
     return (
       <DashboardLayout title="My Appointments">
+        <ConfirmDialog
+          isOpen={confirmDialog.isOpen}
+          onClose={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
+          onConfirm={confirmDialog.onConfirm}
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          confirmText="Yes, Cancel"
+          cancelText="No, Keep It"
+        />
         <div className="space-y-6">
           <div className="flex items-center justify-end">
             <Link href="/find-doctor" className="text-sm font-semibold text-blue-600 hover:underline">
@@ -223,7 +243,6 @@ export default function AppointmentsPage() {
                           <div className="flex min-w-0 items-start gap-4">
                             <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-blue-50 text-sm font-bold text-blue-700">
                               {avatarUrl ? (
-
                                 <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
                               ) : (
                                 getInitials(b.doctor?.firstName, b.doctor?.lastName, "DR")
@@ -289,18 +308,20 @@ export default function AppointmentsPage() {
                                 <button
                                   type="button"
                                   disabled={!canCancel || isCancelling}
-                                  onClick={async () => {
-                                    const ok = window.confirm(
-                                      "Are you sure you want to cancel this booking?",
-                                    );
-                                    if (!ok) return;
-
-                                    try {
-                                      await cancelBooking(b.id);
-                                      await refetch();
-                                    } catch {
-
-                                    }
+                                  onClick={() => {
+                                    setConfirmDialog({
+                                      isOpen: true,
+                                      title: "Cancel Appointment",
+                                      message: "Are you sure you want to cancel this booking? This action cannot be undone.",
+                                      onConfirm: async () => {
+                                        try {
+                                          await cancelBooking(b.id);
+                                          await refetch();
+                                        } catch {
+                                          // Error handled by useBookings hook
+                                        }
+                                      },
+                                    });
                                   }}
                                   className={`rounded-xl border px-3 py-2 text-xs font-semibold transition
                                     ${
@@ -332,6 +353,15 @@ export default function AppointmentsPage() {
   if (isDoctor) {
     return (
       <DashboardLayout title="Appointments">
+        <ConfirmDialog
+          isOpen={confirmDialog.isOpen}
+          onClose={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
+          onConfirm={confirmDialog.onConfirm}
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          confirmText="Yes, Cancel"
+          cancelText="No, Keep It"
+        />
         <div className="space-y-4">
           <div className="flex items-center justify-end">
             <Link
@@ -348,7 +378,6 @@ export default function AppointmentsPage() {
                 { key: "ALL", label: "All" },
                 { key: "PENDING", label: "Pending" },
                 { key: "APPROVED", label: "Approved" },
-                { key: "COMPLETED", label: "Completed" },
                 { key: "CANCELLED", label: "Cancelled" },
               ] as Array<{ key: UiTab; label: string }>).map((t) => {
                 const isActive = tab === t.key;
@@ -474,21 +503,24 @@ export default function AppointmentsPage() {
                           <button
                             type="button"
                             disabled={actingId === b.id}
-                            onClick={async () => {
-                              const ok = window.confirm(
-                                "Are you sure you want to cancel this approved appointment?"
-                              );
-                              if (!ok) return;
-                              setActingId(b.id);
-                              setActionError(null);
-                              try {
-                                await cancelBooking(b.id);
-                                await fetchDoctorBookings();
-                              } catch (err: any) {
-                                setActionError(getErrorMessage(err, "Failed to cancel appointment."));
-                              } finally {
-                                setActingId(null);
-                              }
+                            onClick={() => {
+                              setConfirmDialog({
+                                isOpen: true,
+                                title: "Cancel Approved Appointment",
+                                message: "Are you sure you want to cancel this approved appointment? The patient will be notified.",
+                                onConfirm: async () => {
+                                  setActingId(b.id);
+                                  setActionError(null);
+                                  try {
+                                    await cancelBooking(b.id);
+                                    await fetchDoctorBookings();
+                                  } catch (err: any) {
+                                    setActionError(getErrorMessage(err, "Failed to cancel appointment."));
+                                  } finally {
+                                    setActingId(null);
+                                  }
+                                },
+                              });
                             }}
                             className="rounded-lg bg-orange-600 px-3 py-2 text-xs font-semibold text-white hover:bg-orange-700"
                           >
