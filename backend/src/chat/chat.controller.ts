@@ -56,15 +56,48 @@ export class ChatController {
       limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
       fileFilter: (req, file, cb) => {
         const allowedMimes = [
+          // Images
           'image/jpeg',
           'image/png',
           'image/gif',
           'image/webp',
+          // Documents
           'application/pdf',
           'application/msword',
           'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          // Text and code files
+          'text/plain',
+          'text/x-java-source',
+          'text/x-java',
+          'application/x-java',
+          'text/javascript',
+          'application/javascript',
+          'text/typescript',
+          'application/typescript',
+          'text/x-python',
+          'text/x-c',
+          'text/x-c++',
+          'text/html',
+          'text/css',
+          'application/json',
+          'text/xml',
+          'application/xml',
+          'text/markdown',
+          'text/x-sql',
+          'application/x-sh',
+          'text/yaml',
+          'application/x-yaml',
+          // Archives
+          'application/zip',
+          'application/x-rar-compressed',
+          'application/x-7z-compressed',
+          // Fallback for code files that might have generic mime types
+          'application/octet-stream',
         ];
-        if (allowedMimes.includes(file.mimetype)) {
+        // Also check file extension for code files (browsers often send octet-stream)
+        const allowedExtensions = ['.java', '.js', '.ts', '.jsx', '.tsx', '.py', '.c', '.cpp', '.h', '.hpp', '.cs', '.go', '.rb', '.php', '.html', '.css', '.json', '.xml', '.md', '.sql', '.sh', '.yml', '.yaml', '.txt'];
+        const ext = file.originalname.toLowerCase().slice(file.originalname.lastIndexOf('.'));
+        if (allowedMimes.includes(file.mimetype) || allowedExtensions.includes(ext)) {
           cb(null, true);
         } else {
           cb(new BadRequestException('Invalid file type'), false);

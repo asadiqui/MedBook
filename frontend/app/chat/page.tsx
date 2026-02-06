@@ -202,9 +202,8 @@ export default function ChatPage() {
       
       // REST API uploads the file and backend emits via WebSocket
       // The message will arrive via handleNewMessage callback
-      await api.post('/chat/send-attachment', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      // Don't set Content-Type header - let browser set it with boundary
+      await api.post('/chat/send-attachment', formData);
     } catch (error) {
       console.error('Failed to send attachment:', error);
     }
@@ -221,9 +220,8 @@ export default function ChatPage() {
         formData.append('bookingId', selectedBookingId);
         formData.append('receiverId', otherUser.id);
         
-        await api.post('/chat/send-attachment', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
+        // Don't set Content-Type header - let browser set it with boundary
+        await api.post('/chat/send-attachment', formData);
       } catch (error) {
         console.error(`Failed to send attachment ${file.name}:`, error);
       }

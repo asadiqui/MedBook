@@ -15,8 +15,8 @@ interface FileWithPreview {
 interface ChatInputProps {
   onSendMessage: (message: string) => void;
   onTyping: () => void;
-  onSendAttachment?: (file: File) => void;
-  onSendAttachments?: (files: File[]) => void;
+  onSendAttachment?: (file: File) => Promise<void>;
+  onSendAttachments?: (files: File[]) => Promise<void>;
 }
 
 export default function ChatInput({ onSendMessage, onTyping, onSendAttachment, onSendAttachments }: ChatInputProps) {
@@ -42,15 +42,15 @@ export default function ChatInput({ onSendMessage, onTyping, onSendAttachment, o
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Send all attachments
+    // Send all attachments and wait for them to complete
     if (selectedFiles.length > 0) {
       if (onSendAttachments) {
         // Use batch send if available
-        onSendAttachments(selectedFiles.map(f => f.file));
+        await onSendAttachments(selectedFiles.map(f => f.file));
       } else if (onSendAttachment) {
         // Fall back to sending one by one
         for (const fileWithPreview of selectedFiles) {
-          onSendAttachment(fileWithPreview.file);
+          await onSendAttachment(fileWithPreview.file);
         }
       }
       clearAllFiles();
@@ -194,7 +194,7 @@ export default function ChatInput({ onSendMessage, onTyping, onSendAttachment, o
             ref={fileInputRef}
             type="file"
             onChange={handleFileSelect}
-            accept="image/*,.pdf,.doc,.docx"
+            accept="image/*,.pdf,.doc,.docx,.txt,.java,.js,.ts,.jsx,.tsx,.py,.c,.cpp,.h,.hpp,.cs,.go,.rb,.php,.html,.css,.json,.xml,.md,.sql,.sh,.yml,.yaml,.zip,.rar,.7z"
             multiple
             className="hidden"
           />
