@@ -12,6 +12,7 @@ import { ChatModule } from './chat/chat.module';
 import { LlmModule } from './ai/llm/llm.module';
 import { EmailModule } from './common/email.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
     BookingModule,
     ChatModule,
     LlmModule,
+	NotificationsModule,
   ],
   controllers: [],
   providers: [

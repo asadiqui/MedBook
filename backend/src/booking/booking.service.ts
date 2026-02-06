@@ -2,15 +2,19 @@ import { BadRequestException, Injectable, ForbiddenException, NotFoundException 
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { timeConversion } from '../common/utils/time';
-import { BookingStatus, Role } from '@prisma/client';
+import { BookingStatus, Role, NotificationType } from '@prisma/client'; // <-- added NotificationType
+import { NotificationsService } from '../notifications/notifications.service'; // <-- new import
 
 const ALLOWED_DURATIONS = new Set([60, 120]);
 
 @Injectable()
 export class BookingService {
 
-  constructor(private readonly prisma: PrismaService) {}
- 
+  constructor (
+	private readonly prisma: PrismaService,
+	private readonly notificationsService: NotificationsService, // <-- new dependency
+	) {}
+
   async createBooking(dto: CreateBookingDto, patientId: string) {
     let CheckDate = new Date(dto.date);
     const today = new Date();
@@ -19,7 +23,7 @@ export class BookingService {
       throw new BadRequestException('Cannot create availability for past dates');
     }
 
-    
+
     const user = await this.prisma.user.findUnique({
       where: { id: patientId },
     });
@@ -116,17 +120,66 @@ export class BookingService {
       }
     }
 
-    return this.prisma.booking.create({
-      data: {
-        doctorId: dto.doctorId,
-        patientId: patientId,
-        date: dto.date,
-        startTime: startTime,
-        endTime: endTimeStr,
-        duration: duration,
-        status: BookingStatus.PENDING,
-      },
-    });
+    // return this.prisma.booking.create({
+    //   data: {
+    //     doctorId: dto.doctorId,
+    //     patientId: patientId,
+    //     date: dto.date,
+    //     startTime: startTime,
+    //     endTime: endTimeStr,
+    //     duration: duration,
+    //     status: BookingStatus.PENDING,
+    //   },
+    // });
+	// ... existing validation code above ...
+
+	// 1) First, create the booking and include some user info for messages
+	const booking = await this.prisma.booking.create({
+	data: {
+		doctorId: dto.doctorId,
+		patientId: patientId,
+		date: dto.date,
+		startTime: startTime,
+		endTime: endTimeStr,
+		duration: duration,
+		status: BookingStatus.PENDING,
+	},
+	include: {
+		patient: {
+		select: {
+			firstName: true,
+			lastName: true,
+		},
+		},
+		doctor: {
+		select: {
+			firstName: true,
+			lastName: true,
+		},
+		},
+	},
+	});
+
+	// 2) Create notification for the DOCTOR
+	await this.notificationsService.createNotification(
+	dto.doctorId,                        // userId: doctor receives it
+	NotificationType.BOOKING_CREATED,    // type
+	'New booking request',               // title
+	`New booking from ${booking.patient.firstName} ${booking.patient.lastName} on ${booking.date} at ${booking.startTime}`, // message
+	booking.id,                          // link to this booking
+	);
+
+	// 3) Create notification for the PATIENT
+	await this.notificationsService.createNotification(
+	patientId,                           // userId: patient receives it
+	NotificationType.BOOKING_CREATED,    // type
+	'Booking request sent',              // title
+	`Your booking with Dr. ${booking.doctor.firstName} ${booking.doctor.lastName} on ${booking.date} at ${booking.startTime} has been created`, // message
+	booking.id,                          // link to this booking
+	);
+
+	// 4) Finally, return the booking (so API still behaves as before)
+	return booking;
   }
 
   async acceptBooking(bookingId: string, user: any) {
