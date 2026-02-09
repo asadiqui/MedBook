@@ -21,6 +21,7 @@ import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { ConfigService } from '@nestjs/config';
 import { documentStorage } from '../common/upload.config';
+import { parseExpiryToMs } from '../common/utils/expiry';
 
 @Controller('auth')
 export class AuthController {
@@ -40,31 +41,12 @@ export class AuthController {
     };
   }
 
-  private parseExpiryToMs(value: string): number {
-    const match = /^\s*(\d+)\s*([smhd])\s*$/i.exec(value || '');
-    if (!match) {
-      return 7 * 24 * 60 * 60 * 1000;
-    }
-
-    const amount = Number(match[1]);
-    const unit = match[2].toLowerCase();
-
-    const multipliers: Record<string, number> = {
-      s: 1000,
-      m: 60 * 1000,
-      h: 60 * 60 * 1000,
-      d: 24 * 60 * 60 * 1000,
-    };
-
-    return amount * (multipliers[unit] ?? 7 * 24 * 60 * 60 * 1000);
-  }
-
   private setAuthCookies(res: Response, accessToken: string, refreshToken: string) {
     const accessExpiry = this.configService.get<string>('JWT_ACCESS_EXPIRY', '15m');
     const refreshExpiry = this.configService.get<string>('JWT_REFRESH_EXPIRY', '7d');
 
-    res.cookie('accessToken', accessToken, this.getCookieOptions(this.parseExpiryToMs(accessExpiry)));
-    res.cookie('refreshToken', refreshToken, this.getCookieOptions(this.parseExpiryToMs(refreshExpiry)));
+    res.cookie('accessToken', accessToken, this.getCookieOptions(parseExpiryToMs(accessExpiry)));
+    res.cookie('refreshToken', refreshToken, this.getCookieOptions(parseExpiryToMs(refreshExpiry)));
   }
 
   private clearAuthCookies(res: Response) {

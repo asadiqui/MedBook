@@ -2,10 +2,11 @@ import { Module } from '@nestjs/common';
 import { BookingController } from './booking.controller';
 import { BookingService } from './booking.service';
 import { PrismaModule } from '../prisma/prisma.module';
-import { NotificationsModule } from '../notifications/notifications.module'; // <-- add this
+import { NotificationsModule } from "../notifications/notifications.module";
+
 
 @Module({
-  imports: [PrismaModule, NotificationsModule], // <-- include NotificationsModule here
+  imports: [PrismaModule, NotificationsModule],
   controllers: [BookingController],
   providers: [BookingService],
 })

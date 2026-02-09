@@ -12,13 +12,12 @@ import { Server, Socket } from 'socket.io';
 import { ChatService } from './chat.service';
 import { BookingStatus } from '@prisma/client';
 
-const chatCorsOrigin = (process.env.FRONTEND_URL || 'https://localhost:8443')
+const chatCorsOrigin = process.env.FRONTEND_URL
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
 
 const CHAT_ALLOWED_BOOKING_STATUSES: BookingStatus[] = [
-  BookingStatus.PENDING,
   BookingStatus.ACCEPTED,
 ];
 
@@ -35,6 +34,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger(ChatGateway.name);
 
   private connectedUsers: Map<string, string> = new Map();
+  private onlineUsers: Map<string, Set<string>> = new Map();
 
   constructor(private readonly chatService: ChatService) {}
 
@@ -44,7 +44,20 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   handleDisconnect(client: Socket) {
     this.logger.log(`Client disconnected: ${client.id}`);
+    const userId = this.connectedUsers.get(client.id);
     this.connectedUsers.delete(client.id);
+    
+    if (userId) {
+      const userSockets = this.onlineUsers.get(userId);
+      if (userSockets) {
+        userSockets.delete(client.id);
+        if (userSockets.size === 0) {
+          this.onlineUsers.delete(userId);
+          this.server.emit('user_status', { userId, isOnline: false });
+          this.logger.log(`User ${userId} is now offline`);
+        }
+      }
+    }
   }
 
   @SubscribeMessage('register_user')
@@ -53,8 +66,28 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() data: { userId: string },
   ) {
     this.connectedUsers.set(client.id, data.userId);
+    
+    if (!this.onlineUsers.has(data.userId)) {
+      this.onlineUsers.set(data.userId, new Set());
+    }
+    this.onlineUsers.get(data.userId)!.add(client.id);
+    
+    this.server.emit('user_status', { userId: data.userId, isOnline: true });
+    
     this.logger.log(`User ${data.userId} registered with socket ${client.id}`);
     return { event: 'registered', data: { success: true } };
+  }
+
+  @SubscribeMessage('get_online_status')
+  handleGetOnlineStatus(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { userIds: string[] },
+  ) {
+    const statuses: Record<string, boolean> = {};
+    for (const userId of data.userIds) {
+      statuses[userId] = this.onlineUsers.has(userId) && this.onlineUsers.get(userId)!.size > 0;
+    }
+    return { event: 'online_statuses', data: statuses };
   }
 
   @SubscribeMessage('join_room')
@@ -125,8 +158,19 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         data.content,
       );
 
+      // Emit to the chat room (for users in the chat)
       const room = `booking_${data.bookingId}`;
       this.server.to(room).emit('new_message', savedMessage);
+
+      // Also emit directly to receiver's sockets (for global notification/unread count)
+      // This ensures users NOT in the room still get notified
+      const receiverSockets = this.onlineUsers.get(receiverId);
+      if (receiverSockets) {
+        receiverSockets.forEach((socketId) => {
+          this.server.to(socketId).emit('new_message', savedMessage);
+        });
+        this.logger.log(`Message also sent directly to receiver ${receiverId} (${receiverSockets.size} sockets)`);
+      }
 
       this.logger.log(`Message sent to room ${room}: ${savedMessage.content}`);
 
@@ -204,5 +248,34 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       );
       return { event: 'error', data: { message: error.message } };
     }
+  }
+
+  /**
+   * Emit a message to a booking room (used by controller for attachments)
+   */
+  emitMessageToRoom(bookingId: string, message: any) {
+    const room = `booking_${bookingId}`;
+    this.server.to(room).emit('new_message', message);
+    
+    // Also emit directly to receiver's sockets for global notification
+    const receiverId = message.receiverId;
+    if (receiverId) {
+      const receiverSockets = this.onlineUsers.get(receiverId);
+      if (receiverSockets) {
+        receiverSockets.forEach((socketId) => {
+          this.server.to(socketId).emit('new_message', message);
+        });
+        this.logger.log(`Attachment also sent directly to receiver ${receiverId}`);
+      }
+    }
+    
+    this.logger.log(`Emitted attachment message to room ${room}`);
+  }
+
+  /**
+   * Check if a user is currently online
+   */
+  isUserOnline(userId: string): boolean {
+    return this.onlineUsers.has(userId) && this.onlineUsers.get(userId)!.size > 0;
   }
 }

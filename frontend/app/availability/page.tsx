@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/shared/DashboardLayout";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import AvailabilityForm from "@/components/availability/AvailabilityForm";
 import { createAvailability, deleteAvailability, getMyAvailability } from "@/lib/api/availability";
 import { getDoctorBookings, Booking } from "@/lib/api/booking";
@@ -65,6 +66,17 @@ export default function DoctorAvailabilityPage() {
   const [showForm, setShowForm] = useState<boolean>(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>("");
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+  });
 
   useEffect(() => {
     if (isBootstrapping) return;
@@ -160,7 +172,7 @@ export default function DoctorAvailabilityPage() {
       (b) => b.date === selectedDate && b.status !== "CANCELLED" && b.status !== "REJECTED"
     );
 
-    for (let hour = 8; hour <= 20; hour++) {
+    for (let hour = 8; hour < 20; hour++) {
       const startTime = minutesToTime(hour * 60);
       const endTime = minutesToTime((hour + 1) * 60);
       const startMinutes = hour * 60;
@@ -217,104 +229,104 @@ export default function DoctorAvailabilityPage() {
   }, [availability]);
 
   const handleQuickAddSlot = async (slotStartTime: string, slotEndTime: string) => {
-    const confirmed = window.confirm(
-      `Add availability for ${formatTime(slotStartTime)} - ${formatTime(slotEndTime)}?`
-    );
-    if (!confirmed) return;
+    setConfirmDialog({
+      isOpen: true,
+      title: "Add Availability",
+      message: `Add availability for ${formatTime(slotStartTime)} - ${formatTime(slotEndTime)}?`,
+      onConfirm: async () => {
+        try {
+          setDeleting(slotStartTime); // Reuse deleting state for loading
+          await createAvailability({
+            date: selectedDate,
+            startTime: slotStartTime,
+            endTime: slotEndTime,
+          });
+          await fetchAvailability();
+          await fetchBookings();
+          
 
-    try {
-      setDeleting(slotStartTime); // Reuse deleting state for loading
-      await createAvailability({
-        date: selectedDate,
-        startTime: slotStartTime,
-        endTime: slotEndTime,
-      });
-      await fetchAvailability();
-      await fetchBookings();
-      
-
-      if (!selectedDate) {
-        setSelectedDate(selectedDate);
-      }
-    } catch (err: any) {
-      alert(err?.response?.data?.message || err?.message || "Failed to add availability");
-    } finally {
-      setDeleting(null);
-    }
+          if (!selectedDate) {
+            setSelectedDate(selectedDate);
+          }
+        } catch (err: any) {
+          alert(err?.response?.data?.message || err?.message || "Failed to add availability");
+        } finally {
+          setDeleting(null);
+        }
+      },
+    });
   };
 
   const handleDeleteSlot = async (slotStartTime: string, slotEndTime: string) => {
-    const confirmed = window.confirm(
-      `Are you sure you want to delete the ${formatTime(slotStartTime)} - ${formatTime(slotEndTime)} time slot?`
-    );
-    if (!confirmed) return;
+    setConfirmDialog({
+      isOpen: true,
+      title: "Delete Time Slot",
+      message: `Are you sure you want to delete the ${formatTime(slotStartTime)} - ${formatTime(slotEndTime)} time slot? This action cannot be undone.`,
+      onConfirm: async () => {
+        try {
+          setDeleting(slotStartTime);
+          
+          const containingAvailability = availability.find((avail) => {
+            if (avail.date !== selectedDate) return false;
+            const availStart = timeToMinutes(avail.startTime);
+            const availEnd = timeToMinutes(avail.endTime);
+            const slotStart = timeToMinutes(slotStartTime);
+            const slotEnd = timeToMinutes(slotEndTime);
+            return slotStart >= availStart && slotEnd <= availEnd;
+          });
 
-    try {
-      setDeleting(slotStartTime);
-      
-
-      const containingAvailability = availability.find((avail) => {
-        if (avail.date !== selectedDate) return false;
-        const availStart = timeToMinutes(avail.startTime);
-        const availEnd = timeToMinutes(avail.endTime);
-        const slotStart = timeToMinutes(slotStartTime);
-        const slotEnd = timeToMinutes(slotEndTime);
-        return slotStart >= availStart && slotEnd <= availEnd;
-      });
-
-      if (!containingAvailability) {
-        throw new Error("Could not find availability record for this slot");
-      }
-
-      const availStart = timeToMinutes(containingAvailability.startTime);
-      const availEnd = timeToMinutes(containingAvailability.endTime);
-      const slotStart = timeToMinutes(slotStartTime);
-      const slotEnd = timeToMinutes(slotEndTime);
-
-      await deleteAvailability(containingAvailability.id);
-
-      const needsBefore = slotStart > availStart;
-      const needsAfter = slotEnd < availEnd;
-
-      if (needsBefore) {
-
-        await createAvailability({
-          date: selectedDate,
-          startTime: containingAvailability.startTime,
-          endTime: slotStartTime,
-        });
-      }
-
-      if (needsAfter) {
-
-        await createAvailability({
-          date: selectedDate,
-          startTime: slotEndTime,
-          endTime: containingAvailability.endTime,
-        });
-      }
-
-      await fetchAvailability();
-      await fetchBookings();
-      
-
-      setTimeout(() => {
-        const hasRemainingSlots = availability.some((a) => a.date === selectedDate);
-        if (!hasRemainingSlots) {
-          const allDates = availability.map((a) => a.date);
-          const uniqueDates = Array.from(new Set(allDates));
-          if (uniqueDates.length > 0) {
-            setSelectedDate(uniqueDates[0]);
-          } else {
-            setSelectedDate(new Date().toISOString().split("T")[0]);
+          if (!containingAvailability) {
+            throw new Error("Could not find availability record for this slot");
           }
+
+          const availStart = timeToMinutes(containingAvailability.startTime);
+          const availEnd = timeToMinutes(containingAvailability.endTime);
+          const slotStart = timeToMinutes(slotStartTime);
+          const slotEnd = timeToMinutes(slotEndTime);
+
+          await deleteAvailability(containingAvailability.id);
+
+          const needsBefore = slotStart > availStart;
+          const needsAfter = slotEnd < availEnd;
+
+          if (needsBefore) {
+            await createAvailability({
+              date: selectedDate,
+              startTime: containingAvailability.startTime,
+              endTime: slotStartTime,
+            });
+          }
+
+          if (needsAfter) {
+            await createAvailability({
+              date: selectedDate,
+              startTime: slotEndTime,
+              endTime: containingAvailability.endTime,
+            });
+          }
+
+          await fetchAvailability();
+          await fetchBookings();
+
+          setTimeout(() => {
+            const hasRemainingSlots = availability.some((a) => a.date === selectedDate);
+            if (!hasRemainingSlots) {
+              const allDates = availability.map((a) => a.date);
+              const uniqueDates = Array.from(new Set(allDates));
+              if (uniqueDates.length > 0) {
+                setSelectedDate(uniqueDates[0]);
+              } else {
+                setSelectedDate(new Date().toISOString().split("T")[0]);
+              }
+            }
+          }, 100);
+        } catch (err: any) {
+          alert(err?.response?.data?.message || err?.message || "Failed to delete time slot");
+        } finally {
+          setDeleting(null);
         }
-      }, 100);
-    } catch (err: any) {
-      alert(err?.response?.data?.message || err?.message || "Failed to delete time slot");
-    } finally {
-      setDeleting(null);
-    }
+      },
+    });
   };
 
   if (isBootstrapping || !user) {
@@ -323,6 +335,16 @@ export default function DoctorAvailabilityPage() {
 
   return (
     <DashboardLayout title="Availability Management">
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText="Confirm"
+        cancelText="Cancel"
+      />
+      
       <div className="bg-gradient-to-b from-blue-50/30 to-white p-6">
         {loading && (
           <div className="flex min-h-[60vh] items-center justify-center">
@@ -419,7 +441,7 @@ export default function DoctorAvailabilityPage() {
                             "group relative overflow-hidden rounded-xl border-2 px-4 py-3 text-left transition-all " +
                             (selectedDate === date
                               ? "border-blue-500 bg-blue-50 shadow-md"
-                              : "border-gray-200 bg-white hover:border-blue-200 hover:shadow-sm")
+                              : "border-gray-200 bg-white hover:shadow-sm")
                           }
                         >
                           <div className="text-xs font-semibold uppercase tracking-wide"
@@ -470,14 +492,14 @@ export default function DoctorAvailabilityPage() {
                       <div
                         key={slot.hour}
                         className={
-                          "group relative overflow-hidden rounded-xl border-2 p-3 transition-all " +
+                          "group relative rounded-xl border-2 p-3 transition-all " +
                           (slot.status === "unavailable"
-                            ? "border-gray-200 bg-gray-50 cursor-not-allowed"
+                            ? "border-gray-100 bg-gray-50 cursor-not-allowed"
                             : slot.status === "pending"
-                              ? "border-yellow-300 bg-yellow-50 shadow-sm hover:shadow-md"
+                              ? "border-yellow-100 bg-yellow-50 hover:shadow-md"
                               : slot.status === "accepted"
-                                ? "border-green-300 bg-green-50 shadow-sm hover:shadow-md"
-                                : "border-blue-300 bg-blue-50 shadow-sm hover:shadow-md hover:border-blue-400")
+                                ? "border-green-100 bg-green-50  hover:shadow-md"
+                                : "border-blue-100 bg-blue-50 ")
                         }
                       >
                         <div className="mb-2">
@@ -486,25 +508,15 @@ export default function DoctorAvailabilityPage() {
                               color: slot.status === "unavailable" 
                                 ? '#9ca3af' 
                                 : slot.status === "pending"
-                                  ? '#d97706'
+                                  ? '#ab5b00'
                                   : slot.status === "accepted"
-                                    ? '#059669'
-                                    : '#2563eb'
+                                    ? '#037752'
+                                    : '#3167dd'
                             }}
                           >
                             {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
                           </div>
-                          <div className="flex items-center justify-start">
-                            {slot.status === "unavailable" ? (
-                              <XCircleIcon className="h-4 w-4 text-gray-400" />
-                            ) : slot.status === "pending" ? (
-                              <AlertCircleIcon className="h-4 w-4 text-yellow-600" />
-                            ) : slot.status === "accepted" ? (
-                              <CheckCircleIcon className="h-4 w-4 text-green-600" />
-                            ) : (
-                              <CheckCircleIcon className="h-4 w-4 text-blue-500" />
-                            )}
-                          </div>
+          
                         </div>
                         <div className="text-xs font-medium"
                           style={{
@@ -526,7 +538,7 @@ export default function DoctorAvailabilityPage() {
                                 : "Available"}
                         </div>
                         {slot.booking && (
-                          <div className="mt-2 text-xs text-gray-600 truncate">
+                          <div className="mt-4 text-xs text-gray-600 truncate">
                             {slot.booking.patient?.firstName} {slot.booking.patient?.lastName}
                           </div>
                         )}
@@ -535,7 +547,7 @@ export default function DoctorAvailabilityPage() {
                             type="button"
                             onClick={() => handleQuickAddSlot(slot.startTime, slot.endTime)}
                             disabled={deleting === slot.startTime}
-                            className="mt-2 w-full rounded-lg bg-green-600 px-2 py-1.5 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="mt-4 w-full rounded-lg bg-green-600 px-2 py-1.5 text-xs font-semibold text-white hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                           >
                             {deleting === slot.startTime ? "Adding..." : "Add"}
                           </button>
@@ -545,7 +557,7 @@ export default function DoctorAvailabilityPage() {
                             type="button"
                             onClick={() => handleDeleteSlot(slot.startTime, slot.endTime)}
                             disabled={deleting === slot.startTime}
-                            className="mt-2 w-full rounded-lg bg-red-600 px-2 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="mt-4 w-full rounded-lg bg-red-600 px-2 py-1.5 text-xs font-semibold text-white hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                           >
                             {deleting === slot.startTime ? "Deleting..." : "Delete"}
                           </button>

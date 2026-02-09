@@ -14,9 +14,9 @@ export const resolveAvatarUrl = (
   avatar?: string | null,
   options: ResolveAvatarOptions = {}
 ) => {
-  const { cacheBust = false, fallback = "/default-avatar.png", baseUrl } = options;
+  const { cacheBust = false, fallback, baseUrl } = options;
 
-  if (!avatar) return fallback;
+  if (!avatar) return fallback || undefined;
 
   if (avatar.startsWith("http://") || avatar.startsWith("https://")) {
     if (!cacheBust) return avatar;

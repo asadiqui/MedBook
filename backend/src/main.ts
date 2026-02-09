@@ -10,7 +10,7 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
   
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'https://localhost:8443',
+    origin: process.env.FRONTEND_URL,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
@@ -29,7 +29,7 @@ async function bootstrap() {
     }),
   );
   
-  const port = process.env.PORT || 3001;
+  const port = process.env.PORT;
   await app.listen(port);
   logger.log('Backend running on https://localhost:8443');
   logger.log('API available at https://localhost:8443/api');

@@ -4,29 +4,50 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Eye, EyeOff, Mail, Lock, Shield } from "lucide-react";
 import { useSearchParams } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import { Logo } from "@/components/ui/Logo";
 import { useAuthStore } from "@/lib/store/auth";
 import { useAuthRedirect } from "@/lib/hooks/useAuthRedirect";
 import api from "@/lib/api";
 
+const loginSchema = z.object({
+  email: z.string().email("Please enter a valid email"),
+  password: z.string().min(1, "Password is required"),
+  twoFactorCode: z.string().optional(),
+});
+
+type LoginFormData = z.infer<typeof loginSchema>;
+
 export default function LoginPage() {
   const { checkAuth } = useAuthStore();
   const { isAuthenticated, user } = useAuthRedirect();
   const searchParams = useSearchParams();
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-    twoFactorCode: "",
+  
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    setError: setFormError,
+    watch,
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+      twoFactorCode: "",
+    },
   });
+
+  const [showPassword, setShowPassword] = useState(false);
   const [showTwoFactor, setShowTwoFactor] = useState(false);
+  const [generalError, setGeneralError] = useState("");
 
   useEffect(() => {
     const errorParam = searchParams?.get("error");
     if (errorParam) {
-      setError(decodeURIComponent(errorParam));
+      setGeneralError(decodeURIComponent(errorParam));
     }
   }, [searchParams]);
 
@@ -34,25 +55,20 @@ export default function LoginPage() {
     return <div className="min-h-screen flex items-center justify-center">Redirecting...</div>;
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (loading) return;
-    
-    setLoading(true);
-    setError("");
+  const onSubmit = async (data: LoginFormData) => {
+    setGeneralError("");
     
     try {
       const response = await api.post("/auth/login", {
-        email: formData.email,
-        password: formData.password,
-        twoFactorCode: formData.twoFactorCode || undefined,
+        email: data.email,
+        password: data.password,
+        twoFactorCode: data.twoFactorCode || undefined,
       });
 
-      const data = response.data;
+      const responseData = response.data;
 
-      // Store redirectPath from backend response
-      if (data.redirectPath) {
-        useAuthStore.setState({ redirectPath: data.redirectPath });
+      if (responseData.redirectPath) {
+        useAuthStore.setState({ redirectPath: responseData.redirectPath });
       }
 
       await checkAuth();
@@ -61,16 +77,14 @@ export default function LoginPage() {
       
       if (message?.includes("Two-factor authentication code is required")) {
         setShowTwoFactor(true);
-        setError("Please enter your 2FA code");
+        setGeneralError("Please enter your 2FA code");
       } else {
-        setError(message || "Login failed. Please try again.");
+        setGeneralError(message || "Login failed. Please try again.");
       }
-      setLoading(false);
     }
   };
 
   const handleGoogleLogin = () => {
-    setLoading(true);
     window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/google`;
   };
 
@@ -145,15 +159,13 @@ export default function LoginPage() {
           </div>
 
           {}
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {}
-            {error && (
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            {generalError && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-                {error}
+                {generalError}
               </div>
             )}
 
-            {}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                 Email Address
@@ -163,16 +175,16 @@ export default function LoginPage() {
                 <input
                   type="email"
                   id="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  {...register("email")}
                   className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                   placeholder="name@example.com"
-                  required
                 />
               </div>
+              {errors.email && (
+                <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+              )}
             </div>
 
-            {}
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700">
@@ -187,11 +199,9 @@ export default function LoginPage() {
                 <input
                   type={showPassword ? "text" : "password"}
                   id="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  {...register("password")}
                   className="w-full pl-11 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                   placeholder="Enter your password"
-                  required
                 />
                 <button
                   type="button"
@@ -201,9 +211,11 @@ export default function LoginPage() {
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
+              {errors.password && (
+                <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
+              )}
             </div>
 
-            {}
             {showTwoFactor && (
               <div>
                 <label htmlFor="twoFactorCode" className="block text-sm font-medium text-gray-700 mb-1">
@@ -212,8 +224,7 @@ export default function LoginPage() {
                 <input
                   type="text"
                   id="twoFactorCode"
-                  value={formData.twoFactorCode}
-                  onChange={(e) => setFormData({ ...formData, twoFactorCode: e.target.value })}
+                  {...register("twoFactorCode")}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                   placeholder="Enter 6-digit code"
                   maxLength={6}
@@ -221,13 +232,12 @@ export default function LoginPage() {
               </div>
             )}
 
-            {}
             <button
               type="submit"
-              disabled={loading}
+              disabled={isSubmitting}
               className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? "Logging in..." : "Log In"}
+              {isSubmitting ? "Logging in..." : "Log In"}
             </button>
 
             {}
@@ -244,7 +254,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={handleGoogleLogin}
-              disabled={loading}
+              disabled={isSubmitting}
               className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-medium text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">

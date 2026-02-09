@@ -137,7 +137,7 @@ export default function AdminDashboardPage() {
       const data = response.data;
       
       if (data.documentUrl) {
-        setDocumentUrl(`${process.env.NEXT_PUBLIC_BASE_URL || 'https://localhost:8443'}${data.documentUrl}`);
+        setDocumentUrl(`${process.env.NEXT_PUBLIC_BASE_URL}${data.documentUrl}`);
         setShowDocumentModal(true);
       } else {
         toast.error("No document available for this doctor");
@@ -406,7 +406,7 @@ export default function AdminDashboardPage() {
                       <div className="flex items-center gap-3">
                         {user.avatar ? (
                           <img
-                            src={user.avatar.startsWith('http') ? user.avatar : `${process.env.NEXT_PUBLIC_BASE_URL || 'https://localhost:8443'}${user.avatar}`}
+                            src={user.avatar.startsWith('http') ? user.avatar : `${process.env.NEXT_PUBLIC_BASE_URL}${user.avatar}`}
                             alt={`${user.firstName} ${user.lastName}`}
                             className="h-12 w-12 rounded-full object-cover ring-2 ring-gray-200"
                             referrerPolicy="no-referrer"
@@ -559,7 +559,7 @@ export default function AdminDashboardPage() {
               <div className="flex items-center gap-4 pb-6 border-b border-gray-700">
                 {selectedUser.avatar ? (
                   <img
-                    src={selectedUser.avatar.startsWith('http') ? selectedUser.avatar : `${process.env.NEXT_PUBLIC_BASE_URL || 'https://localhost:8443'}${selectedUser.avatar}`}
+                    src={selectedUser.avatar.startsWith('http') ? selectedUser.avatar : `${process.env.NEXT_PUBLIC_BASE_URL}${selectedUser.avatar}`}
                     alt={`${selectedUser.firstName} ${selectedUser.lastName}`}
                     className="h-20 w-20 rounded-full object-cover ring-4 ring-gray-700"
                     referrerPolicy="no-referrer"

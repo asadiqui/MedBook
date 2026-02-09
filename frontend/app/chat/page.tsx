@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useSocket } from "@/lib/hooks/useSocket";
 import api from "@/lib/api";
+import { useChatStore } from "@/lib/store/chat";
 import { Sidebar } from "@/components/shared/Sidebar";
 import { TopHeader } from "@/components/shared/TopHeader";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
@@ -55,7 +56,7 @@ interface ChatInfo {
 export default function ChatPage() {
   const searchParams = useSearchParams();
   const bookingIdParam = searchParams?.get("bookingId");
-  const { user, isAuthenticated, requireAuth } = useAuth();
+  const { user, isAuthenticated, requireAuth, isBootstrapping } = useAuth();
   const [chats, setChats] = useState<ChatInfo[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [selectedBookingId, setSelectedBookingId] = useState<string | undefined>(
@@ -67,16 +68,23 @@ export default function ChatPage() {
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-
   useEffect(() => {
-
-    if (requireAuth && requireAuth()) {
+    if (isBootstrapping) return;
+    const result = requireAuth();
+    if (result !== null) {
       setAuthChecked(true);
     }
-  }, [requireAuth]);
+  }, [isBootstrapping, requireAuth]);
+
+  const markAllAsReadRef = useRef<(() => void) | null>(null);
 
   const handleNewMessage = useCallback((message: Message) => {
-    setMessages((prev) => [...prev, message]);
+    // Avoid duplicates (message might already be added locally for sender)
+    setMessages((prev) => {
+      const exists = prev.some(m => m.id === message.id);
+      if (exists) return prev;
+      return [...prev, message];
+    });
     setChats((prev) => {
       const updated = prev.map((chat) => {
         if (chat.bookingId !== message.bookingId) return chat;
@@ -94,6 +102,15 @@ export default function ChatPage() {
         return bTs - aTs;
       });
     });
+    
+    // Auto-mark as read if user is viewing this chat
+    if (message.receiverId === user?.id && message.bookingId === selectedBookingId) {
+      setTimeout(() => {
+        if (markAllAsReadRef.current) {
+          markAllAsReadRef.current();
+        }
+      }, 500);
+    }
   }, [selectedBookingId, user?.id]);
 
   const handleTyping = useCallback((data: { userId: string; isTyping: boolean }) => {
@@ -108,12 +125,20 @@ export default function ChatPage() {
     );
   }, []);
 
-  const { sendMessage, sendTyping, markAllAsRead, isConnected } = useSocket({
+  const { sendMessage, sendTyping, markAllAsRead, getOnlineStatus, isUserOnline, isConnected } = useSocket({
     bookingId: selectedBookingId,
     onNewMessage: handleNewMessage,
     onTyping: handleTyping,
     onMessageRead: handleMessageRead,
   });
+
+  markAllAsReadRef.current = markAllAsRead;
+
+  useEffect(() => {
+    if (otherUser && isConnected) {
+      getOnlineStatus([otherUser.id]);
+    }
+  }, [otherUser, isConnected, getOnlineStatus]);
 
 
   useEffect(() => {
@@ -140,11 +165,18 @@ export default function ChatPage() {
         const other = booking.doctorId === user?.id ? booking.patient : booking.doctor;
         setOtherUser(other);
         markAllAsRead();
+        const chatToUpdate = chats.find(c => c.bookingId === selectedBookingId);
+        const unreadInThisChat = chatToUpdate?.unreadCount || 0;
+        
         setChats((prev) =>
           prev.map((chat) =>
             chat.bookingId === selectedBookingId ? { ...chat, unreadCount: 0 } : chat
           )
         );
+        
+        if (unreadInThisChat > 0) {
+          useChatStore.getState().decrementUnreadCount(unreadInThisChat);
+        }
       } catch (error) {
         setMessages([]);
         setOtherUser(null);
@@ -157,6 +189,45 @@ export default function ChatPage() {
     if (!otherUser) return;
     sendMessage(otherUser.id, content);
     sendTyping(false);
+  };
+
+  const handleSendAttachment = async (file: File) => {
+    if (!otherUser || !selectedBookingId) return;
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('bookingId', selectedBookingId);
+      formData.append('receiverId', otherUser.id);
+      
+      // REST API uploads the file and backend emits via WebSocket
+      // The message will arrive via handleNewMessage callback
+      // Don't set Content-Type header - let browser set it with boundary
+      await api.post('/chat/send-attachment', formData);
+    } catch (error) {
+      console.error('Failed to send attachment:', error);
+    }
+  };
+
+  const handleSendAttachments = async (files: File[]) => {
+    if (!otherUser || !selectedBookingId) return;
+    
+    // Send all files in parallel for better UX
+    const uploadPromises = files.map(async (file) => {
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('bookingId', selectedBookingId);
+        formData.append('receiverId', otherUser.id);
+        
+        // Don't set Content-Type header - let browser set it with boundary
+        await api.post('/chat/send-attachment', formData);
+      } catch (error) {
+        console.error(`Failed to send attachment ${file.name}:`, error);
+      }
+    });
+    
+    await Promise.all(uploadPromises);
   };
 
   const handleTypingEvent = () => {
@@ -209,6 +280,7 @@ export default function ChatPage() {
                 otherUser={otherUser}
                 isTyping={isTyping}
                 bookingId={selectedBookingId}
+                isOnline={isUserOnline(otherUser.id)}
               />
               <ChatMessages
                 messages={messages}
@@ -217,6 +289,8 @@ export default function ChatPage() {
               <ChatInput
                 onSendMessage={handleSendMessage}
                 onTyping={handleTypingEvent}
+                onSendAttachment={handleSendAttachment}
+                onSendAttachments={handleSendAttachments}
               />
             </>
           ) : (

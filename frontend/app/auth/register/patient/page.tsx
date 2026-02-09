@@ -1,57 +1,82 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { Mail, Phone, Calendar, User } from "lucide-react";
 import toast from "react-hot-toast";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import { Logo } from "@/components/ui/Logo";
 import { PasswordInput, FormField, TermsAgreement } from "@/components/auth";
+import { GoogleOAuthButton } from "@/components/auth/GoogleOAuthButton";
+import { AuthDivider } from "@/components/auth/AuthDivider";
+import { NameFields } from "@/components/auth/NameFields";
 import { useAuthRedirect } from "@/lib/hooks/useAuthRedirect";
 import { useRegistration } from "@/lib/hooks/useRegistration";
 
 export const dynamic = 'force-dynamic';
 
+const patientSchema = z.object({
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  email: z.string().email("Please enter a valid email"),
+  phone: z.string().min(10, "Please enter a valid phone number"),
+  dateOfBirth: z.string().min(1, "Date of birth is required"),
+  gender: z.enum(["MALE", "FEMALE", "OTHER"], { errorMap: () => ({ message: "Please select a gender" }) }),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  agreedToTerms: z.boolean().refine((val) => val === true, {
+    message: "You must agree to the terms and conditions",
+  }),
+});
+
+type PatientFormData = z.infer<typeof patientSchema>;
+
 export default function PatientRegisterPage() {
   const { isAuthenticated, user } = useAuthRedirect();
+
+  const {
+    register: registerField,
+    handleSubmit,
+    formState: { errors: formErrors, isSubmitting },
+    setValue,
+    watch,
+  } = useForm<PatientFormData>({
+    resolver: zodResolver(patientSchema),
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+      dateOfBirth: "",
+      gender: undefined,
+      password: "",
+      agreedToTerms: false,
+    },
+  });
+
+  const { register: registerUser, isLoading, errors: apiErrors } = useRegistration({
+    role: "PATIENT",
+    apiUrl: process.env.NEXT_PUBLIC_API_URL,
+  });
 
   if (isAuthenticated && user) {
     return <div className="min-h-screen flex items-center justify-center">Redirecting...</div>;
   }
 
-  const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    dateOfBirth: "",
-    gender: "",
-    password: "",
-    agreedToTerms: false,
-  });
-
-  const { register, isLoading, errors } = useRegistration({
-    role: "PATIENT",
-    apiUrl: process.env.NEXT_PUBLIC_API_URL || "https://localhost:8443/api",
-  });
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (formData.dateOfBirth) {
-      const birthDate = new Date(formData.dateOfBirth);
-      const today = new Date();
-      let age = today.getFullYear() - birthDate.getFullYear();
-      const monthDiff = today.getMonth() - birthDate.getMonth();
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-        age--;
-      }
-      if (age < 18) {
-        toast.error("Sorry, you need to be 18 or older to use MedBook");
-        return;
-      }
+  const onSubmit = async (data: PatientFormData) => {
+    const birthDate = new Date(data.dateOfBirth);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    if (age < 18) {
+      toast.error("Sorry, you need to be 18 or older to use MedBook");
+      return;
     }
 
-    const success = await register(formData);
+    const success = await registerUser(data);
     if (success) {
       setTimeout(() => {
         window.location.href = "/auth/login";
@@ -126,47 +151,24 @@ export default function PatientRegisterPage() {
           </div>
 
           {}
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {}
-            <button
-              type="button"
-              onClick={() => window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/google`}
-              className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-medium text-gray-700"
-            >
-              <svg className="w-5 h-5" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-              </svg>
-              Continue with Google
-            </button>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            <GoogleOAuthButton />
 
-            {}
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-gray-50 text-gray-500">Or sign up with email</span>
-              </div>
-            </div>
-            {}
+            <AuthDivider />
+
             <div className="grid grid-cols-2 gap-4">
-              <FormField label="First Name" required>
+              <FormField label="First Name" error={formErrors.firstName?.message} required>
                 <input
                   type="text"
-                  value={formData.firstName}
-                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  {...registerField("firstName")}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                   placeholder="Jane"
                 />
               </FormField>
-              <FormField label="Last Name" required>
+              <FormField label="Last Name" error={formErrors.lastName?.message} required>
                 <input
                   type="text"
-                  value={formData.lastName}
-                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                  {...registerField("lastName")}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                   placeholder="Doe"
                 />
@@ -174,13 +176,12 @@ export default function PatientRegisterPage() {
             </div>
 
             {}
-            <FormField label="Email Address" error={errors.email} required>
+            <FormField label="Email Address" error={formErrors.email?.message || apiErrors.email} required>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <input
                   type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  {...registerField("email")}
                   className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                   placeholder="jane@example.com"
                 />
@@ -189,27 +190,38 @@ export default function PatientRegisterPage() {
 
             {}
             <div className="grid grid-cols-2 gap-4">
-              <FormField label="Phone Number" error={errors.phone} required>
+              <FormField label="Phone Number" error={formErrors.phone?.message || apiErrors.phone} required>
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <input
                     type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    {...registerField("phone", {
+                      onChange: (e) => {
+                        const value = e.target.value.replace(/[^0-9+\s()-]/g, '');
+                        setValue("phone", value);
+                      }
+                    })}
+                    inputMode="numeric"
                     className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                     placeholder="(555) 000-0000"
                   />
                 </div>
               </FormField>
-              <FormField label="Date of Birth" error={errors.dateOfBirth} required>
+              <FormField label="Date of Birth" error={formErrors.dateOfBirth?.message || apiErrors.dateOfBirth} required>
                 <div className="relative">
                   <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <input
                     type="date"
-                    value={formData.dateOfBirth}
-                    onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                    {...registerField("dateOfBirth", {
+                      onChange: (e) => {
+                        e.target.setCustomValidity('');
+                      }
+                    })}
+                    onInvalid={(e) => {
+                      const target = e.target as HTMLInputElement;
+                      target.setCustomValidity('You must be at least 18 years old to register');
+                    }}
                     max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
-                    title="You must be at least 18 years old to register"
                     className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                   />
                 </div>
@@ -217,10 +229,9 @@ export default function PatientRegisterPage() {
             </div>
 
             {}
-            <FormField label="Gender" error={errors.gender} required>
+            <FormField label="Gender" error={formErrors.gender?.message || apiErrors.gender} required>
               <select
-                value={formData.gender}
-                onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                {...registerField("gender")}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition bg-white"
               >
                 <option value="">Select Gender</option>
@@ -231,28 +242,28 @@ export default function PatientRegisterPage() {
             </FormField>
 
             {}
-            <FormField label="Create Password" error={errors.password} required>
+            <FormField label="Create Password" error={formErrors.password?.message || apiErrors.password} required>
               <PasswordInput
-                value={formData.password}
-                onChange={(password) => setFormData({ ...formData, password })}
+                value={watch("password")}
+                onChange={(password) => setValue("password", password)}
                 placeholder="Min. 8 characters"
               />
             </FormField>
 
             {}
             <TermsAgreement
-              agreedToTerms={formData.agreedToTerms}
-              onTermsChange={(agreed) => setFormData({ ...formData, agreedToTerms: agreed })}
-              error={errors.agreedToTerms}
+              agreedToTerms={watch("agreedToTerms")}
+              onTermsChange={(agreed) => setValue("agreedToTerms", agreed)}
+              error={formErrors.agreedToTerms?.message || apiErrors.agreedToTerms}
             />
 
             {}
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isSubmitting || isLoading}
               className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? (
+              {(isSubmitting || isLoading) ? (
                 <>
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                   Creating Account...

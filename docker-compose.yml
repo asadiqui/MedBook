@@ -28,6 +28,7 @@ services:
       - /app/node_modules
       - /app/node_modules/.prisma
       - ./backend/uploads:/app/uploads
+      - ./backend/private:/app/private
     env_file:
       - .env
     depends_on:
@@ -35,7 +36,7 @@ services:
         condition: service_healthy
     networks:
       - app-network
-    command: sh -c "npm run prisma:generate && npm run prisma:migrate && if [ \"$SEED_DB\" = \"true\" ]; then npm run prisma:seed; fi && npm run start:dev"
+    command: sh -c "npm run prisma:migrate && if [ \"$SEED_DB\" = \"true\" ]; then npm run prisma:seed; fi && npm run start:dev"
 
   frontend:
     build:

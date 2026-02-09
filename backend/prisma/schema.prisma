@@ -27,10 +27,9 @@ enum BookingStatus {
 }
 
 enum NotificationType {
-  BOOKING_CREATED
-  BOOKING_ACCEPTED
-  BOOKING_REJECTED
-  BOOKING_CANCELLED
+  BOOKING_STATUS
+  CHAT_MESSAGE
+  SYSTEM
 }
 
 model User {
@@ -55,6 +54,12 @@ model User {
   clinicAddress       String?
   clinicContactPerson String?
   clinicPhone         String?
+
+  @@index([role])
+  @@index([specialty])
+  @@index([isActive])
+  @@index([isVerified])
+  @@index([email])
   isVerified          Boolean   @default(false)
 
   isActive            Boolean   @default(true)
@@ -76,7 +81,8 @@ model User {
   bookingsAsPatient   Booking[]      @relation("PatientBookings")
   sentMessages        Message[]      @relation("SentMessages")
   receivedMessages    Message[]      @relation("ReceivedMessages")
-  notifications Notification[] @relation("UserNotifications")
+
+  notifications       Notification[]
 
   @@map("users")
 }
@@ -131,22 +137,21 @@ model Booking {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   messages  Message[]
-  notifications Notification[]
 
   @@map("bookings")
 }
 
 model Message {
-  id        String   @id @default(uuid())
-  content   String
-  isRead    Boolean  @default(false)
-  bookingId String
-  senderId  String
+  id         String   @id @default(uuid())
+  content    String
+  isRead     Boolean  @default(false)
+  bookingId  String
+  senderId   String
   receiverId String
-  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  sender    User     @relation("SentMessages", fields: [senderId], references: [id])
-  receiver  User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
-  createdAt DateTime @default(now())
+  booking    Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id])
+  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  createdAt  DateTime @default(now())
 
   @@index([bookingId])
   @@index([senderId, receiverId])
@@ -155,17 +160,19 @@ model Message {
 
 model Notification {
   id        String           @id @default(uuid())
-  userId    String           // Who should receive this notification
-  type      NotificationType // What type of notification (BOOKING_CREATED, etc.)
-  title     String           // Short title like "New Booking Request"
-  message   String           // The actual message text
-  isRead    Boolean          @default(false) // Has the user seen it?
-  bookingId String?          // Optional: link to booking if related
-  booking   Booking?         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  user      User             @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime         @default(now())
-  readAt    DateTime?        // When did they read it? (optional)
 
-  @@index([userId, isRead])  // Makes searching faster
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type      NotificationType
+  title     String
+  body      String
+  data      Json?
+
+  isRead    Boolean          @default(false)
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, isRead, createdAt])
   @@map("notifications")
 }

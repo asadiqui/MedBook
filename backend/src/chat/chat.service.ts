@@ -8,7 +8,6 @@ import { PrismaService } from '../prisma/prisma.service';
 import { BookingStatus } from '@prisma/client';
 
 const CHAT_ALLOWED_BOOKING_STATUSES: BookingStatus[] = [
-  BookingStatus.PENDING,
   BookingStatus.ACCEPTED,
 ];
 

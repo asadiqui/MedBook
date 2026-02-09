@@ -16,6 +16,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RegisterDto, LoginDto, ChangePasswordDto, Enable2FADto, Verify2FADto, VerifyEmailDto } from './dto';
 import { Role } from '@prisma/client';
 import { EmailService } from '../common/email.service';
+import { parseExpiryToMs } from '../common/utils/expiry';
+import axios from 'axios';
+import { createWriteStream } from 'fs';
+import { mkdir, access } from 'fs/promises';
+import { join } from 'path';
+import * as path from 'path';
+import * as fs from 'fs/promises';
 
 export interface TokenPayload {
   accessToken: string;
@@ -548,34 +555,6 @@ export class AuthService {
   async getCurrentUser(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        phone: true,
-        avatar: true,
-        gender: true,
-        dateOfBirth: true,
-        role: true,
-        isActive: true,
-        isEmailVerified: true,
-        isVerified: true,
-        specialty: true,
-        licenseNumber: true,
-        licenseDocument: true,
-        bio: true,
-        consultationFee: true,
-        affiliation: true,
-        yearsOfExperience: true,
-        clinicAddress: true,
-        clinicContactPerson: true,
-        clinicPhone: true,
-        isTwoFactorEnabled: true,
-        googleId: true,
-        createdAt: true,
-        lastLoginAt: true,
-      },
     });
 
     if (!user) {
@@ -584,11 +563,43 @@ export class AuthService {
 
     const redirectPath = user.role === 'ADMIN' ? '/admin/dashboard' : '/dashboard';
 
-    return {
-      ...user,
+    const baseUser = {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phone: user.phone,
+      avatar: user.avatar,
+      gender: user.gender,
+      dateOfBirth: user.dateOfBirth,
+      role: user.role,
+      isActive: user.isActive,
+      isEmailVerified: user.isEmailVerified,
+      isTwoFactorEnabled: user.isTwoFactorEnabled,
       isOAuth: !!user.googleId,
       redirectPath,
+      createdAt: user.createdAt,
+      lastLoginAt: user.lastLoginAt,
     };
+
+    if (user.role === Role.DOCTOR) {
+      return {
+        ...baseUser,
+        specialty: user.specialty,
+        licenseNumber: user.licenseNumber,
+        licenseDocument: user.licenseDocument,
+        bio: user.bio,
+        consultationFee: user.consultationFee,
+        affiliation: user.affiliation,
+        yearsOfExperience: user.yearsOfExperience,
+        clinicAddress: user.clinicAddress,
+        clinicContactPerson: user.clinicContactPerson,
+        clinicPhone: user.clinicPhone,
+        isVerified: user.isVerified,
+      };
+    }
+
+    return baseUser;
   }
 
   async googleLogin(googleUser: {
@@ -620,13 +631,22 @@ export class AuthService {
         }
       }
 
+      let localAvatarPath = googleUser.avatar;
+      if (googleUser.avatar) {
+        try {
+          localAvatarPath = await this.downloadAndCacheAvatar(googleUser.avatar, uuidv4());
+        } catch (error) {
+          this.logger.warn('Failed to download Google avatar during registration', error);
+        }
+      }
+
       user = await this.prisma.user.create({
         data: {
           email: googleUser.email.toLowerCase(),
           googleId: googleUser.googleId,
           firstName: googleUser.firstName,
           lastName: googleUser.lastName,
-          avatar: googleUser.avatar,
+          avatar: localAvatarPath,
           isEmailVerified: true,
           role: Role.PATIENT,
         },
@@ -639,8 +659,30 @@ export class AuthService {
     }
 
     const updateData: any = { lastLoginAt: new Date() };
+    
+    let shouldDownloadAvatar = false;
     if (googleUser.avatar) {
-      updateData.avatar = googleUser.avatar;
+      if (!user.avatar || !user.avatar.startsWith('/uploads/avatars/google-')) {
+        shouldDownloadAvatar = true;
+      } else {
+        const avatarPath = path.join(process.cwd(), user.avatar);
+        try {
+          await fs.access(avatarPath);
+        } catch {
+          this.logger.log('Avatar file not found, will re-download');
+          shouldDownloadAvatar = true;
+        }
+      }
+    }
+
+    if (shouldDownloadAvatar) {
+      try {
+        const localAvatarPath = await this.downloadAndCacheAvatar(googleUser.avatar, user.id);
+        updateData.avatar = localAvatarPath;
+      } catch (error) {
+        this.logger.warn('Failed to download Google avatar, using URL directly', error);
+        updateData.avatar = googleUser.avatar;
+      }
     }
 
     const updatedUser = await this.prisma.user.update({
@@ -703,7 +745,7 @@ export class AuthService {
     const refreshToken = uuidv4();
 
     const refreshExpiry = this.configService.get<string>('JWT_REFRESH_EXPIRY', '7d');
-    const expiresAt = new Date(Date.now() + this.parseExpiryToMs(refreshExpiry));
+    const expiresAt = new Date(Date.now() + parseExpiryToMs(refreshExpiry));
 
     await this.prisma.refreshToken.create({
       data: {
@@ -716,23 +758,22 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  private parseExpiryToMs(value: string): number {
-    const match = /^\s*(\d+)\s*([smhd])\s*$/i.exec(value || '');
-    if (!match) {
-      return 7 * 24 * 60 * 60 * 1000;
-    }
+  private async downloadAndCacheAvatar(googleAvatarUrl: string, userId: string): Promise<string> {
+    const uploadDir = join(process.cwd(), 'uploads', 'avatars');
+    await mkdir(uploadDir, { recursive: true });
 
-    const amount = Number(match[1]);
-    const unit = match[2].toLowerCase();
+    const filename = `google-${userId}-${Date.now()}.jpg`;
+    const filepath = join(uploadDir, filename);
 
-    const multipliers: Record<string, number> = {
-      s: 1000,
-      m: 60 * 1000,
-      h: 60 * 60 * 1000,
-      d: 24 * 60 * 60 * 1000,
-    };
+    const response = await axios.get(googleAvatarUrl, { responseType: 'stream' });
+    const writer = createWriteStream(filepath);
 
-    return amount * (multipliers[unit] ?? 7 * 24 * 60 * 60 * 1000);
+    response.data.pipe(writer);
+
+    return new Promise((resolve, reject) => {
+      writer.on('finish', () => resolve(`/uploads/avatars/${filename}`));
+      writer.on('error', reject);
+    });
   }
 
   private async verify2FACode(secret: string, code: string): Promise<boolean> {

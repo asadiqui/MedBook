@@ -22,11 +22,17 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (
+      error.response?.status === 401 && 
+      !originalRequest._retry &&
+      !originalRequest.url?.includes('/auth/me') &&
+      !originalRequest.url?.includes('/auth/refresh') &&
+      !originalRequest.url?.includes('/auth/login') &&
+      !originalRequest.url?.includes('/auth/register')
+    ) {
       originalRequest._retry = true;
 
       try {
-
         await axios.post(
           `${API_URL}/auth/refresh`,
           {},
@@ -35,8 +41,14 @@ api.interceptors.response.use(
 
         return api(originalRequest);
       } catch (refreshError) {
-        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/auth/')) {
-          window.location.href = "/auth/login";
+        if (typeof window !== 'undefined') {
+          const publicRoutes = ['/', '/auth/login', '/auth/register', '/auth/forgot-password', '/find-doctor'];
+          const currentPath = window.location.pathname;
+          const isPublicRoute = publicRoutes.some(route => currentPath === route || currentPath.startsWith('/auth/'));
+          
+          if (!isPublicRoute) {
+            window.location.href = "/auth/login";
+          }
         }
       }
     }
