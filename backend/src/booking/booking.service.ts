@@ -9,6 +9,7 @@ import { CreateBookingDto } from "./dto/create-booking.dto";
 import { timeConversion } from "../common/utils/time";
 import { BookingStatus, Role } from "@prisma/client";
 import { NotificationsService } from "../notifications/notifications.service";
+import { ChatGateway } from "../chat/chat.gateway";
 
 const ALLOWED_DURATIONS = new Set([60, 120]);
 
@@ -16,7 +17,8 @@ const ALLOWED_DURATIONS = new Set([60, 120]);
 export class BookingService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly notificationsService: NotificationsService
+    private readonly notificationsService: NotificationsService,
+    private readonly chatGateway: ChatGateway,
   ) {}
 
   async createBooking(dto: CreateBookingDto, patientId: string) {
@@ -242,6 +244,10 @@ export class BookingService {
       },
     });
 
+    // Notify both parties so their chat list and unread badge update in real-time
+    this.chatGateway.emitBookingCancelled(updated.doctorId, updated.id);
+    this.chatGateway.emitBookingCancelled(updated.patientId, updated.id);
+
     return updated;
   }
 
@@ -293,6 +299,10 @@ export class BookingService {
         cancelledBy,
       },
     });
+
+    // Notify both parties so their chat list and unread badge update in real-time
+    this.chatGateway.emitBookingCancelled(updated.doctorId, updated.id);
+    this.chatGateway.emitBookingCancelled(updated.patientId, updated.id);
 
     return updated;
   }

@@ -38,10 +38,11 @@ interface UseSocketOptions {
   onMessageRead?: (message: Message) => void;
   onAllMessagesRead?: (data: { bookingId: string; userId: string }) => void;
   onUserStatus?: (data: { userId: string; isOnline: boolean }) => void;
+  onBookingCancelled?: (data: { bookingId: string }) => void;
 }
 
 export const useSocket = (options: UseSocketOptions = {}) => {
-  const { bookingId, onNewMessage, onTyping, onMessageRead, onAllMessagesRead, onUserStatus } = options;
+  const { bookingId, onNewMessage, onTyping, onMessageRead, onAllMessagesRead, onUserStatus, onBookingCancelled } = options;
   const socketRef = useRef<Socket | null>(null);
   const { user } = useAuthStore();
   const [isConnected, setIsConnected] = useState(false);
@@ -95,6 +96,10 @@ export const useSocket = (options: UseSocketOptions = {}) => {
     socket.on("user_status", (data: { userId: string; isOnline: boolean }) => {
       setOnlineUsers(prev => ({ ...prev, [data.userId]: data.isOnline }));
       if (onUserStatus) onUserStatus(data);
+    });
+
+    socket.on("booking_cancelled", (data: { bookingId: string }) => {
+      if (onBookingCancelled) onBookingCancelled(data);
     });
 
     socket.on("online_statuses", (statuses: Record<string, boolean>) => {

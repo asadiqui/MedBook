@@ -287,6 +287,9 @@ export class ChatService {
       where: {
         receiverId: userId,
         isRead: false,
+        booking: {
+          status: { in: CHAT_ALLOWED_BOOKING_STATUSES },
+        },
       },
     });
 

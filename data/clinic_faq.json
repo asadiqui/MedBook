@@ -1,0 +1,166 @@
+[
+  {
+    "question": "Is Dr. Alami available today?",
+    "answer": "Dr. Alami (Cardiology) is available Monday to Friday from 9 AM to 4 PM."
+  },
+  {
+    "question": "Who is the doctor for Cardiology?",
+    "answer": "The head of Cardiology at Atlas Healing Center is Dr. Alami."
+  },
+  {
+    "question": "Do you have a specialist for Cardiology?",
+    "answer": "Yes, we have a specialized Cardiology department led by Dr. Alami."
+  },
+  {
+    "question": "What is the consultation price for Cardiology?",
+    "answer": "A consultation for Cardiology costs 400 MAD."
+  },
+  {
+    "question": "Is Dr. Benjelloun available today?",
+    "answer": "Dr. Benjelloun (Dermatology) is available Monday to Friday from 9 AM to 4 PM."
+  },
+  {
+    "question": "Who is the doctor for Dermatology?",
+    "answer": "The head of Dermatology at Atlas Healing Center is Dr. Benjelloun."
+  },
+  {
+    "question": "Do you have a specialist for Dermatology?",
+    "answer": "Yes, we have a specialized Dermatology department led by Dr. Benjelloun."
+  },
+  {
+    "question": "What is the consultation price for Dermatology?",
+    "answer": "A consultation for Dermatology costs 350 MAD."
+  },
+  {
+    "question": "Is Dr. Tazi available today?",
+    "answer": "Dr. Tazi (Pediatrics) is available Monday to Friday from 9 AM to 4 PM."
+  },
+  {
+    "question": "Who is the doctor for Pediatrics?",
+    "answer": "The head of Pediatrics at Atlas Healing Center is Dr. Tazi."
+  },
+  {
+    "question": "Do you have a specialist for Pediatrics?",
+    "answer": "Yes, we have a specialized Pediatrics department led by Dr. Tazi."
+  },
+  {
+    "question": "What is the consultation price for Pediatrics?",
+    "answer": "A consultation for Pediatrics costs 300 MAD."
+  },
+  {
+    "question": "Is Dr. Hakimi available today?",
+    "answer": "Dr. Hakimi (Neurology) is available Monday to Friday from 9 AM to 4 PM."
+  },
+  {
+    "question": "Who is the doctor for Neurology?",
+    "answer": "The head of Neurology at Atlas Healing Center is Dr. Hakimi."
+  },
+  {
+    "question": "Do you have a specialist for Neurology?",
+    "answer": "Yes, we have a specialized Neurology department led by Dr. Hakimi."
+  },
+  {
+    "question": "What is the consultation price for Neurology?",
+    "answer": "A consultation for Neurology costs 500 MAD."
+  },
+  {
+    "question": "Is Dr. Mansouri available today?",
+    "answer": "Dr. Mansouri (Orthopedics) is available Monday to Friday from 9 AM to 4 PM."
+  },
+  {
+    "question": "Who is the doctor for Orthopedics?",
+    "answer": "The head of Orthopedics at Atlas Healing Center is Dr. Mansouri."
+  },
+  {
+    "question": "Do you have a specialist for Orthopedics?",
+    "answer": "Yes, we have a specialized Orthopedics department led by Dr. Mansouri."
+  },
+  {
+    "question": "What is the consultation price for Orthopedics?",
+    "answer": "A consultation for Orthopedics costs 450 MAD."
+  },
+  {
+    "question": "Is Dr. Sadiqui available today?",
+    "answer": "Dr. Sadiqui (General Medicine) is available Monday to Friday from 9 AM to 4 PM."
+  },
+  {
+    "question": "Who is the doctor for General Medicine?",
+    "answer": "The head of General Medicine at Atlas Healing Center is Dr. Sadiqui."
+  },
+  {
+    "question": "Do you have a specialist for General Medicine?",
+    "answer": "Yes, we have a specialized General Medicine department led by Dr. Sadiqui."
+  },
+  {
+    "question": "What is the consultation price for General Medicine?",
+    "answer": "A consultation for General Medicine costs 200 MAD."
+  },
+  {
+    "question": "Do you accept CNSS?",
+    "answer": "Yes, Atlas Healing Center is fully partnered with CNSS for coverage."
+  },
+  {
+    "question": "Can I pay using my CNSS insurance?",
+    "answer": "Absolutely. We accept CNSS. Please bring your card to the reception."
+  },
+  {
+    "question": "Do you accept CNOPS?",
+    "answer": "Yes, Atlas Healing Center is fully partnered with CNOPS for coverage."
+  },
+  {
+    "question": "Can I pay using my CNOPS insurance?",
+    "answer": "Absolutely. We accept CNOPS. Please bring your card to the reception."
+  },
+  {
+    "question": "Do you accept AXA Assurance?",
+    "answer": "Yes, Atlas Healing Center is fully partnered with AXA Assurance for coverage."
+  },
+  {
+    "question": "Can I pay using my AXA Assurance insurance?",
+    "answer": "Absolutely. We accept AXA Assurance. Please bring your card to the reception."
+  },
+  {
+    "question": "Do you accept Wafa Assurance?",
+    "answer": "Yes, Atlas Healing Center is fully partnered with Wafa Assurance for coverage."
+  },
+  {
+    "question": "Can I pay using my Wafa Assurance insurance?",
+    "answer": "Absolutely. We accept Wafa Assurance. Please bring your card to the reception."
+  },
+  {
+    "question": "Do you accept RMA?",
+    "answer": "Yes, Atlas Healing Center is fully partnered with RMA for coverage."
+  },
+  {
+    "question": "Can I pay using my RMA insurance?",
+    "answer": "Absolutely. We accept RMA. Please bring your card to the reception."
+  },
+  {
+    "question": "Do you accept Sanlam?",
+    "answer": "Yes, Atlas Healing Center is fully partnered with Sanlam for coverage."
+  },
+  {
+    "question": "Can I pay using my Sanlam insurance?",
+    "answer": "Absolutely. We accept Sanlam. Please bring your card to the reception."
+  },
+  {
+    "question": "Where are you located?",
+    "answer": "We are located in Ben Guerir, Morocco, near the 1337 Campus."
+  },
+  {
+    "question": "What are your opening hours?",
+    "answer": "We are open Monday-Saturday, 8:00 AM to 8:00 PM."
+  },
+  {
+    "question": "Do you offer emergency services?",
+    "answer": "Yes, our ER is open 24/7 for critical cases."
+  },
+  {
+    "question": "How do I book an appointment?",
+    "answer": "You can book directly through this portal or call us at +212-5-00-00-00."
+  },
+  {
+    "question": "Is there parking available?",
+    "answer": "Yes, we have a free underground parking for patients."
+  }
+]

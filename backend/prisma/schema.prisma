@@ -44,12 +44,13 @@ model User {
   gender              Gender?
   dateOfBirth         DateTime?
   bio                 String?
-
+  
+  // Doctor-specific fields
   specialty           String?
   licenseNumber       String?
-  licenseDocument     String?
+  licenseDocument     String?   // Uploaded license/certification file path
   consultationFee     Float?
-  affiliation         String?
+  affiliation         String?   // Current Affiliation (Clinic/Hospital Name)
   yearsOfExperience   Int?
   clinicAddress       String?
   clinicContactPerson String?
@@ -61,19 +62,24 @@ model User {
   @@index([isVerified])
   @@index([email])
   isVerified          Boolean   @default(false)
-
+  
+  // Account status
   isActive            Boolean   @default(true)
   isEmailVerified     Boolean   @default(false)
-
+  
+  // Two-factor authentication
   isTwoFactorEnabled  Boolean   @default(false)
   twoFactorSecret     String?
-
+  
+  // OAuth
   googleId            String?   @unique
-
+  
+  // Timestamps
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
   lastLoginAt         DateTime?
-
+  
+  // Relations
   refreshTokens       RefreshToken[]
   passwordResets      PasswordReset[]
   availabilities      Availability[] @relation("DoctorAvailability")
@@ -81,10 +87,22 @@ model User {
   bookingsAsPatient   Booking[]      @relation("PatientBookings")
   sentMessages        Message[]      @relation("SentMessages")
   receivedMessages    Message[]      @relation("ReceivedMessages")
-
+  aiMessages          AiMessage[]
+  aiUsage             UserAiUsage[]
   notifications       Notification[]
 
   @@map("users")
+}
+
+model UserAiUsage {
+  id         String   @id @default(uuid())
+  userId     String
+  date       String   // YYYY-MM-DD
+  tokenCount Int      @default(0)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@map("user_ai_usage")
 }
 
 model RefreshToken {
@@ -156,6 +174,19 @@ model Message {
   @@index([bookingId])
   @@index([senderId, receiverId])
   @@map("messages")
+}
+
+model AiMessage {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agentId   String
+  role      String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([userId, agentId])
+  @@map("ai_messages")
 }
 
 model Notification {

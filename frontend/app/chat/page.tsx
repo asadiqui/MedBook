@@ -125,11 +125,28 @@ export default function ChatPage() {
     );
   }, []);
 
+  const handleBookingCancelled = useCallback((data: { bookingId: string }) => {
+    // Remove the cancelled chat from the list
+    setChats((prev) => prev.filter((chat) => chat.bookingId !== data.bookingId));
+    // If the cancelled booking is currently selected, deselect it
+    setSelectedBookingId((prev) => {
+      if (prev === data.bookingId) {
+        setMessages([]);
+        setOtherUser(null);
+        return undefined;
+      }
+      return prev;
+    });
+    // Refresh global unread count
+    useChatStore.getState().fetchUnreadCount();
+  }, []);
+
   const { sendMessage, sendTyping, markAllAsRead, getOnlineStatus, isUserOnline, isConnected } = useSocket({
     bookingId: selectedBookingId,
     onNewMessage: handleNewMessage,
     onTyping: handleTyping,
     onMessageRead: handleMessageRead,
+    onBookingCancelled: handleBookingCancelled,
   });
 
   markAllAsReadRef.current = markAllAsRead;

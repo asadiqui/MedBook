@@ -2,13 +2,16 @@
   "name": "MedBook",
   "private": true,
   "version": "1.0.0",
+  "description": "AI-Powered Medical Appointment Scheduling Platform",
   "scripts": {
     "docker:up": "docker compose up --build",
     "docker:down": "docker compose down",
     "docker:logs:backend": "docker compose logs -f backend",
-    "docker:logs:db": "docker compose logs -f postgres"
+    "docker:logs:db": "docker compose logs -f postgres",
+    "dev": "concurrently \"cd backend && npm run start:dev\" \"cd frontend && npm run dev\""
   },
   "dependencies": {
-    "socket.io-client": "^4.8.3"
+    "socket.io-client": "^4.8.3",
+    "concurrently": "^8.2.2"
   }
 }

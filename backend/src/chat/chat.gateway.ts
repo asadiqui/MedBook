@@ -273,6 +273,20 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   /**
+   * Emit a booking_cancelled event to a specific user
+   * Used when a booking status changes (cancel/reject) so the sidebar badge and chat list update in real-time
+   */
+  emitBookingCancelled(userId: string, bookingId: string) {
+    const userSockets = this.onlineUsers.get(userId);
+    if (userSockets) {
+      userSockets.forEach((socketId) => {
+        this.server.to(socketId).emit('booking_cancelled', { bookingId });
+      });
+      this.logger.log(`Emitted booking_cancelled to user ${userId} for booking ${bookingId}`);
+    }
+  }
+
+  /**
    * Check if a user is currently online
    */
   isUserOnline(userId: string): boolean {

@@ -55,6 +55,12 @@ export const useGlobalSocket = () => {
       }
     });
 
+    // Listen for booking cancellation/rejection to refresh unread count
+    socket.on("booking_cancelled", (data: { bookingId: string }) => {
+      console.log("[GlobalSocket] Booking cancelled:", data.bookingId, "- refreshing unread count");
+      fetchUnreadCount();
+    });
+
     return () => {
       console.log("[GlobalSocket] Cleaning up socket");
       if (socket.connected) {
