@@ -14,6 +14,8 @@ import { LlmModule } from './ai/llm/llm.module';
 import { EmailModule } from './common/email.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { LoggerMiddleware } from './common/logger.middleware';
+import { NotificationsModule } from './notifications/notifications.module';
+
 
 @Module({
   imports: [
@@ -37,6 +39,7 @@ import { LoggerMiddleware } from './common/logger.middleware';
     BookingModule,
     ChatModule,
     LlmModule,
+    NotificationsModule,
   ],
   controllers: [],
   providers: [

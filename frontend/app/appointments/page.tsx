@@ -262,14 +262,7 @@ export default function AppointmentsPage() {
                               <div className="mt-2 space-y-1 text-xs text-gray-600">
                                 <div className="flex items-center gap-2">
                                   <svg viewBox="0 0 24 24" className="h-4 w-4 text-gray-500" fill="none" aria-hidden="true">
-                                    <path
-                                      d="M12 22s7-5.33 7-12a7 7 0 1 0-14 0c0 6.67 7 12 7 12Zm0-9a3 3 0 1 1 0-6 3 3 0 0 1 0 6Z"
-                                      fill="currentColor"
-                                    />
                                   </svg>
-                                  <span className="truncate">
-                                    {address || "Location not provided"}
-                                  </span>
                                 </div>
                                 {city ? (
                                   <div className="text-xs text-gray-500">{city}</div>

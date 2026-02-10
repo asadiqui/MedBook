@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { Toaster } from "react-hot-toast";
 import { useAuthStore } from "@/lib/store/auth";
 import { useGlobalSocket } from "@/lib/hooks/useGlobalSocket";
+import { useNotificationsSocket } from "@/lib/hooks/useNotificationsSocket";
 
 function GlobalSocketProvider() {
   useGlobalSocket();
+  useNotificationsSocket();
   return null;
 }
 
@@ -17,7 +19,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   const hasInitializedRef = useRef(false);
 
   useEffect(() => {
-    if (!pathname || pathname === '/auth/callback') return;
+    if (!pathname || pathname === "/auth/callback") return;
     if (hasInitializedRef.current || authChecked) return;
 
     hasInitializedRef.current = true;
@@ -41,29 +43,31 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      {/* Global socket for unread message notifications */}
+      {/* Global sockets for unread message + live notifications */}
       {user && <GlobalSocketProvider />}
+
       {children}
+
       <Toaster
         position="top-right"
         toastOptions={{
           duration: 5000,
           style: {
-            background: '#363636',
-            color: '#fff',
+            background: "#363636",
+            color: "#fff",
           },
           success: {
             duration: 5000,
             iconTheme: {
-              primary: '#10b981',
-              secondary: '#fff',
+              primary: "#10b981",
+              secondary: "#fff",
             },
           },
           error: {
             duration: 5000,
             iconTheme: {
-              primary: '#ef4444',
-              secondary: '#fff',
+              primary: "#ef4444",
+              secondary: "#fff",
             },
           },
         }}

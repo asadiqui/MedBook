@@ -26,6 +26,12 @@ enum BookingStatus {
   CANCELLED
 }
 
+enum NotificationType {
+  BOOKING_STATUS
+  CHAT_MESSAGE
+  SYSTEM
+}
+
 model User {
   id                  String    @id @default(uuid())
   email               String    @unique
@@ -76,6 +82,8 @@ model User {
   sentMessages        Message[]      @relation("SentMessages")
   receivedMessages    Message[]      @relation("ReceivedMessages")
 
+  notifications       Notification[]
+
   @@map("users")
 }
 
@@ -86,7 +94,7 @@ model RefreshToken {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt   DateTime
   createdAt   DateTime @default(now())
-  
+
   @@map("refresh_tokens")
 }
 
@@ -98,7 +106,7 @@ model PasswordReset {
   expiresAt   DateTime
   used        Boolean  @default(false)
   createdAt   DateTime @default(now())
-  
+
   @@map("password_resets")
 }
 
@@ -134,18 +142,37 @@ model Booking {
 }
 
 model Message {
-  id        String   @id @default(uuid())
-  content   String
-  isRead    Boolean  @default(false)
-  bookingId String
-  senderId  String
+  id         String   @id @default(uuid())
+  content    String
+  isRead     Boolean  @default(false)
+  bookingId  String
+  senderId   String
   receiverId String
-  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  sender    User     @relation("SentMessages", fields: [senderId], references: [id])
-  receiver  User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
-  createdAt DateTime @default(now())
+  booking    Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id])
+  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  createdAt  DateTime @default(now())
 
   @@index([bookingId])
   @@index([senderId, receiverId])
   @@map("messages")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type      NotificationType
+  title     String
+  body      String
+  data      Json?
+
+  isRead    Boolean          @default(false)
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, isRead, createdAt])
+  @@map("notifications")
 }

@@ -51,10 +51,6 @@ postgres_data/
 uploads/
 **/uploads/
 
-# Private
-private/
-**/private/
-
 # TypeScript
 *.tsbuildinfo
 
