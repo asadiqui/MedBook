@@ -5,7 +5,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import Groq from 'groq-sdk';
 
 export const RATE_LIMIT_ERROR_MESSAGE = 'System Busy, please try again in 5 seconds';
-export const DAILY_LIMIT_ERROR_MESSAGE = 'You have reached your daily limit. You can try again tomorrow.';
+export const DAILY_LIMIT_ERROR_MESSAGE = 'You have reached your limit. You can try again after a while or tomorrow.';
 
 @Injectable()
 export class RagService {
@@ -13,7 +13,7 @@ export class RagService {
   private genAI: GoogleGenerativeAI;
   private modelName = 'llama-3.1-8b-instant'; 
   private embeddingModel = 'gemini-embedding-001'; 
-  private readonly DAILY_TOKEN_LIMIT = 20000;
+  private readonly DAILY_TOKEN_LIMIT = 100000;
 
   constructor(
     private configService: ConfigService,
@@ -43,7 +43,7 @@ export class RagService {
       where: { userId_date: { userId, date } },
     });
 
-    if (usage && usage.tokenCount >= this.DAILY_TOKEN_LIMIT) {
+    if (usage && usage.ragTokenCount >= this.DAILY_TOKEN_LIMIT) {
       throw new Error(DAILY_LIMIT_ERROR_MESSAGE);
     }
   }
@@ -53,8 +53,8 @@ export class RagService {
     const date = this.getDateKey();
     await this.prisma.userAiUsage.upsert({
       where: { userId_date: { userId, date } },
-      update: { tokenCount: { increment: tokens } },
-      create: { userId, date, tokenCount: tokens },
+      update: { ragTokenCount: { increment: tokens } },
+      create: { userId, date, ragTokenCount: tokens },
     });
   }
 

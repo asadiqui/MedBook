@@ -4,7 +4,7 @@ import Groq from 'groq-sdk';
 import { PrismaService } from '../../prisma/prisma.service';
 
 export const RATE_LIMIT_ERROR_MESSAGE = 'System Busy, please try again in 5 seconds';
-export const DAILY_LIMIT_ERROR_MESSAGE = 'You have reached your daily limit. You can try again tomorrow.';
+export const DAILY_LIMIT_ERROR_MESSAGE = 'You have reached your limit. You can try again after a while or tomorrow.';
 
 @Injectable()
 export class LlmService {
@@ -37,7 +37,7 @@ export class LlmService {
       where: { userId_date: { userId, date } },
     });
 
-    if (usage && usage.tokenCount >= this.DAILY_TOKEN_LIMIT) {
+    if (usage && usage.llmTokenCount >= this.DAILY_TOKEN_LIMIT) {
       throw new Error(DAILY_LIMIT_ERROR_MESSAGE);
     }
   }
@@ -48,8 +48,8 @@ export class LlmService {
     const date = this.getDateKey();
     await this.prisma.userAiUsage.upsert({
       where: { userId_date: { userId, date } },
-      update: { tokenCount: { increment: tokens } },
-      create: { userId, date, tokenCount: tokens },
+      update: { llmTokenCount: { increment: tokens } },
+      create: { userId, date, llmTokenCount: tokens },
     });
   }
 

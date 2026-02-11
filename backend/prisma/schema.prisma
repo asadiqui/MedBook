@@ -95,11 +95,12 @@ model User {
 }
 
 model UserAiUsage {
-  id         String   @id @default(uuid())
-  userId     String
-  date       String   // YYYY-MM-DD
-  tokenCount Int      @default(0)
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id            String   @id @default(uuid())
+  userId        String
+  date          String   // YYYY-MM-DD
+  llmTokenCount Int      @default(0)
+  ragTokenCount Int      @default(0)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date])
   @@map("user_ai_usage")

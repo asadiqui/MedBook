@@ -35,9 +35,6 @@ shell-front:
 shell-db:
 	docker compose exec postgres psql -U postgres -d medbook_dev
 
-clean:
-	docker compose down -v
-
 prune:
 	docker system prune -af
 

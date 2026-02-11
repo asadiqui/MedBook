@@ -34,7 +34,7 @@ export class AuthController {
     const isProd = this.configService.get<string>('NODE_ENV') === 'production';
     return {
       httpOnly: true,
-      secure: isProd,
+      secure: true,
       sameSite: 'lax' as const,
       maxAge: maxAgeMs,
       path: '/',
