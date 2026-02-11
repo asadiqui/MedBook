@@ -44,13 +44,10 @@ export default function AiChatWidget({
     // Load history when widget opens or mounts
     const fetchHistory = async () => {
       try {
-        const token = localStorage.getItem('accessToken');
         const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
         
-        if (!token) return;
-
         const res = await fetch(`${API_URL}/ai/llm/history/${agentId}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+          credentials: 'include'
         });
         
         if (res.ok) {
@@ -90,12 +87,11 @@ export default function AiChatWidget({
     if (!confirm('Are you sure you want to clear your chat history?')) return;
 
     try {
-      const token = localStorage.getItem('accessToken');
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
       
       await fetch(`${API_URL}/ai/llm/history/${agentId}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        credentials: 'include'
       });
 
       setMessages([{ id: 'welcome', role: 'assistant', content: defaultWelcome }]);
@@ -141,15 +137,14 @@ export default function AiChatWidget({
       };
       setMessages(prev => [...prev, assistantMessage]);
 
-      const token = localStorage.getItem('accessToken');
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
       
       const response = await fetch(`${API_URL}/ai/llm/chat/stream`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify({
           agentId,
           message: userMessage.content,
@@ -242,7 +237,7 @@ export default function AiChatWidget({
   // Styles based on mode
   const containerClasses = mode === 'floating'
     ? `fixed bottom-6 right-6 z-50 flex flex-col transition-all duration-300 ease-in-out ${isOpen ? 'w-96 h-[500px]' : 'w-auto h-auto'}`
-    : 'w-full h-[600px] flex flex-col bg-white rounded-xl shadow-sm border border-gray-200';
+    : 'w-full h-full flex flex-col bg-white rounded-xl shadow-sm border border-gray-200';
 
   const chatWindowClasses = mode === 'floating'
     ? `flex-1 bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-gray-200 ${isOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95 hidden'}`
@@ -264,7 +259,7 @@ export default function AiChatWidget({
       {/* Messages Area */}
       <div className={chatWindowClasses}>
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-4 text-white flex justify-between items-center shrink-0">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-600 p-4 text-white flex justify-between items-center shrink-0">
           <div className="flex items-center gap-2">
             <h3 className="font-semibold text-lg">{title}</h3>
             {mode === 'embedded' && <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">AI Powered</span>}

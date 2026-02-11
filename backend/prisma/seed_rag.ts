@@ -1,10 +1,13 @@
-import { PrismaClient, Role } from '@prisma/client';
-import * as bcrypt from 'bcrypt';
+import { PrismaClient } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as csv from 'csv-parser';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { v4 as uuidv4 } from 'uuid';
+import * as dotenv from 'dotenv';
+
+// Load environment variables from the root .env file
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const prisma = new PrismaClient();
 
@@ -14,7 +17,7 @@ const prisma = new PrismaClient();
 const BATCH_SIZE = 10;
 const SLEEP_BETWEEN_BATCHES_MS = 10000;
 const RETRY_DELAY_ON_429_MS = 60000;
-const ROW_LIMIT = 500;
+const ROW_LIMIT = 500; // 408 for 999?
 const DATA_DIR = path.resolve(process.cwd(), '../data'); 
 
 // ==========================================
@@ -251,89 +254,11 @@ async function ingestData() {
 // MAIN
 // ==========================================
 async function main() {
-  if (process.env.SEED_DB !== 'true') {
-    // console.log('ℹ️  Skipping seed (set SEED_DB=true to enable)');
-    // return; 
-    // We override this check or ask the user to set it. 
-    // For now, I'll log and continue if they are running "prisma db seed". But default behavior in old seed was to return.
-    // I will respect the flag check but log clearly.
-    // However, forcing it for this specific task might be better. 
-    // Let's keep the check but output instructions.
-  }
-  
-  // NOTE: If you want to force run, comment out the SEED_DB check or set env var.
-  
-  console.log('🌱 Starting Database Seeding...');
+  console.log('🌱 Starting RAG Database Seeding...');
 
-  // --- PREVIOUS USER SEEDING LOGIC ---
-  
-  // Admin
-  const existingAdmin = await prisma.user.findFirst({ where: { role: Role.ADMIN } });
-  if (!existingAdmin) {
-    const hashedPassword = await bcrypt.hash('Admin123!@#', 12);
-    const admin = await prisma.user.create({
-      data: {
-        email: 'admin@medbook.com', password: hashedPassword, firstName: 'Admin', lastName: 'MedBook',
-        role: Role.ADMIN, isActive: true, isEmailVerified: true,
-      },
-    });
-    console.log('✅ Admin created');
-  }
-
-  // Doctor
-  const existingDoctor = await prisma.user.findFirst({ where: { role: Role.DOCTOR } });
-  if (!existingDoctor) {
-    const doctorHashedPassword = await bcrypt.hash('Doctor123!@#', 12);
-    const doctor = await prisma.user.create({
-      data: {
-        email: 'doctor@medbook.com', password: doctorHashedPassword, firstName: 'Dr. Sarah', lastName: 'Johnson',
-        role: Role.DOCTOR, phone: '+1234567890', specialty: 'Cardiology',
-        bio: 'Experienced cardiologist.', consultationFee: 150, affiliation: 'City General Hospital', yearsOfExperience: 15,
-        isActive: true, isEmailVerified: true, isVerified: true,
-      },
-    });
-    console.log('✅ Doctor created');
-  }
-
-  // Patient
-  const existingPatient = await prisma.user.findFirst({ where: { role: Role.PATIENT } });
-  if (!existingPatient) {
-    const patientHashedPassword = await bcrypt.hash('Patient123!@#', 12);
-    const patient = await prisma.user.create({
-      data: {
-        email: 'patient@medbook.com', password: patientHashedPassword, firstName: 'John', lastName: 'Doe',
-        role: Role.PATIENT, phone: '+1234567892', dateOfBirth: "1990-01-01T00:00:00.000Z",
-        isActive: true, isEmailVerified: true,
-      },
-    });
-    console.log('✅ Patient created');
-  }
-
-  // Availability
-  const doctorForAvailability = await prisma.user.findFirst({ where: { role: Role.DOCTOR } });
-  if (doctorForAvailability) {
-    const existingAvailability = await prisma.availability.findFirst({ where: { doctorId: doctorForAvailability.id } });
-    if (!existingAvailability) {
-        // Create 7 days of availability
-        const today = new Date();
-        for (let i = 1; i <= 7; i++) {
-            const date = new Date(today);
-            date.setDate(today.getDate() + i);
-            if (date.getDay() !== 0 && date.getDay() !== 6) {
-                await prisma.availability.create({
-                    data: {
-                        doctorId: doctorForAvailability.id,
-                        date: date.toISOString().split('T')[0],
-                        startTime: '09:00', endTime: '17:00'
-                    }
-                });
-            }
-        }
-        console.log('✅ Availability created');
-    }
-  }
-
-  // --- NEW EMBEDDING LOGIC ---
+  // --- EMBEDDING LOGIC ---
+  // Resume logic is built-in (checks if document exists), but we keep the flag 
+  // to avoid accidental API usage.
   if (process.env.SEED_EMBEDDINGS === 'true') { 
      console.log('🔮 Starting Vector Embedding Ingestion...');
      await ingestData();
@@ -343,6 +268,8 @@ async function main() {
   }
 }
 
+// To Run:
+// export DATABASE_URL="postgresql://postgres:medbook_2026_db@127.0.0.1:5433/medbook_dev"; npx ts-node prisma/seed_rag.ts
 main()
   .catch((e) => {
     console.error(e);

@@ -17,6 +17,10 @@ export class LlmService {
     private prisma: PrismaService,
   ) {
     const apiKey = this.configService.get<string>('LLM_API_KEY');
+    
+    // Load model from env if available
+    this.modelName = this.configService.get<string>('LLM_MODEL') || this.modelName;
+
     if (!apiKey) {
       console.warn('LLM_API_KEY is not set in environment variables');
     }

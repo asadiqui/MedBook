@@ -41,7 +41,7 @@ export class LlmController {
     try {
       const userId = req.user.id;
       if (agentId === 'rag') {
-        return { text: await this.ragService.query(message, history) };
+        return { text: await this.ragService.query(userId, message, history) };
       }
       
       if (agentId === 'llm' || agentId === 'symptom-checker') {
@@ -76,7 +76,7 @@ export class LlmController {
     const userId = req.user.id;
     if (agentId === 'rag') {
       // Basic streaming simulation for RAG (can be improved later)
-      const text = await this.ragService.query(message, history);
+      const text = await this.ragService.query(userId, message, history);
       res.write(text);
       res.end();
       return;
