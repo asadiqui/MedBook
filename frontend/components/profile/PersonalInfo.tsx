@@ -273,8 +273,6 @@ export function PersonalInfo(props: PersonalInfoProps) {
                   type="date"
                   value={editData.dateOfBirth}
                   onChange={(e) => onDataChange({ dateOfBirth: e.target.value })}
-                  max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
-                  title="You must be at least 18 years old"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                 />
               </div>

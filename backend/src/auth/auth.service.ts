@@ -608,10 +608,14 @@ export class AuthService {
     firstName: string;
     lastName: string;
     avatar?: string;
-  }): Promise<AuthResponse> {
+  }, twoFactorCode?: string): Promise<AuthResponse> {
     let user = await this.prisma.user.findUnique({
       where: { googleId: googleUser.googleId },
-      select: USER_SELECT,
+      select: {
+        ...USER_SELECT,
+        isTwoFactorEnabled: true,
+        twoFactorSecret: true,
+      },
     });
 
     if (!user) {
@@ -650,12 +654,33 @@ export class AuthService {
           isEmailVerified: true,
           role: Role.PATIENT,
         },
-        select: USER_SELECT,
+        select: {
+          ...USER_SELECT,
+          isTwoFactorEnabled: true,
+          twoFactorSecret: true,
+        },
       });
     }
 
     if (!user.isActive) {
       throw new UnauthorizedException('Your account has been deactivated or deleted');
+    }
+
+    // Check 2FA for OAuth users
+    if (user.isTwoFactorEnabled) {
+      if (!twoFactorCode) {
+        // Return a special response indicating 2FA is required
+        return {
+          user: null as any,
+          tokens: null,
+          message: 'Two-factor authentication required',
+          redirectPath: '/auth/login?requires2fa=true',
+        };
+      }
+      const isValid = await this.verify2FACode(user.twoFactorSecret!, twoFactorCode);
+      if (!isValid) {
+        throw new UnauthorizedException('Invalid two-factor authentication code');
+      }
     }
 
     const updateData: any = { lastLoginAt: new Date() };
@@ -693,12 +718,15 @@ export class AuthService {
 
     const tokens = await this.generateTokens(updatedUser.id, updatedUser.email, updatedUser.role);
 
+    const redirectPath = updatedUser.role === 'ADMIN' ? '/admin/dashboard' : '/dashboard';
+
     return {
       user: {
         ...updatedUser,
         isOAuth: true,
       },
       tokens,
+      redirectPath,
     };
   }
 

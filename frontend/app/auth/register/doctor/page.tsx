@@ -18,7 +18,15 @@ const doctorSchema = z.object({
   email: z.string().email("Please enter a valid email"),
   phone: z.string().min(10, "Please enter a valid phone number"),
   password: z.string().min(8, "Password must be at least 8 characters"),
-  dateOfBirth: z.string().min(1, "Date of birth is required"),
+  dateOfBirth: z.string().min(1, "Date of birth is required").refine((date) => {
+    const parsed = new Date(date);
+    if (isNaN(parsed.getTime())) return false;
+    // Check if the date string matches the parsed date (catches Feb 31, etc.)
+    const [year, month, day] = date.split('-').map(Number);
+    return parsed.getFullYear() === year && 
+           parsed.getMonth() === month - 1 && 
+           parsed.getDate() === day;
+  }, { message: "Please enter a valid date (e.g., February only has 28/29 days)" }),
   gender: z.enum(["MALE", "FEMALE", "OTHER"], { errorMap: () => ({ message: "Please select a gender" }) }),
   specialty: z.string().min(1, "Specialization is required"),
   licenseNumber: z.string().min(1, "License number is required"),
@@ -273,16 +281,7 @@ export default function DoctorRegisterPage() {
                   <FormField label="Date of Birth" error={formErrors.dateOfBirth?.message || apiErrors.dateOfBirth} required>
                     <input
                       type="date"
-                      {...registerField("dateOfBirth", {
-                        onChange: (e) => {
-                          e.target.setCustomValidity('');
-                        }
-                      })}
-                      onInvalid={(e) => {
-                        const target = e.target as HTMLInputElement;
-                        target.setCustomValidity('You must be at least 18 years old to register');
-                      }}
-                      max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
+                      {...registerField("dateOfBirth")}
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                     />
                   </FormField>

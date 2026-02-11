@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Mail, CheckCircle2 } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
+import api from "@/lib/api";
 
 export const dynamic = 'force-dynamic';
 
@@ -11,17 +12,21 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError("");
     
-    
-
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      await api.post("/auth/forgot-password", { email });
       setIsSubmitted(true);
-    }, 1500);
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Failed to send reset email. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -68,6 +73,12 @@ export default function ForgotPasswordPage() {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-6">
+                {error && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                    {error}
+                  </div>
+                )}
+                
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                     Email Address

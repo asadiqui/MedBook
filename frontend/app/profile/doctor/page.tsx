@@ -212,7 +212,33 @@ export default function DoctorProfilePage() {
     if (!user) return;
 
     if (editData.dateOfBirth) {
+      console.log("Validating date:", editData.dateOfBirth);
+      
+      // Validate the date is actually valid (catches Feb 31, etc.)
       const birthDate = new Date(editData.dateOfBirth);
+      console.log("Parsed date:", birthDate, "isNaN:", isNaN(birthDate.getTime()));
+      
+      if (isNaN(birthDate.getTime())) {
+        toast.error("Please enter a valid date");
+        return;
+      }
+      
+      const [year, month, day] = editData.dateOfBirth.split('-').map(Number);
+      console.log("Input parts:", { year, month, day });
+      console.log("Parsed parts:", { 
+        year: birthDate.getFullYear(), 
+        month: birthDate.getMonth() + 1, 
+        day: birthDate.getDate() 
+      });
+      
+      if (birthDate.getFullYear() !== year || 
+          birthDate.getMonth() !== month - 1 || 
+          birthDate.getDate() !== day) {
+        console.log("Date validation failed - auto-corrected date detected");
+        toast.error("Invalid date. Please check the day is valid for that month (e.g., February only has 28/29 days)");
+        return;
+      }
+      
       const today = new Date();
       let age = today.getFullYear() - birthDate.getFullYear();
       const monthDiff = today.getMonth() - birthDate.getMonth();

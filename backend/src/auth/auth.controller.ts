@@ -152,6 +152,13 @@ export class AuthController {
     try {
       const result = await this.authService.googleLogin(req.user);
 
+      if (result.message === 'Two-factor authentication required') {
+        // Store temporary OAuth session
+        const tempToken = Buffer.from(JSON.stringify(req.user)).toString('base64');
+        const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'https://localhost:8443');
+        return res.redirect(`${frontendUrl}/auth/2fa-verify?temp=${tempToken}`);
+      }
+
       if (result.tokens) {
         this.setAuthCookies(res, result.tokens.accessToken, result.tokens.refreshToken);
       }
@@ -164,6 +171,27 @@ export class AuthController {
       const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'https://localhost:8443');
       const errorMessage = encodeURIComponent(error.message || 'Authentication failed');
       return res.redirect(`${frontendUrl}/auth/login?error=${errorMessage}`);
+    }
+  }
+
+  @Public()
+  @Post('google/verify-2fa')
+  @HttpCode(HttpStatus.OK)
+  async googleVerify2FA(
+    @Body() body: { tempToken: string; twoFactorCode: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    try {
+      const googleUser = JSON.parse(Buffer.from(body.tempToken, 'base64').toString());
+      const result = await this.authService.googleLogin(googleUser, body.twoFactorCode);
+      
+      if (result.tokens) {
+        this.setAuthCookies(res, result.tokens.accessToken, result.tokens.refreshToken);
+      }
+      
+      return result;
+    } catch (error) {
+      throw new UnauthorizedException(error.message || 'Invalid 2FA code');
     }
   }
 
