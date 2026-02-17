@@ -32,6 +32,6 @@ async function bootstrap() {
   const port = process.env.PORT || 3001;
   await app.listen(port, '0.0.0.0');
   logger.log(`Backend running on port ${port}`);
-  logger.log('API available at https://localhost:8443/api');
+  logger.log('API available at https://<DOMAIN_NAME_OR_IP>/api');
 }
 bootstrap();

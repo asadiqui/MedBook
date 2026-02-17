@@ -3,6 +3,9 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ClientLayout } from "./client-layout";
 import AiChatWidget from '../components/ai/AiChatWidget';
+// Mobile check import
+import { headers } from 'next/headers';
+import MobileComingSoon from '@/components/shared/MobileComingSoon';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -18,6 +21,21 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // Mobile check
+  const headersList = headers();
+  const userAgent = headersList.get('user-agent') || '';
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+
+  if (isMobile) {
+    return (
+      <html lang="en">
+        <body className={inter.className}>
+          <MobileComingSoon />
+        </body>
+      </html>
+    );
+  }
+
   return (
     <html lang="en">
       <body className={inter.className}>

@@ -44,6 +44,8 @@ services:
       dockerfile: Dockerfile
     container_name: MedBook-front
     restart: unless-stopped
+    environment:
+      - NODE_TLS_REJECT_UNAUTHORIZED=0 # avoid image fetch error
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -60,8 +62,8 @@ services:
     container_name: MedBook-nginx
     restart: unless-stopped
     ports:
-      - "8080:80"
-      - "8443:443"
+      - "80:80"
+      - "443:443"
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./nginx/certs:/etc/nginx/certs:ro
@@ -73,6 +75,8 @@ services:
 
 volumes:
   postgres_data:
+    external: true
+    name: new-main_postgres_data
 
 networks:
   app-network:
