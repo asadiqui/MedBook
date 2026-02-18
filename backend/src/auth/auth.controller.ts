@@ -42,8 +42,8 @@ export class AuthController {
   }
 
   private setAuthCookies(res: Response, accessToken: string, refreshToken: string) {
-    const accessExpiry = this.configService.get<string>('JWT_ACCESS_EXPIRY', '15m');
-    const refreshExpiry = this.configService.get<string>('JWT_REFRESH_EXPIRY', '7d');
+    const accessExpiry = this.configService.get<string>('JWT_ACCESS_EXPIRY');
+    const refreshExpiry = this.configService.get<string>('JWT_REFRESH_EXPIRY');
 
     res.cookie('accessToken', accessToken, this.getCookieOptions(parseExpiryToMs(accessExpiry)));
     res.cookie('refreshToken', refreshToken, this.getCookieOptions(parseExpiryToMs(refreshExpiry)));
@@ -155,7 +155,7 @@ export class AuthController {
       if (result.message === 'Two-factor authentication required') {
         // Store temporary OAuth session
         const tempToken = Buffer.from(JSON.stringify(req.user)).toString('base64');
-        const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'https://localhost:8443');
+        const frontendUrl = this.configService.get<string>('FRONTEND_URL');
         return res.redirect(`${frontendUrl}/auth/2fa-verify?temp=${tempToken}`);
       }
 
@@ -163,12 +163,12 @@ export class AuthController {
         this.setAuthCookies(res, result.tokens.accessToken, result.tokens.refreshToken);
       }
 
-      const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'https://localhost:8443');
+      const frontendUrl = this.configService.get<string>('FRONTEND_URL');
       const redirectUrl = `${frontendUrl}/auth/callback?success=1`;
 
       return res.redirect(redirectUrl);
     } catch (error) {
-      const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'https://localhost:8443');
+      const frontendUrl = this.configService.get<string>('FRONTEND_URL');
       const errorMessage = encodeURIComponent(error.message || 'Authentication failed');
       return res.redirect(`${frontendUrl}/auth/login?error=${errorMessage}`);
     }

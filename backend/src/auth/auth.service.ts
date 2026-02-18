@@ -390,7 +390,7 @@ export class AuthService {
     }
 
     const secret = authenticator.generateSecret();
-    const appName = this.configService.get<string>('APP_NAME', 'MedBook');
+    const appName = this.configService.get<string>('APP_NAME');
     const otpauth = authenticator.keyuri(user.email, appName, secret);
 
     const qrCodeUrl = await toDataURL(otpauth);
@@ -754,7 +754,7 @@ export class AuthService {
   }
 
   private async hashPassword(password: string): Promise<string> {
-    const saltRounds = parseInt(this.configService.get<string>('BCRYPT_SALT_ROUNDS', '12'), 10) || 12;
+    const saltRounds = parseInt(this.configService.get<string>('BCRYPT_SALT_ROUNDS'), 10);
     return bcrypt.hash(password, saltRounds);
   }
 
@@ -767,12 +767,12 @@ export class AuthService {
 
     const accessToken = this.jwtService.sign(payload, {
       secret: this.configService.get<string>('JWT_SECRET'),
-      expiresIn: this.configService.get<string>('JWT_ACCESS_EXPIRY', '15m'),
+      expiresIn: this.configService.get<string>('JWT_ACCESS_EXPIRY'),
     });
 
     const refreshToken = uuidv4();
 
-    const refreshExpiry = this.configService.get<string>('JWT_REFRESH_EXPIRY', '7d');
+    const refreshExpiry = this.configService.get<string>('JWT_REFRESH_EXPIRY');
     const expiresAt = new Date(Date.now() + parseExpiryToMs(refreshExpiry));
 
     await this.prisma.refreshToken.create({

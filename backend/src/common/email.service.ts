@@ -8,14 +8,14 @@ export class EmailService {
   private readonly logger = new Logger(EmailService.name);
 
   constructor(private configService: ConfigService) {
-    const port = this.configService.get<number>('SMTP_PORT', 587);
     this.transporter = nodemailer.createTransport({
-      host: this.configService.get<string>('SMTP_HOST', 'smtp.gmail.com'),
-      port,
-      secure: port === 465,
+      service: 'gmail',
       auth: {
-        user: this.configService.get<string>('SMTP_USER'),
-        pass: this.configService.get<string>('SMTP_PASS'),
+        type: 'OAuth2',
+        user: this.configService.get<string>('EMAIL_USER'),
+        clientId: this.configService.get<string>('GOOGLE_CLIENT_ID'),
+        clientSecret: this.configService.get<string>('GOOGLE_CLIENT_SECRET'),
+        refreshToken: this.configService.get<string>('GOOGLE_REFRESH_TOKEN'),
       },
     });
   }
@@ -29,7 +29,7 @@ export class EmailService {
       }
 
       const mailOptions = {
-        from: `"${this.configService.get<string>('APP_NAME', 'MedBook')}" <${this.configService.get<string>('SMTP_USER')}>`,
+        from: `"${this.configService.get<string>('APP_NAME')}" <${this.configService.get<string>('EMAIL_USER')}>`,
         to,
         subject,
         html,
@@ -43,7 +43,7 @@ export class EmailService {
   }
 
   async sendVerificationEmail(email: string, token: string, isDoctorApproval: boolean = false): Promise<void> {
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'https://localhost:8443');
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
     const verificationUrl = `${frontendUrl}/auth/verify-email?token=${token}`;
 
     const html = `
@@ -67,7 +67,7 @@ export class EmailService {
   }
 
   async sendPasswordResetEmail(email: string, token: string): Promise<void> {
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'https://localhost:8443');
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
     const resetUrl = `${frontendUrl}/auth/reset-password?token=${token}`;
 
     const html = `
