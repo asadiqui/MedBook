@@ -24,7 +24,11 @@ export class BookingService {
   async createBooking(dto: CreateBookingDto, patientId: string) {
     const checkDate = new Date(dto.date);
     const today = new Date();
+    let first = timeConversion(dto.startTime);
 
+    if (first > checkDate.getHours() * 60 + checkDate.getMinutes()) {
+      throw new BadRequestException("Cannot create booking in the past");
+    }
     if (checkDate < new Date(today.toDateString())) {
       throw new BadRequestException("Cannot create availability for past dates");
     }
