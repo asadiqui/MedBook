@@ -12,10 +12,7 @@ import { Server, Socket } from 'socket.io';
 import { ChatService } from './chat.service';
 import { BookingStatus } from '@prisma/client';
 
-const chatCorsOrigin = process.env.FRONTEND_URL
-  .split(',')
-  .map((origin) => origin.trim())
-  .filter(Boolean);
+const chatCorsOrigin = process.env.FRONTEND_URL ?? '';
 
 const CHAT_ALLOWED_BOOKING_STATUSES: BookingStatus[] = [
   BookingStatus.ACCEPTED,
@@ -23,7 +20,7 @@ const CHAT_ALLOWED_BOOKING_STATUSES: BookingStatus[] = [
 
 @WebSocketGateway({
   cors: {
-    origin: chatCorsOrigin.length === 1 ? chatCorsOrigin[0] : chatCorsOrigin,
+    origin: chatCorsOrigin,
     credentials: true,
   },
   namespace: '/chat',

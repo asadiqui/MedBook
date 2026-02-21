@@ -27,7 +27,7 @@ const doctorSchema = z.object({
            parsed.getMonth() === month - 1 && 
            parsed.getDate() === day;
   }, { message: "Please enter a valid date (e.g., February only has 28/29 days)" }),
-  gender: z.enum(["MALE", "FEMALE", "OTHER"], { errorMap: () => ({ message: "Please select a gender" }) }),
+  gender: z.enum(["MALE", "FEMALE", "OTHER"] as const, { message: "Please select a gender" }),
   specialty: z.string().min(1, "Specialization is required"),
   licenseNumber: z.string().min(1, "License number is required"),
   affiliation: z.string().min(1, "Affiliation is required"),
@@ -82,7 +82,7 @@ export default function DoctorRegisterPage() {
 
   const { register: registerUser, isLoading, errors: apiErrors } = useRegistration({
     role: "DOCTOR",
-    apiUrl: process.env.NEXT_PUBLIC_API_URL,
+    apiUrl: process.env.NEXT_PUBLIC_API_URL as string,
   });
 
   if (isAuthenticated && user) {
@@ -127,25 +127,25 @@ export default function DoctorRegisterPage() {
   ];
 
   return (
-    <div className="min-h-screen flex">
+    <div className="flex h-screen overflow-hidden">
       {}
-      <div className="hidden lg:flex lg:w-2/5 relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-2/5 h-full relative overflow-hidden">
         {}
         <div 
           className="absolute inset-0 bg-cover bg-center"
           style={{
-            backgroundImage: "url('https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=1920&q=95&fit=crop&crop=faces')",
+            backgroundImage: "url('/images/register-doctor.jpg')",
           }}
         />
         
-        {}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-600/30 to-blue-900/70" />
+        {/* Dark overlay for text readability */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/60 to-black/85" />
 
         {}
-        <div className="relative z-10 flex flex-col justify-end p-12 text-white w-full">
+        <div className="relative z-10 flex flex-col justify-end p-12 text-white w-full [text-shadow:0_2px_8px_rgba(0,0,0,0.8)]">
           {}
           <div className="space-y-6">
-            <h1 className="text-5xl font-bold leading-tight">
+            <h1 className="text-5xl font-bold leading-tight drop-shadow-lg">
               Partner with us.<br />Grow your practice.
             </h1>
             
@@ -162,50 +162,53 @@ export default function DoctorRegisterPage() {
       </div>
 
       {}
-      <div className="flex-1 flex items-center justify-center p-8 bg-gray-50 relative overflow-hidden">
+      <div className="flex-1 overflow-y-auto bg-gray-50">
         {}
-        <div className="absolute inset-0 opacity-30">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-blue-100 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2"></div>
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-teal-100 rounded-full blur-3xl transform -translate-x-1/2 translate-y-1/2"></div>
-        </div>
-        
-        {}
-        <div className="absolute top-8 left-8 right-8 flex items-center justify-between z-10">
+        <div className="relative min-h-full">
           {}
-          <Link href="/" className="inline-flex">
-            <Logo size="md" />
-          </Link>
+          <div className="absolute inset-0 opacity-30 pointer-events-none">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-blue-100 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2"></div>
+            <div className="absolute bottom-0 left-0 w-96 h-96 bg-teal-100 rounded-full blur-3xl transform -translate-x-1/2 translate-y-1/2"></div>
+          </div>
           
           {}
-          <div className="text-sm">
-            <span className="text-gray-600">Already have an account? </span>
-            <Link href="/auth/login" className="text-blue-600 font-semibold hover:text-blue-700">
-              Log in
-            </Link>
-          </div>
-        </div>
-
-        <div className="w-full max-w-2xl 2xl:max-w-3xl mt-20 mb-8 relative z-10">
-          {}
-          <div className="mb-8">
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">Doctor Registration</h2>
-            <p className="text-gray-600">Please fill out the form below to register. All steps are required to verify your medical practice.</p>
-          </div>
-
-          {}
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <div className="sticky top-0 bg-gray-50/80 backdrop-blur-sm z-20 px-8 py-8 flex items-center justify-between border-b border-gray-200/50">
             {}
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-              <div className="flex items-center gap-2 mb-5">
-                <svg className="h-5 w-5 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                </svg>
-                <h3 className="text-lg font-semibold text-gray-900">Personal Information</h3>
+            <Link href="/" className="inline-flex">
+              <Logo size="md" />
+            </Link>
+            
+            {}
+            <div className="text-sm">
+              <span className="text-gray-600">Already have an account? </span>
+              <Link href="/auth/login" className="text-blue-600 font-semibold hover:text-blue-700">
+                Log in
+              </Link>
+            </div>
+          </div>
+
+          <div className="relative px-8 py-8">
+            <div className="w-full max-w-2xl 2xl:max-w-3xl mx-auto">
+              {}
+              <div className="mb-8">
+                <h2 className="text-3xl font-bold text-gray-900 mb-2">Doctor Registration</h2>
+                <p className="text-gray-600">Please fill out the form below to register. All steps are required to verify your medical practice.</p>
               </div>
 
-              <div className="space-y-4">
+              {}
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                 {}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                  <div className="flex items-center gap-2 mb-5">
+                    <svg className="h-5 w-5 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                    </svg>
+                    <h3 className="text-lg font-semibold text-gray-900">Personal Information</h3>
+                  </div>
+
+                  <div className="space-y-4">
+                    {}
+                    <div className="grid grid-cols-2 gap-4">
                   <FormField label="First Name" error={formErrors.firstName?.message} required>
                     <input
                       type="text"
@@ -286,19 +289,19 @@ export default function DoctorRegisterPage() {
                     />
                   </FormField>
                 </div>
-              </div>
-            </div>
+                  </div>
+                </div>
 
-            {}
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-              <div className="flex items-center gap-2 mb-5">
-                <svg className="h-5 w-5 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M20 6h-2.18c.11-.31.18-.65.18-1a2.996 2.996 0 0 0-5.5-1.65l-.5.67-.5-.68C10.96 2.54 10.05 2 9 2 7.34 2 6 3.34 6 5c0 .35.07.69.18 1H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-5-2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM9 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm11 15H4v-2h16v2zm0-5H4V8h5.08L7 10.83 8.62 12 11 8.76l1-1.36 1 1.36L15.38 12 17 10.83 14.92 8H20v6z"/>
-                </svg>
-                <h3 className="text-lg font-semibold text-gray-900">Professional Credentials</h3>
-              </div>
+                {}
+                <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                  <div className="flex items-center gap-2 mb-5">
+                    <svg className="h-5 w-5 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M20 6h-2.18c.11-.31.18-.65.18-1a2.996 2.996 0 0 0-5.5-1.65l-.5.67-.5-.68C10.96 2.54 10.05 2 9 2 7.34 2 6 3.34 6 5c0 .35.07.69.18 1H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-5-2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM9 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm11 15H4v-2h16v2zm0-5H4V8h5.08L7 10.83 8.62 12 11 8.76l1-1.36 1 1.36L15.38 12 17 10.83 14.92 8H20v6z"/>
+                    </svg>
+                    <h3 className="text-lg font-semibold text-gray-900">Professional Credentials</h3>
+                  </div>
 
-              <div className="space-y-4">
+                  <div className="space-y-4">
                 {}
                 <div className="grid grid-cols-2 gap-4">
                   <FormField label="Specialization" error={formErrors.specialty?.message || apiErrors.specialty} required>
@@ -353,16 +356,16 @@ export default function DoctorRegisterPage() {
                     min="0"
                     step="0.01"
                   />
-                </FormField>
+                  </FormField>
+                </div>
               </div>
-            </div>
 
-            {}
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-              <div className="flex items-center gap-2 mb-5">
-                <svg className="h-5 w-5 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/>
-                </svg>
+                {}
+                <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                  <div className="flex items-center gap-2 mb-5">
+                    <svg className="h-5 w-5 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/>
+                    </svg>
                 <h3 className="text-lg font-semibold text-gray-900">Clinic Information</h3>
               </div>
 
@@ -405,28 +408,28 @@ export default function DoctorRegisterPage() {
               </div>
             </div>
 
-            {}
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-              <div className="flex items-center gap-2 mb-5">
-                <FileText className="h-5 w-5 text-blue-600" />
-                <h3 className="text-lg font-semibold text-gray-900">Documents</h3>
-              </div>
+                {}
+                <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                  <div className="flex items-center gap-2 mb-5">
+                    <FileText className="h-5 w-5 text-blue-600" />
+                    <h3 className="text-lg font-semibold text-gray-900">Documents</h3>
+                  </div>
 
-              <div>
-                <FileUpload
+                  <div>
+                    <FileUpload
                   label="Upload Medical License / Certification"
                   onFileSelect={setUploadedFile}
                   selectedFile={uploadedFile}
                   required
-                />
-              </div>
-            </div>
+                    />
+                  </div>
+                </div>
 
-            {}
-            <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Review & Confirmation</h3>
-              
-              <div className="space-y-3 mb-5">
+                {}
+                <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Review & Confirmation</h3>
+                  
+                  <div className="space-y-3 mb-5">
                 <p className="text-sm text-gray-700">By clicking complete, you confirm the following details:</p>
                 <ul className="space-y-2 text-sm text-gray-700 ml-4">
                   <li className="flex items-start gap-2">
@@ -440,24 +443,24 @@ export default function DoctorRegisterPage() {
                   <li className="flex items-start gap-2">
                     <span className="text-blue-600 mt-0.5">•</span>
                     <span>Association with the specified medical facility</span>
-                  </li>
-                </ul>
-              </div>
+                      </li>
+                    </ul>
+                  </div>
 
-              <div className="space-y-3">
-                <TermsAgreement
+                  <div className="space-y-3">
+                    <TermsAgreement
                   agreedToTerms={watch("agreedToTerms")}
                   agreedToVerification={watch("agreedToVerification")}
                   onTermsChange={(agreed) => setValue("agreedToTerms", agreed)}
                   onVerificationChange={(agreed) => setValue("agreedToVerification", agreed)}
                   showVerification={true}
-                  error={formErrors.agreedToTerms?.message || formErrors.agreedToVerification?.message || apiErrors.agreedToTerms || apiErrors.agreedToVerification}
-                />
-              </div>
-            </div>
+                      error={formErrors.agreedToTerms?.message || formErrors.agreedToVerification?.message || apiErrors.agreedToTerms || apiErrors.agreedToVerification}
+                    />
+                  </div>
+                </div>
 
-            {}
-            <button
+                {}
+                <button
               type="submit"
               disabled={isSubmitting || isLoading}
               className="w-full bg-blue-600 text-white py-3.5 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2 text-base disabled:opacity-50 disabled:cursor-not-allowed"
@@ -475,9 +478,11 @@ export default function DoctorRegisterPage() {
                     <polyline points="22 4 12 14.01 9 11.01" />
                   </svg>
                 </>
-              )}
-            </button>
-          </form>
+                  )}
+                </button>
+              </form>
+            </div>
+          </div>
         </div>
       </div>
     </div>

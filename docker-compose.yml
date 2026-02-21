@@ -11,6 +11,11 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - app-network
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -24,9 +29,6 @@ services:
     container_name: MedBook-back
     restart: unless-stopped
     volumes:
-      - ./backend:/app
-      - /app/node_modules
-      - /app/node_modules/.prisma
       - ./backend/uploads:/app/uploads
       - ./backend/private:/app/private
     env_file:
@@ -36,26 +38,34 @@ services:
         condition: service_healthy
     networks:
       - app-network
-    command: sh -c "npm run prisma:migrate && if [ \"$SEED_DB\" = \"true\" ]; then npm run prisma:seed; fi && npm run start:dev"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    command: sh -c "npm run prisma:migrate && if [ \"$SEED_DB\" = \"true\" ]; then npm run prisma:seed; fi && npm run start:prod"
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_BASE_URL: ${NEXT_PUBLIC_BASE_URL}
+        NEXT_PUBLIC_SOCKET_URL: ${NEXT_PUBLIC_SOCKET_URL}
     container_name: MedBook-front
     restart: unless-stopped
-    environment:
-      - NODE_TLS_REJECT_UNAUTHORIZED=0 # avoid image fetch error
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-      - /app/.next
     env_file:
       - .env
     depends_on:
       - backend
     networks:
       - app-network
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   nginx:
     image: nginx:1.28.1-alpine
@@ -67,9 +77,26 @@ services:
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./nginx/certs:/etc/nginx/certs:ro
+      - certbot_webroot:/var/www/certbot:ro
+      - letsencrypt_certs:/etc/letsencrypt:ro
     depends_on:
       - frontend
       - backend
+    networks:
+      - app-network
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  certbot:
+    image: certbot/certbot:latest
+    container_name: MedBook-certbot
+    volumes:
+      - certbot_webroot:/var/www/certbot
+      - letsencrypt_certs:/etc/letsencrypt
+    entrypoint: /bin/sh -c "trap exit TERM; while :; do certbot renew --quiet; sleep 12h & wait $${!}; done"
     networks:
       - app-network
 
@@ -77,6 +104,8 @@ volumes:
   postgres_data:
     external: true
     name: new-main_postgres_data
+  certbot_webroot:
+  letsencrypt_certs:
 
 networks:
   app-network:

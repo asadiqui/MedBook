@@ -12,6 +12,7 @@ import {
   UploadedFile,
   UnauthorizedException,
 } from '@nestjs/common';
+import { unlink } from 'fs/promises';
 import { Response, Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthService } from './auth.service';
@@ -64,7 +65,15 @@ export class AuthController {
     if (file) {
       dto.licenseDocument = file;
     }
-    return this.authService.register(dto);
+    try {
+      return await this.authService.register(dto);
+    } catch (error) {
+      // Clean up the uploaded document if registration fails (e.g. duplicate email)
+      if (file?.path) {
+        unlink(file.path).catch(() => {});
+      }
+      throw error;
+    }
   }
 
   @Public()

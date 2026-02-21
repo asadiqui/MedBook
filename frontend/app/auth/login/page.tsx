@@ -85,7 +85,8 @@ export default function LoginPage() {
   };
 
   const handleGoogleLogin = () => {
-    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/google`;
+    const apiBase = process.env.NEXT_PUBLIC_API_URL;
+    window.location.href = `${apiBase}/auth/google`;
   };
 
   if (isAuthenticated) {
@@ -100,18 +101,18 @@ export default function LoginPage() {
         <div 
           className="absolute inset-0 bg-cover bg-center"
           style={{
-            backgroundImage: "url('https://images.unsplash.com/photo-1582750433449-648ed127bb54?w=1920&q=95&fit=crop&crop=faces')",
+            backgroundImage: "url('/images/login-doctor.jpeg')",
           }}
         />
         
-        {}
-        <div className="absolute inset-0 bg-gradient-to-b from-blue-900/40 via-blue-900/50 to-blue-950/70" />
+        {/* Dark overlay for text readability */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/60 to-black/85" />
 
         {}
-        <div className="relative z-10 flex flex-col justify-end p-12 text-white w-full">
+        <div className="relative z-10 flex flex-col justify-end p-12 text-white w-full [text-shadow:0_2px_8px_rgba(0,0,0,0.8)]">
           {}
           <div className="space-y-6">
-            <h1 className="text-5xl font-bold leading-tight">
+            <h1 className="text-5xl font-bold leading-tight drop-shadow-lg">
               Your Health,<br />Simplified.
             </h1>
             

@@ -1,23 +1,41 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
+import { google } from 'googleapis';
 
 @Injectable()
 export class EmailService {
-  private transporter: nodemailer.Transporter;
   private readonly logger = new Logger(EmailService.name);
 
-  constructor(private configService: ConfigService) {
-    this.transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        type: 'OAuth2',
-        user: this.configService.get<string>('EMAIL_USER'),
-        clientId: this.configService.get<string>('GOOGLE_CLIENT_ID'),
-        clientSecret: this.configService.get<string>('GOOGLE_CLIENT_SECRET'),
-        refreshToken: this.configService.get<string>('GOOGLE_REFRESH_TOKEN'),
-      },
+  constructor(private configService: ConfigService) {}
+
+  private async getGmailClient() {
+    const oauth2Client = new google.auth.OAuth2(
+      this.configService.get<string>('GMAIL_CLIENT_ID'),
+      this.configService.get<string>('GMAIL_CLIENT_SECRET'),
+      'https://developers.google.com/oauthplayground',
+    );
+    oauth2Client.setCredentials({
+      refresh_token: this.configService.get<string>('GMAIL_REFRESH_TOKEN'),
     });
+    return google.gmail({ version: 'v1', auth: oauth2Client });
+  }
+
+  private buildRawMessage(to: string, subject: string, html: string, from: string): string {
+    const messageParts = [
+      `From: "${this.configService.get<string>('APP_NAME')}" <${from}>`,
+      `To: ${to}`,
+      'Content-Type: text/html; charset=utf-8',
+      'MIME-Version: 1.0',
+      `Subject: ${subject}`,
+      '',
+      html,
+    ];
+    const message = messageParts.join('\n');
+    return Buffer.from(message)
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
   }
 
   async sendEmail(to: string, subject: string, html: string): Promise<void> {
@@ -28,14 +46,15 @@ export class EmailService {
         return;
       }
 
-      const mailOptions = {
-        from: `"${this.configService.get<string>('APP_NAME')}" <${this.configService.get<string>('EMAIL_USER')}>`,
-        to,
-        subject,
-        html,
-      };
+      const from = this.configService.get<string>('EMAIL_USER');
+      const gmail = await this.getGmailClient();
+      const raw = this.buildRawMessage(to, subject, html, from);
 
-      await this.transporter.sendMail(mailOptions);
+      await gmail.users.messages.send({
+        userId: 'me',
+        requestBody: { raw },
+      });
+
       this.logger.log(`Email sent successfully to ${to}`);
     } catch (error) {
       this.logger.error('Email sending failed', error as Error);

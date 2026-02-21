@@ -6,11 +6,18 @@ import { Toaster } from "react-hot-toast";
 import { useAuthStore } from "@/lib/store/auth";
 import { useGlobalSocket } from "@/lib/hooks/useGlobalSocket";
 import { useNotificationsSocket } from "@/lib/hooks/useNotificationsSocket";
+import AiChatWidget from '@/components/ai/AiChatWidget';
 
 function GlobalSocketProvider() {
   useGlobalSocket();
   useNotificationsSocket();
   return null;
+}
+
+function FloatingAiWidget() {
+  const pathname = usePathname();
+  if (pathname === '/chat') return null;
+  return <AiChatWidget mode="floating" agentId="rag" title="Ask Clinic" />;
 }
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
@@ -47,6 +54,8 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       {user && <GlobalSocketProvider />}
 
       {children}
+
+      <FloatingAiWidget />
 
       <Toaster
         position="top-right"

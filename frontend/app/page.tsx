@@ -20,12 +20,12 @@ export default function RegisterPage() {
         <div 
           className="absolute inset-0 bg-cover bg-center"
           style={{
-            backgroundImage: "url('https://images.unsplash.com/photo-1643297654416-05795d62e39c?w=1200&q=80')",
+            backgroundImage: "url('/images/register-main.jpg')",
           }}
         />
         
-        {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-600/30 to-blue-800/70" />
+        {/* Dark overlay for text readability */}
+        <div className="absolute inset-0 bg-gradient-to-b from-blue-900/30 via-blue-900/50 to-blue-950/80" />
 
         {/* Content */}
         <div className="relative z-10 flex flex-col justify-end p-12 text-white w-full">

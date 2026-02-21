@@ -30,7 +30,7 @@ const patientSchema = z.object({
            parsed.getMonth() === month - 1 && 
            parsed.getDate() === day;
   }, { message: "Please enter a valid date (e.g., February only has 28/29 days)" }),
-  gender: z.enum(["MALE", "FEMALE", "OTHER"], { errorMap: () => ({ message: "Please select a gender" }) }),
+  gender: z.enum(["MALE", "FEMALE", "OTHER"] as const, { message: "Please select a gender" }),
   password: z.string().min(8, "Password must be at least 8 characters"),
   agreedToTerms: z.boolean().refine((val) => val === true, {
     message: "You must agree to the terms and conditions",
@@ -64,7 +64,7 @@ export default function PatientRegisterPage() {
 
   const { register: registerUser, isLoading, errors: apiErrors } = useRegistration({
     role: "PATIENT",
-    apiUrl: process.env.NEXT_PUBLIC_API_URL,
+    apiUrl: process.env.NEXT_PUBLIC_API_URL as string,
   });
 
   if (isAuthenticated && user) {
@@ -100,18 +100,21 @@ export default function PatientRegisterPage() {
         <div 
           className="absolute inset-0 bg-cover bg-center"
           style={{
-            backgroundImage: "url('https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=1200&q=80')",
+            backgroundImage: "url('/images/register-patient.jpg')",
+            backgroundSize: "110% 110%",
+            backgroundPosition: "center center",
+            backgroundRepeat: "no-repeat",
           }}
         />
         
-        {}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-teal-600/30 to-teal-800/70" />
+        {/* Dark overlay for text readability */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/60 to-black/85" />
 
         {}
-        <div className="relative z-10 flex flex-col justify-end p-12 text-white w-full">
+        <div className="relative z-10 flex flex-col justify-end p-12 text-white w-full [text-shadow:0_2px_8px_rgba(0,0,0,0.8)]">
           {}
           <div className="space-y-6">
-            <h1 className="text-5xl font-bold leading-tight">
+            <h1 className="text-5xl font-bold leading-tight drop-shadow-lg">
               Healthcare simplified<br />for everyone.
             </h1>
             

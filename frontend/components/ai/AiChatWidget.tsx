@@ -2,7 +2,9 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { api } from '../../lib/api';
+import api from '../../lib/api';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL as string;
 
 interface Message {
   id: string;
@@ -44,8 +46,6 @@ export default function AiChatWidget({
     // Load history when widget opens or mounts
     const fetchHistory = async () => {
       try {
-        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-        
         const res = await fetch(`${API_URL}/ai/llm/history/${agentId}`, {
           credentials: 'include'
         });
@@ -87,8 +87,6 @@ export default function AiChatWidget({
     if (!confirm('Are you sure you want to clear your chat history?')) return;
 
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-      
       await fetch(`${API_URL}/ai/llm/history/${agentId}`, {
         method: 'DELETE',
         credentials: 'include'
@@ -137,8 +135,6 @@ export default function AiChatWidget({
       };
       setMessages(prev => [...prev, assistantMessage]);
 
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-      
       const response = await fetch(`${API_URL}/ai/llm/chat/stream`, {
         method: 'POST',
         headers: {

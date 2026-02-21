@@ -17,11 +17,17 @@ export const useGlobalSocket = () => {
   const { user } = useAuthStore();
   const { incrementUnreadCount, fetchUnreadCount } = useChatStore();
   const pathname = usePathname();
+  const pathnameRef = useRef(pathname);
+
+  // Keep pathnameRef in sync without re-creating the socket
+  useEffect(() => {
+    pathnameRef.current = pathname;
+  }, [pathname]);
 
   useEffect(() => {
     if (!user) return;
 
-    // Fetch initial unread count
+    // Fetch initial unread count once on mount
     fetchUnreadCount();
 
     const socket = io(`${SOCKET_URL}/chat`, {
@@ -42,14 +48,9 @@ export const useGlobalSocket = () => {
 
     // Listen for new messages globally to update unread count
     socket.on("new_message", (message: { receiverId: string; bookingId: string }) => {
-      console.log("[GlobalSocket] New message received:", message);
-      // Only increment if the message is for this user
       if (message.receiverId === user.id) {
-        // Check if user is NOT currently viewing the chat page
-        const isOnChatPage = pathname === '/chat';
-        
-        if (!isOnChatPage) {
-          console.log("[GlobalSocket] Incrementing unread count");
+        // Read current pathname via ref — no need to re-create the socket on navigation
+        if (pathnameRef.current !== '/chat') {
           incrementUnreadCount(1);
         }
       }
@@ -57,18 +58,14 @@ export const useGlobalSocket = () => {
 
     // Listen for booking cancellation/rejection to refresh unread count
     socket.on("booking_cancelled", (data: { bookingId: string }) => {
-      console.log("[GlobalSocket] Booking cancelled:", data.bookingId, "- refreshing unread count");
+      console.log("[GlobalSocket] Booking cancelled:", data.bookingId);
       fetchUnreadCount();
     });
 
     return () => {
       console.log("[GlobalSocket] Cleaning up socket");
-      if (socket.connected) {
-        socket.disconnect();
-      } else {
-        socket.close();
-      }
+      socket.disconnect();
       socketRef.current = null;
     };
-  }, [user, incrementUnreadCount, fetchUnreadCount, pathname]);
+  }, [user, incrementUnreadCount, fetchUnreadCount]);
 };

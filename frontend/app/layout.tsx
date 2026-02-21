@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ClientLayout } from "./client-layout";
-import AiChatWidget from '../components/ai/AiChatWidget';
 // Mobile check import
 import { headers } from 'next/headers';
 import MobileComingSoon from '@/components/shared/MobileComingSoon';
@@ -40,11 +39,6 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <ClientLayout>{children}</ClientLayout>
-        <AiChatWidget 
-          mode="floating" 
-          agentId="rag" 
-          title="Ask Clinic" 
-        />
       </body>
     </html>
   );

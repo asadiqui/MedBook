@@ -14,7 +14,7 @@ import { authenticator } from 'otplib';
 import { toDataURL } from 'qrcode';
 import { PrismaService } from '../prisma/prisma.service';
 import { RegisterDto, LoginDto, ChangePasswordDto, Enable2FADto, Verify2FADto, VerifyEmailDto } from './dto';
-import { Role } from '@prisma/client';
+import { Role, Gender } from '@prisma/client';
 import { EmailService } from '../common/email.service';
 import { parseExpiryToMs } from '../common/utils/expiry';
 import axios from 'axios';
@@ -139,6 +139,7 @@ export class AuthService {
         lastName: dto.lastName,
         role: dto.role || Role.PATIENT,
         phone: dto.phone,
+        gender: (dto.gender as Gender) ?? null,
         dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : undefined,
         isActive: dto.role === Role.DOCTOR ? false : true,
         licenseDocument: dto.licenseDocument ? `private/documents/${dto.licenseDocument.filename}` : null,
