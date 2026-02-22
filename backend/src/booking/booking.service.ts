@@ -26,12 +26,18 @@ export class BookingService {
     const today = new Date();
     let first = timeConversion(dto.startTime);
 
-    if (first > checkDate.getHours() * 60 + checkDate.getMinutes()) {
-      throw new BadRequestException("Cannot create booking in the past");
-    }
     if (checkDate < new Date(today.toDateString())) {
       throw new BadRequestException("Cannot create availability for past dates");
     }
+    if (first < checkDate.getHours() * 60 + checkDate.getMinutes()) {
+      throw new BadRequestException("Start time must be in the future");
+    }
+
+      const isToday = checkDate.toDateString() === today.toDateString();
+      const nowMinutes = today.getHours() * 60 + today.getMinutes();
+      if (isToday && first <= nowMinutes) {
+        throw new BadRequestException("Start time must be in the future");
+      }
 
     const user = await this.prisma.user.findUnique({
       where: { id: patientId },

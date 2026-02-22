@@ -13,6 +13,11 @@ export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
   title: "MedBook - Healthcare Platform",
   description: "Connect with healthcare providers and manage your health journey",
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+    apple: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({

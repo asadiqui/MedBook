@@ -12,6 +12,8 @@ export class CreateBookingDto {
   @Matches(/^([0-1]\d|2[0-3]):([0-5]\d)$/)
   startTime: string;
 
+  //ex starttime 
+
   @IsInt()
   @IsIn([60, 120])
   @Type(() => Number)

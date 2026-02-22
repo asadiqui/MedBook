@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <!-- Outer white rounded square with subtle shadow -->
+  <rect x="2" y="4" width="96" height="96" rx="20" ry="20" fill="#e5e7eb" opacity="0.6"/>
+  <rect x="2" y="2" width="96" height="96" rx="20" ry="20" fill="white"/>
+  <!-- Inner blue rounded square -->
+  <rect x="14" y="14" width="72" height="72" rx="14" ry="14" fill="#4F7BE8"/>
+  <!-- White plus/cross symbol -->
+  <rect x="43" y="27" width="14" height="46" rx="4" ry="4" fill="white"/>
+  <rect x="27" y="43" width="46" height="14" rx="4" ry="4" fill="white"/>
+</svg>
