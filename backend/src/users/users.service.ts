@@ -365,6 +365,22 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
+    const activeBookingsCount = await this.prisma.booking.count({
+      where: {
+        OR: [
+          { patientId: id },
+          { doctorId: id },
+        ],
+        status: { in: [BookingStatus.PENDING, BookingStatus.ACCEPTED] },
+      },
+    });
+
+    if (activeBookingsCount > 0) {
+      throw new ForbiddenException(
+        `Cannot delete account with ${activeBookingsCount} active booking(s). Please cancel or wait for your bookings to complete before deleting your account.`,
+      );
+    }
+
     await this.prisma.user.update({
       where: { id },
       data: {
